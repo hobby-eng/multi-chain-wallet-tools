@@ -1,5 +1,6 @@
 // Re-encode an old backup through MnemoCode's confirmation owner, then the existing Encode tab. A
 // SeedStitch legend line stands for the record of the masked phrase it holds, as in Decode.
+import { readHiddenQrRecord } from "@ckd/recovery-backup/mnemocode-hidden-qr.js";
 import { fingerprintWithoutPassphrase } from "@ckd/recovery-backup/fingerprint.js";
 import {
   MnemoCodeReEncoding,
@@ -15,6 +16,7 @@ import {
   readStitchLegendLine,
 } from "@ckd/recovery-backup/mnemocode-stitch.js";
 import { SecretValue } from "@ckd/core/secret-value.js";
+import { installStitchPdfImport } from "./recovery-mnemocode-stitch-pdf.js";
 import { InputRevision } from "./recovery-input-revision.js";
 import { WalletEvidenceField } from "./recovery-mnemocode-evidence.js";
 import { installTextFileImport } from "@ckd/ui/text-file-import.js";
@@ -113,8 +115,11 @@ export class MnemoCodeReEncodeTab {
       (text) => {
         this.#status.textContent = text;
       },
-      { file: RECORD_FILE_IMPORT, qr: {} },
+      { file: RECORD_FILE_IMPORT, qr: { readHidden: readHiddenQrRecord } },
     );
+    installStitchPdfImport(this.#input, (text) => {
+      this.#status.textContent = text;
+    });
     installOptionHelp(
       this.#mode,
       `#${PREFIX}-mode-help`,

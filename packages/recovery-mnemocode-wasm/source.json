@@ -1,29 +1,29 @@
 {
   "schemaVersion": 1,
   "repository": "hobby-eng/mnemocode",
-  "commit": "a6dce867775fab94ec044c02d6b4d13b3c614571",
+  "commit": "b22affc57d555bd796fa60700b8a0b5462313f86",
   "version": "0.2.0",
-  "unreleased": "local build of a6dce86 for development (MnemoCode's cargo xtask wasm build of the same tree as 0a57213, packed in wallet-tools' scratch folder); the canonical archive and the 0.2.0 tag are still to come",
+  "unreleased": "local build of the uncommitted working tree on b22affc for development (MnemoCode's cargo xtask wasm of 2026-11-09 14:07 UTC+1, after AUD-005; stego, hidden QR, embroidery sizes), packed in wallet-tools' scratch folder; the commit, the canonical archive and the 0.2.0 tag are still to come",
   "archive": {
     "name": "mnemocode-0.2.0-wasm.tar",
-    "sha256": "455aa7c7816dd3efc0213285b44e1c1bba6a559aeaad376c711f09bac74e790a"
+    "sha256": "05413c00085b2251454b459fe217d89540f853988ce4443584e3d127e103d2fe"
   },
   "files": {
     "LICENSE-APACHE": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
     "LICENSE-MIT": "9c44407fa4ecf62d982f0244a4a3afbc3d5d74afbd93d6bc4bba3d1d5c3e5044",
     "NOTICE": "58cbf585ef5a6e71719923d66f3e26785b764f76700cf30110956b92268ae8a1",
-    "THIRD_PARTY_NOTICES.md": "c9c93b2e6c817fef167f4be00078b9b75f2d9b4294a6e05d384de8d79c392107",
-    "generated/dash-community/key-derivation/mnemocode.d.ts": "57bed4983769f78e455aff08122bb2dd60e5a1fc7efcc39a911a8653d9644df8",
-    "generated/dash-community/key-derivation/mnemocode.js": "0e7f293784b863d6cd3e97d00e109d3d02f10de273064c1666064f6b4069baad",
-    "generated/dash-community/key-derivation/mnemocode.wasm": "b86cdb912263fd10c9b5fb643bad7bc7eeee59aba3ae110c55ee76c8bb1b3f47",
-    "generated/dash-community/key-derivation/modules.json": "7339113261a472c93f4e33af9524518220a6617e7c99976e329abb7b490dd8b0",
+    "THIRD_PARTY_NOTICES.md": "c61356f4ef6ab2fcc1afc60e745b47f0e0f17660c7c33f3e15d8b2854decd106",
+    "generated/dash-community/key-derivation/mnemocode.d.ts": "7c2ce6da20ec4f7f37a8558d15bc2522407b50d1cbcfc118b282c81d2dc5663c",
+    "generated/dash-community/key-derivation/mnemocode.js": "f1b59f9b03dd12e395e289c56c1f90762811e80cf17566d21bb2744bf8bf3db1",
+    "generated/dash-community/key-derivation/mnemocode.wasm": "721f5199c4b17343eb97fe00c1a93ffcd8276f7c3607a33c2e6bd950f9dd5caf",
+    "generated/dash-community/key-derivation/modules.json": "ec9c3782e2892bd342cfdfbf39fe8737669d8884ba82d8884557f89ed39aaa07",
     "generated/multi-chain/discovery-scanner/mnemocode.d.ts": "095c774232caeab8efe2c7e492856095dd8ce37635dbe3e68de6a3b8e2ebc457",
     "generated/multi-chain/discovery-scanner/mnemocode.js": "da2b9eba078252470c3e5f84d159b868f6cd21a0bf6d435e6d5ac965b2a45952",
-    "generated/multi-chain/discovery-scanner/mnemocode.wasm": "58735654899c4bf0b572c367d4d0ad38b43bc13163111b26bb00269a9e5fb9b7",
-    "generated/multi-chain/discovery-scanner/modules.json": "d563ad71f08c9948c895e1e2c3badb57bb25a3a7674ea5672b6a472ddfde6479",
-    "generated/multi-chain/key-derivation/mnemocode.d.ts": "77276375339d1c87f25f6d96db31b3bb8db494f955d73e9c13ef8fb62eddf35a",
-    "generated/multi-chain/key-derivation/mnemocode.js": "46a04f51094ef07fb2dc36c718440ab8c08164e04f221a389f78f0c534b4b981",
-    "generated/multi-chain/key-derivation/mnemocode.wasm": "fc3fe0292c2760680149b215679fce0d275aed40228e62ce07b247c168b55ed9",
-    "generated/multi-chain/key-derivation/modules.json": "131b2eed2faefc88cabde73c1b5851bbc117f2b13085baae3913e0943ebd3c02"
+    "generated/multi-chain/discovery-scanner/mnemocode.wasm": "a2e596f79a29b5a84d87b512dd049cb43a2ee69822bfda89b933822913520291",
+    "generated/multi-chain/discovery-scanner/modules.json": "3dc0800a3984460d33a9bc718d337be350df3a293656a90c48e37e93d2a27b3d",
+    "generated/multi-chain/key-derivation/mnemocode.d.ts": "ceaeeed58caa2f627f9b5dd2762b6c5890c5aacd22a0fee18b0dc4d21bb41f4f",
+    "generated/multi-chain/key-derivation/mnemocode.js": "79b1061d2df7e1a7b21a3cdc92013cd017dbba0965fbdc4c27ad6be97f7f30f2",
+    "generated/multi-chain/key-derivation/mnemocode.wasm": "e2f5df7ccdd3b0c0ee62794df43991c70a54880104db1c6a5f35e186e70d237a",
+    "generated/multi-chain/key-derivation/modules.json": "9598fdea99b8b46492b08b4a8986fbb22d90d7b48129fd33abaaaa5affe16cc2"
   }
 }

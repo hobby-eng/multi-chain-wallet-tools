@@ -434,6 +434,13 @@ export class CardExport {
         }
     }
     /**
+     * Choose a contact in the sheet QR and the exact backup record in its filler bytes.
+     * @param {boolean} enabled
+     */
+    setHiddenQr(enabled) {
+        wasm.cardexport_setHiddenQr(this.__wbg_ptr, enabled);
+    }
+    /**
      * The text `part` of the design: studioName, slogan, subtitle, footer or referenceLabel; "-"
      * hides its line.
      * @param {string} part
@@ -3253,6 +3260,993 @@ export class SplitShares {
 if (Symbol.dispose) SplitShares.prototype[Symbol.dispose] = SplitShares.prototype.free;
 
 /**
+ * Clean input owners for one new threshold generation; incomplete groups export no files.
+ */
+export class StegoCarrierSet {
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        StegoCarrierSetFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_stegocarrierset_free(ptr, 0);
+    }
+    /**
+     * Moves a completed analysis into the group without another file copy or
+     * password stretch. Admission failure retains the analysis for the host.
+     * @param {StegoJob} job
+     */
+    addAnalyzed(job) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            _assertClass(job, StegoJob);
+            wasm.stegocarrierset_addAnalyzed(retptr, this.__wbg_ptr, job.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            if (r1) {
+                throw takeObject(r0);
+            }
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Admits aggregate source bytes before copying this input into Rust.
+     * Each member holds its share as the original message of its file.
+     * @param {Uint8Array} file
+     * @param {any} password
+     */
+    add(file, password) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            const ptr0 = passArray8ToWasm0(file, wasm.__wbindgen_export);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.stegocarrierset_add(retptr, this.__wbg_ptr, ptr0, len0, addHeapObject(password));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            if (r1) {
+                throw takeObject(r0);
+            }
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Common guaranteed payload bytes after envelope overhead. No value means
+     * at least one input was not analyzed; it does not mean zero capacity.
+     * @param {any} selected_density
+     * @returns {number | undefined}
+     */
+    capacityBytes(selected_density) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.stegocarrierset_capacityBytes(retptr, this.__wbg_ptr, addHeapObject(selected_density));
+            var r0 = getDataViewMemory0().getFloat64(retptr + 8 * 0, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
+            if (r3) {
+                throw takeObject(r2);
+            }
+            return r0 === Number.MAX_SAFE_INTEGER ? undefined : r0;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Starts an empty selection of original carriers.
+     * @param {any} selected_density
+     */
+    constructor(selected_density) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.stegocarrierset_new(retptr, addHeapObject(selected_density));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            this.__wbg_ptr = r0;
+            StegoCarrierSetFinalization.register(this, this.__wbg_ptr, this);
+            return this;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Changes the requested profile without discarding admitted analyses. The
+     * exact contents are checked against common capacity when `start` is called.
+     * @param {any} selected_density
+     */
+    selectDensity(selected_density) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.stegocarrierset_selectDensity(retptr, this.__wbg_ptr, addHeapObject(selected_density));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            if (r1) {
+                throw takeObject(r0);
+            }
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Consumes the inputs and contents; the core validates the requested quorum.
+     * @param {StegoContent} content
+     * @param {any} needed
+     * @returns {StegoJob}
+     */
+    start(content, needed) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            _assertClass(content, StegoContent);
+            wasm.stegocarrierset_start(retptr, this.__wbg_ptr, content.__wbg_ptr, addHeapObject(needed));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return StegoJob.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+}
+if (Symbol.dispose) StegoCarrierSet.prototype[Symbol.dispose] = StegoCarrierSet.prototype.free;
+
+/**
+ * A typed hidden message in an owning wiped buffer; `free()` releases it.
+ */
+export class StegoContent {
+    static __wrap(ptr) {
+        const obj = Object.create(StegoContent.prototype);
+        obj.__wbg_ptr = ptr;
+        StegoContentFinalization.register(obj, obj.__wbg_ptr, obj);
+        return obj;
+    }
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        StegoContentFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_stegocontent_free(ptr, 0);
+    }
+    /**
+     * MNC1 text for a compact backup; the host must promptly clear its JS copy.
+     * @returns {string | undefined}
+     */
+    backupRecord() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.stegocontent_backupRecord(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
+            if (r3) {
+                throw takeObject(r2);
+            }
+            let v1;
+            if (r0 !== 0) {
+                v1 = getStringFromWasm0(r0, r1);
+                wasm.__wbindgen_export4(r0, r1 * 1, 1);
+            }
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Packs an existing MNC1 backup without changing any legacy checksum bits.
+     * @param {any} record
+     * @returns {StegoContent}
+     */
+    static backup(record) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.stegocontent_backup(retptr, addHeapObject(record));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return StegoContent.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Required files for a threshold envelope, or zero for ordinary contents.
+     * @returns {number}
+     */
+    filesNeeded() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.stegocontent_filesNeeded(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return r0 >>> 0;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Opaque bytes, or no value for a compact backup or a threshold envelope.
+     * @returns {Uint8Array | undefined}
+     */
+    opaqueBytes() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.stegocontent_opaqueBytes(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
+            if (r3) {
+                throw takeObject(r2);
+            }
+            let v1;
+            if (r0 !== 0) {
+                v1 = getArrayU8FromWasm0(r0, r1).slice();
+                wasm.__wbindgen_export4(r0, r1 * 1, 1);
+            }
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Nonempty exact bytes, including arbitrary binary files; never normalized.
+     * @param {Uint8Array} bytes
+     * @returns {StegoContent}
+     */
+    static opaque(bytes) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_export);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.stegocontent_opaque(retptr, ptr0, len0);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return StegoContent.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Releases the contents now; subsequent uses are refused.
+     */
+    wipe() {
+        wasm.stegocontent_wipe(this.__wbg_ptr);
+    }
+}
+if (Symbol.dispose) StegoContent.prototype[Symbol.dispose] = StegoContent.prototype.free;
+
+/**
+ * One carrier and normalized password: the original message's, or a decoy's or set
+ * member's where the call says so. Opening finds the password's record by itself.
+ */
+export class StegoInput {
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        StegoInputFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_stegoinput_free(ptr, 0);
+    }
+    /**
+     * Checks a proposed decoy password without consuming the input or changing either password.
+     * Use only on the private creation screen. hideWithDecoy repeats core admission before
+     * consuming inputs; this method is feedback, not an authorization token.
+     * @param {any} decoy
+     * @returns {StegoPasswordComparison}
+     */
+    compareDecoyPassword(decoy) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.stegoinput_compareDecoyPassword(retptr, this.__wbg_ptr, addHeapObject(decoy));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return StegoPasswordComparison.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Metadata condition codes from the admitted input, before a job takes it.
+     * @returns {string[]}
+     */
+    metadataNotices() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.stegoinput_metadataNotices(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
+            if (r3) {
+                throw takeObject(r2);
+            }
+            var v1 = getArrayJsValueFromWasm0(r0, r1);
+            wasm.__wbindgen_export4(r0, r1 * 4, 4);
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * The host checks aggregate file sizes before constructing a group. Its
+     * other JS/Blob copies are outside the library's 512MiB managed budget.
+     * @param {Uint8Array} file
+     * @param {any} password
+     */
+    constructor(file, password) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            const ptr0 = passArray8ToWasm0(file, wasm.__wbindgen_export);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.stegoinput_new(retptr, ptr0, len0, addHeapObject(password));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            this.__wbg_ptr = r0;
+            StegoInputFinalization.register(this, this.__wbg_ptr, this);
+            return this;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+}
+if (Symbol.dispose) StegoInput.prototype[Symbol.dispose] = StegoInput.prototype.free;
+
+/**
+ * An owned stepped operation. Use a worker: Argon2 is one blocking 128MiB step.
+ * `free()` or `cancel()` drops all passwords and incomplete results.
+ */
+export class StegoJob {
+    static __wrap(ptr) {
+        const obj = Object.create(StegoJob.prototype);
+        obj.__wbg_ptr = ptr;
+        StegoJobFinalization.register(obj, obj.__wbg_ptr, obj);
+        return obj;
+    }
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        StegoJobFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_stegojob_free(ptr, 0);
+    }
+    /**
+     * Analyzes a new password for a record of `role` without searching old records:
+     * undefined or "original" for the original message alone, "decoy", or
+     * "original-behind-decoy". For a decoy pair, analyze both roles with their own
+     * passwords and take the smaller space. On completion `status` is "analyzed" and
+     * capacities become available; only an "original" analysis can `encodeAnalyzed`.
+     * @param {StegoInput} input
+     * @param {any} role
+     * @returns {StegoJob}
+     */
+    static analyze(input, role) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            _assertClass(input, StegoInput);
+            wasm.stegojob_analyze(retptr, input.__wbg_ptr, addHeapObject(role));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return StegoJob.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Copies one candidate to JS for a Blob. This alone does not verify the Blob.
+     * @param {any} file_index
+     * @returns {Uint8Array}
+     */
+    bytes(file_index) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.stegojob_bytes(retptr, this.__wbg_ptr, addHeapObject(file_index));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
+            if (r3) {
+                throw takeObject(r2);
+            }
+            var v1 = getArrayU8FromWasm0(r0, r1).slice();
+            wasm.__wbindgen_export4(r0, r1 * 1, 1);
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Drops unfinished state and results; subsequent steps return "cancelled".
+     */
+    cancel() {
+        wasm.stegojob_cancel(this.__wbg_ptr);
+    }
+    /**
+     * Guaranteed ordinary-message bytes for this exact file, password and role.
+     * Zero means no supported bucket; an unfinished or consumed analysis throws.
+     * @param {any} selected_density
+     * @returns {number}
+     */
+    capacityBytes(selected_density) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.stegojob_capacityBytes(retptr, this.__wbg_ptr, addHeapObject(selected_density));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return r0 >>> 0;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Reuses the analyzed key and source. A decoy-pair analysis, an invalid density or
+     * insufficient space retains both owners; success consumes this analysis and the contents.
+     * @param {StegoContent} content
+     * @param {any} selected_density
+     * @returns {StegoJob}
+     */
+    encodeAnalyzed(content, selected_density) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            _assertClass(content, StegoContent);
+            wasm.stegojob_encodeAnalyzed(retptr, this.__wbg_ptr, content.__wbg_ptr, addHeapObject(selected_density));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return StegoJob.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Number of fully verified candidates; none leave an incomplete group.
+     * @returns {number}
+     */
+    get fileCount() {
+        const ret = wasm.stegojob_fileCount(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * Metadata outcomes for one verified candidate; this does not verify a saved Blob.
+     * @param {any} file_index
+     * @returns {string[]}
+     */
+    fileMetadataNotices(file_index) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.stegojob_fileMetadataNotices(retptr, this.__wbg_ptr, addHeapObject(file_index));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
+            if (r3) {
+                throw takeObject(r2);
+            }
+            var v1 = getArrayJsValueFromWasm0(r0, r1);
+            wasm.__wbindgen_export4(r0, r1 * 4, 4);
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Creates the original message and a decoy together in a clean source, at one
+     * density. Passwords must pass pair admission; the decoy opens what looks like a file with
+     * one record. Verify the saved bytes with each password.
+     * @param {StegoInput} input
+     * @param {StegoContent} content
+     * @param {any} decoy_password
+     * @param {StegoContent} decoy
+     * @param {any} selected_density
+     * @returns {StegoJob}
+     */
+    static hideWithDecoy(input, content, decoy_password, decoy, selected_density) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            _assertClass(input, StegoInput);
+            _assertClass(content, StegoContent);
+            _assertClass(decoy, StegoContent);
+            wasm.stegojob_hideWithDecoy(retptr, input.__wbg_ptr, content.__wbg_ptr, addHeapObject(decoy_password), decoy.__wbg_ptr, addHeapObject(selected_density));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return StegoJob.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Creates the original message alone in a clean source; old records are not
+     * searched. The smallest fitting bucket is automatic.
+     * @param {StegoInput} input
+     * @param {StegoContent} content
+     * @param {any} selected_density
+     * @returns {StegoJob}
+     */
+    static hide(input, content, selected_density) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            _assertClass(input, StegoInput);
+            _assertClass(content, StegoContent);
+            wasm.stegojob_hide(retptr, input.__wbg_ptr, content.__wbg_ptr, addHeapObject(selected_density));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return StegoJob.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Opens the record of this password, the original message or a decoy, without
+     * telling which. No-record never means empty.
+     * @param {StegoInput} input
+     * @returns {StegoJob}
+     */
+    static open(input) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            _assertClass(input, StegoInput);
+            wasm.stegojob_open(retptr, input.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return StegoJob.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Stable outcome or "working". Stage strings from `step()` are progress only.
+     * @returns {string}
+     */
+    get status() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.stegojob_status(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export4(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * Performs one bounded step; a refusal drops the working job immediately.
+     * @returns {string}
+     */
+    step() {
+        let deferred2_0;
+        let deferred2_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.stegojob_step(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
+            var ptr1 = r0;
+            var len1 = r1;
+            if (r3) {
+                ptr1 = 0; len1 = 0;
+                throw takeObject(r2);
+            }
+            deferred2_0 = ptr1;
+            deferred2_1 = len1;
+            return getStringFromWasm0(ptr1, len1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export4(deferred2_0, deferred2_1, 1);
+        }
+    }
+    /**
+     * Takes an authenticated content owner, including a threshold envelope.
+     * @returns {StegoContent}
+     */
+    takeContent() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.stegojob_takeContent(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return StegoContent.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Guaranteed ordinary-message bytes after threshold-envelope overhead.
+     * @param {any} selected_density
+     * @returns {number}
+     */
+    thresholdCapacityBytes(selected_density) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.stegojob_thresholdCapacityBytes(retptr, this.__wbg_ptr, addHeapObject(selected_density));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return r0 >>> 0;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Reopens the exact final Blob bytes with their password. Other retained
+     * candidate files are counted before the ordinary saved-byte verifier starts.
+     * @param {any} file_index
+     * @param {Uint8Array} saved
+     * @param {any} password
+     * @returns {StegoJob}
+     */
+    verifySaved(file_index, saved, password) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            const ptr0 = passArray8ToWasm0(saved, wasm.__wbindgen_export);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.stegojob_verifySaved(retptr, this.__wbg_ptr, addHeapObject(file_index), ptr0, len0, addHeapObject(password));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return StegoJob.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+}
+if (Symbol.dispose) StegoJob.prototype[Symbol.dispose] = StegoJob.prototype.free;
+
+/**
+ * Public bounds for admission before a page reads large file buffers.
+ */
+export class StegoParameters {
+    static __wrap(ptr) {
+        const obj = Object.create(StegoParameters.prototype);
+        obj.__wbg_ptr = ptr;
+        StegoParametersFinalization.register(obj, obj.__wbg_ptr, obj);
+        return obj;
+    }
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        StegoParametersFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_stegoparameters_free(ptr, 0);
+    }
+    /**
+     * Names of available embedding densities, least to most dense. Higher is
+     * not a security guarantee; callers must request a profile explicitly.
+     * @returns {string[]}
+     */
+    get densities() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.stegoparameters_densities(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var v1 = getArrayJsValueFromWasm0(r0, r1);
+            wasm.__wbindgen_export4(r0, r1 * 4, 4);
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Largest single input file, in bytes.
+     * @returns {number}
+     */
+    get inputBytes() {
+        const ret = wasm.stegoparameters_inputBytes(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * Fixed Argon2 workspace size, in bytes.
+     * @returns {number}
+     */
+    get kdfMemoryBytes() {
+        const ret = wasm.stegoparameters_kdfMemoryBytes(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * The browser-managed buffer budget, excluding JS copies.
+     * @returns {number}
+     */
+    get memoryBytes() {
+        const ret = wasm.stegoparameters_memoryBytes(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * Largest ordinary payload, in bytes; a carrier may hold less.
+     * @returns {number}
+     */
+    get messageBytes() {
+        const ret = wasm.stegoparameters_messageBytes(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * Payload input bytes admitted before the browser creates large buffers.
+     * This is a host-memory bound, not a limit on the record representation.
+     * @returns {number}
+     */
+    get messageInputBytes() {
+        const ret = wasm.stegoparameters_messageInputBytes(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * Heuristic minimum OSA difference for new decoy pairs; not password strength.
+     * @returns {number}
+     */
+    get passwordDifferencePercent() {
+        const ret = wasm.stegoparameters_passwordDifferencePercent(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * Largest raw UTF-8 password input before NFKD.
+     * @returns {number}
+     */
+    get passwordInputBytes() {
+        const ret = wasm.stegoparameters_passwordInputBytes(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * Minimum normalized UTF-8 password length, not an entropy estimate.
+     * @returns {number}
+     */
+    get passwordMinBytes() {
+        const ret = wasm.stegoparameters_passwordMinBytes(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * Largest primary image area, in pixels, subject to memory admission.
+     * @returns {number}
+     */
+    get pixels() {
+        const ret = wasm.stegoparameters_pixels(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+}
+if (Symbol.dispose) StegoParameters.prototype[Symbol.dispose] = StegoParameters.prototype.free;
+
+/**
+ * Private admission feedback, not strength. Hosts must not log or persist its fields.
+ */
+export class StegoPasswordComparison {
+    static __wrap(ptr) {
+        const obj = Object.create(StegoPasswordComparison.prototype);
+        obj.__wbg_ptr = ptr;
+        StegoPasswordComparisonFinalization.register(obj, obj.__wbg_ptr, obj);
+        return obj;
+    }
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        StegoPasswordComparisonFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_stegopasswordcomparison_free(ptr, 0);
+    }
+    /**
+     * Whether the full creation policy accepts the pair, including derivation checks.
+     * @returns {boolean}
+     */
+    get accepted() {
+        const ret = wasm.stegopasswordcomparison_accepted(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * Scalar count of the longer normalized input, the percentage denominator.
+     * @returns {number}
+     */
+    get comparedCharacters() {
+        const ret = wasm.stegopasswordcomparison_comparedCharacters(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * OSA difference rounded down to a whole percentage, not an entropy estimate.
+     * @returns {number}
+     */
+    get differencePercent() {
+        const ret = wasm.stegopasswordcomparison_differencePercent(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * Unicode-scalar OSA edits between the normalized inputs.
+     * @returns {number}
+     */
+    get editDistance() {
+        const ret = wasm.stegopasswordcomparison_editDistance(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * Stable refusal code for this pair, or undefined when accepted.
+     * @returns {string | undefined}
+     */
+    get refusalCode() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.stegopasswordcomparison_refusalCode(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            let v1;
+            if (r0 !== 0) {
+                v1 = getStringFromWasm0(r0, r1);
+                wasm.__wbindgen_export4(r0, r1 * 1, 1);
+            }
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+}
+if (Symbol.dispose) StegoPasswordComparison.prototype[Symbol.dispose] = StegoPasswordComparison.prototype.free;
+
+/**
+ * Authenticated records opened from separate files. Recovery rejects duplicate
+ * members and mixed generations through the established threshold validator.
+ */
+export class StegoRecoverySet {
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        StegoRecoverySetFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_stegorecoveryset_free(ptr, 0);
+    }
+    /**
+     * Consumes one opened threshold record in a wiped owner.
+     * @param {StegoContent} content
+     */
+    add(content) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            _assertClass(content, StegoContent);
+            wasm.stegorecoveryset_add(retptr, this.__wbg_ptr, content.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            if (r1) {
+                throw takeObject(r0);
+            }
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Required count from the authenticated first member; zero before any input.
+     * @returns {number}
+     */
+    filesNeeded() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.stegorecoveryset_filesNeeded(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return r0 >>> 0;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Starts an empty recovery selection; add authenticated envelopes only.
+     */
+    constructor() {
+        const ret = wasm.stegorecoveryset_new();
+        this.__wbg_ptr = ret;
+        StegoRecoverySetFinalization.register(this, this.__wbg_ptr, this);
+        return this;
+    }
+    /**
+     * Compatible but insufficient inputs return no value; malformed or mixed
+     * inputs and an empty selection throw a refusal. A recovered content owner must be freed promptly.
+     * @returns {StegoContent | undefined}
+     */
+    recover() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.stegorecoveryset_recover(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return r0 === 0 ? undefined : StegoContent.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Drops every owned share and its encrypted payload.
+     */
+    wipe() {
+        wasm.stegorecoveryset_wipe(this.__wbg_ptr);
+    }
+}
+if (Symbol.dispose) StegoRecoverySet.prototype[Symbol.dispose] = StegoRecoverySet.prototype.free;
+
+/**
  * A legend line read back.
  */
 export class StitchLegend {
@@ -3282,8 +4276,8 @@ export class StitchLegend {
         return ret === Number.MAX_SAFE_INTEGER ? undefined : ret;
     }
     /**
-     * The record of the masked phrase, `MNC1:seedshift:indexes:…`, which the recovery part decodes
-     * with the dates.
+     * The record of the phrase: `MNC1:seedshift:indexes:…`, which the recovery part decodes with
+     * the dates, or `MNC1:direct:indexes:…` for a legend made with `--mode direct`.
      * @returns {string}
      */
     record() {
@@ -3306,7 +4300,7 @@ export class StitchLegend {
 if (Symbol.dispose) StitchLegend.prototype[Symbol.dispose] = StitchLegend.prototype.free;
 
 /**
- * A pattern whose legend holds a masked phrase, and how near it looks to its picture.
+ * A pattern whose legend holds a phrase, and how near it looks to its picture.
  */
 export class StitchPattern {
     __destroy_into_raw() {
@@ -3365,20 +4359,25 @@ export class StitchPattern {
     }
     /**
      * `phrase`, masked with `dates` (a typed line of them) by MnemoCode Seedshift, hidden in the
-     * legend of a pattern of `picture`, a PNG or JPEG file, `stitchesAcross` wide (0: 200).
-     * Refused as the library refuses the phrase, the dates, the picture and the width, and where
-     * the picture has too few colors to hold the phrase.
+     * legend of a pattern of `picture`, a PNG, JPEG or WebP file, `stitchesAcross` wide (0: 200).
+     * `mode`, which a page may leave out, is "seedshift" or "direct" for the phrase itself, with
+     * no dates: anyone who knows the public format reads it from the legend. Refused as the
+     * library refuses the mode, the phrase, the dates, the picture and the width, and where the
+     * picture has too few colors to hold the phrase.
      * @param {any} phrase
      * @param {any} dates
      * @param {Uint8Array} picture
      * @param {number} stitches_across
+     * @param {string | null} [mode]
      */
-    constructor(phrase, dates, picture, stitches_across) {
+    constructor(phrase, dates, picture, stitches_across, mode) {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
             const ptr0 = passArray8ToWasm0(picture, wasm.__wbindgen_export);
             const len0 = WASM_VECTOR_LEN;
-            wasm.stitchpattern_new(retptr, addHeapObject(phrase), addHeapObject(dates), ptr0, len0, stitches_across);
+            var ptr1 = isLikeNone(mode) ? 0 : passStringToWasm0(mode, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+            var len1 = WASM_VECTOR_LEN;
+            wasm.stitchpattern_new(retptr, addHeapObject(phrase), addHeapObject(dates), ptr0, len0, stitches_across, ptr1, len1);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
@@ -3393,13 +4392,18 @@ export class StitchPattern {
         }
     }
     /**
-     * The pattern as a PDF: a cover, the legend and the chart pages.
+     * The pattern as a PDF dressed as a bought one: a cover, the floss key and the chart in colour,
+     * for `fabric`, as `stitch --fabric` names it ("14" or "linen-28"), 14-count Aida where a page
+     * leaves it out. The key page keeps the legend line, which [`read_stitch_pdf`] reads back.
+     * @param {string | null} [fabric]
      * @returns {Uint8Array}
      */
-    pdf() {
+    pdf(fabric) {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.stitchpattern_pdf(retptr, this.__wbg_ptr);
+            var ptr0 = isLikeNone(fabric) ? 0 : passStringToWasm0(fabric, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+            var len0 = WASM_VECTOR_LEN;
+            wasm.stitchpattern_pdf(retptr, this.__wbg_ptr, ptr0, len0);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
@@ -3407,9 +4411,9 @@ export class StitchPattern {
             if (r3) {
                 throw takeObject(r2);
             }
-            var v1 = getArrayU8FromWasm0(r0, r1).slice();
+            var v2 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_export4(r0, r1 * 1, 1);
-            return v1;
+            return v2;
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
@@ -3441,6 +4445,225 @@ export class StitchPattern {
     }
 }
 if (Symbol.dispose) StitchPattern.prototype[Symbol.dispose] = StitchPattern.prototype.free;
+
+/**
+ * How large a pattern of a picture may be on a fabric, as the menu offers it: the sheets from A6 to
+ * A2 that hold the picture, each with the stitches it takes there, and the widths the picture
+ * allows. The picture is no secret.
+ */
+export class StitchSizes {
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        StitchSizesFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_stitchsizes_free(ptr, 0);
+    }
+    /**
+     * The stitches across the picture takes in the sheet at `at`; none past the last.
+     * @param {number} at
+     * @returns {number | undefined}
+     */
+    across(at) {
+        const ret = wasm.stitchsizes_across(this.__wbg_ptr, at);
+        return ret === Number.MAX_SAFE_INTEGER ? undefined : ret;
+    }
+    /**
+     * The centimetres across that the stitches of the sheet at `at` take on the fabric; none past
+     * the last.
+     * @param {number} at
+     * @returns {number | undefined}
+     */
+    centimetresAcross(at) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.stitchsizes_centimetresAcross(retptr, this.__wbg_ptr, at);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r2 = getDataViewMemory0().getFloat64(retptr + 8 * 1, true);
+            return r0 === 0 ? undefined : r2;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * The centimetres down that the stitches of the sheet at `at` take on the fabric; none past
+     * the last.
+     * @param {number} at
+     * @returns {number | undefined}
+     */
+    centimetresDown(at) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.stitchsizes_centimetresDown(retptr, this.__wbg_ptr, at);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r2 = getDataViewMemory0().getFloat64(retptr + 8 * 1, true);
+            return r0 === 0 ? undefined : r2;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * How many sheets hold the picture.
+     * @returns {number}
+     */
+    get count() {
+        const ret = wasm.stitchsizes_count(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * The stitches across from which a photograph looks real, for the page to say why it selects
+     * [`StitchSizes::first`].
+     * @returns {number}
+     */
+    get detailedFrom() {
+        const ret = wasm.stitchsizes_detailedFrom(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * The stitches down the picture takes in the sheet at `at`; none past the last.
+     * @param {number} at
+     * @returns {number | undefined}
+     */
+    down(at) {
+        const ret = wasm.stitchsizes_down(this.__wbg_ptr, at);
+        return ret === Number.MAX_SAFE_INTEGER ? undefined : ret;
+    }
+    /**
+     * The fewest stitches across the picture may have.
+     * @returns {number}
+     */
+    get fewestAcross() {
+        const ret = wasm.stitchsizes_fewestAcross(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * The fewest centimetres across that a width typed in them may have, rounded up.
+     * @returns {number}
+     */
+    get fewestCentimetres() {
+        const ret = wasm.stitchsizes_fewestCentimetres(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * The place of the sheet a page selects first: the smallest that gives [`DETAILED_ACROSS`]
+     * stitches across, else the largest; none where no sheet holds the picture.
+     * @returns {number | undefined}
+     */
+    get first() {
+        const ret = wasm.stitchsizes_first(this.__wbg_ptr);
+        return ret === Number.MAX_SAFE_INTEGER ? undefined : ret;
+    }
+    /**
+     * The long side of the sheet at `at`, in millimetres; none past the last.
+     * @param {number} at
+     * @returns {number | undefined}
+     */
+    longSide(at) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.stitchsizes_longSide(retptr, this.__wbg_ptr, at);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r2 = getDataViewMemory0().getFloat64(retptr + 8 * 1, true);
+            return r0 === 0 ? undefined : r2;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * The most stitches across the picture may have.
+     * @returns {number}
+     */
+    get mostAcross() {
+        const ret = wasm.stitchsizes_mostAcross(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * The most centimetres across that a width typed in them may have, rounded down.
+     * @returns {number}
+     */
+    get mostCentimetres() {
+        const ret = wasm.stitchsizes_mostCentimetres(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * The name of the sheet at `at`, smallest first, as "A4"; none past the last.
+     * @param {number} at
+     * @returns {string | undefined}
+     */
+    name(at) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.stitchsizes_name(retptr, this.__wbg_ptr, at);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            let v1;
+            if (r0 !== 0) {
+                v1 = getStringFromWasm0(r0, r1);
+                wasm.__wbindgen_export4(r0, r1 * 1, 1);
+            }
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * The sizes of `picture`, a PNG, JPEG or WebP file, on `fabric` ("14" or "linen-28"; 14-count
+     * Aida where a page leaves it out). Refused as the library refuses the picture and the fabric.
+     * @param {Uint8Array} picture
+     * @param {string | null} [fabric]
+     */
+    constructor(picture, fabric) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            const ptr0 = passArray8ToWasm0(picture, wasm.__wbindgen_export);
+            const len0 = WASM_VECTOR_LEN;
+            var ptr1 = isLikeNone(fabric) ? 0 : passStringToWasm0(fabric, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+            var len1 = WASM_VECTOR_LEN;
+            wasm.stitchsizes_new(retptr, ptr0, len0, ptr1, len1);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            this.__wbg_ptr = r0;
+            StitchSizesFinalization.register(this, this.__wbg_ptr, this);
+            return this;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * The short side of the sheet at `at`, in millimetres; none past the last.
+     * @param {number} at
+     * @returns {number | undefined}
+     */
+    shortSide(at) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.stitchsizes_shortSide(retptr, this.__wbg_ptr, at);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r2 = getDataViewMemory0().getFloat64(retptr + 8 * 1, true);
+            return r0 === 0 ? undefined : r2;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * The stitches across of a width of `centimetres` that a person typed; none where it is no
+     * number above 0 or its stitches are not within the widths the picture allows.
+     * @param {number} centimetres
+     * @returns {number | undefined}
+     */
+    typedWidth(centimetres) {
+        const ret = wasm.stitchsizes_typedWidth(this.__wbg_ptr, centimetres);
+        return ret === Number.MAX_SAFE_INTEGER ? undefined : ret;
+    }
+}
+if (Symbol.dispose) StitchSizes.prototype[Symbol.dispose] = StitchSizes.prototype.free;
 
 /**
  * What shows below a line being typed, and what Tab adds to it.
@@ -4171,6 +5394,45 @@ export function checkShareQr(colors, payload, labels) {
 }
 
 /**
+ * Checks metadata sizes before a page materializes File/Blob ArrayBuffers.
+ * Parsed plans and actual working buffers are admitted separately by core.
+ * @param {Float64Array} sizes
+ */
+export function checkStegoFileSizes(sizes) {
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        const ptr0 = passArrayF64ToWasm0(sizes, wasm.__wbindgen_export);
+        const len0 = WASM_VECTOR_LEN;
+        wasm.checkStegoFileSizes(retptr, ptr0, len0);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        if (r1) {
+            throw takeObject(r0);
+        }
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+    }
+}
+
+/**
+ * Checks a payload File size before creating its ArrayBuffer or WASM copy.
+ * @param {number} bytes
+ */
+export function checkStegoMessageSize(bytes) {
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        wasm.checkStegoMessageSize(retptr, bytes);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        if (r1) {
+            throw takeObject(r0);
+        }
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+    }
+}
+
+/**
  * The candidate list in the age `file`, opened with `passphrase`.
  * @param {Uint8Array} file
  * @param {any} passphrase
@@ -4192,6 +5454,31 @@ export function decryptWithPassphrase(file, passphrase) {
         var v2 = getArrayU8FromWasm0(r0, r1).slice();
         wasm.__wbindgen_export4(r0, r1 * 1, 1);
         return v2;
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+    }
+}
+
+/**
+ * A PNG with visible text for ordinary scanners and an exact hidden UTF-8 record.
+ * @param {any} visible
+ * @param {any} record
+ * @returns {Uint8Array}
+ */
+export function hiddenQrPng(visible, record) {
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        wasm.hiddenQrPng(retptr, addHeapObject(visible), addHeapObject(record));
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+        var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
+        if (r3) {
+            throw takeObject(r2);
+        }
+        var v1 = getArrayU8FromWasm0(r0, r1).slice();
+        wasm.__wbindgen_export4(r0, r1 * 1, 1);
+        return v1;
     } finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
     }
@@ -4380,6 +5667,38 @@ export function qrPng(payload) {
 }
 
 /**
+ * A hidden record from a PNG, refused when its format or check is invalid.
+ * @param {Uint8Array} bytes
+ * @returns {string}
+ */
+export function readHiddenQrPng(bytes) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_export);
+        const len0 = WASM_VECTOR_LEN;
+        wasm.readHiddenQrPng(retptr, ptr0, len0);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+        var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
+        var ptr2 = r0;
+        var len2 = r1;
+        if (r3) {
+            ptr2 = 0; len2 = 0;
+            throw takeObject(r2);
+        }
+        deferred3_0 = ptr2;
+        deferred3_1 = len2;
+        return getStringFromWasm0(ptr2, len2);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+        wasm.__wbindgen_export4(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
  * The text of the QR code in the PNG file `bytes`, admitted and read as the library reads it.
  * @param {Uint8Array} bytes
  * @returns {string}
@@ -4421,6 +5740,31 @@ export function readStitchLegend(line) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
         wasm.readStitchLegend(retptr, addHeapObject(line));
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+        if (r2) {
+            throw takeObject(r1);
+        }
+        return r0 === 0 ? undefined : StitchLegend.__wrap(r0);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+    }
+}
+
+/**
+ * The legend line that the PDF `pdf` of a pattern keeps, read back as [`read_stitch_legend`]
+ * reads a typed one; undefined where the PDF keeps none, as when another program saved it again,
+ * and the page asks for the legend typed from the key instead.
+ * @param {Uint8Array} pdf
+ * @returns {StitchLegend | undefined}
+ */
+export function readStitchPdf(pdf) {
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        const ptr0 = passArray8ToWasm0(pdf, wasm.__wbindgen_export);
+        const len0 = WASM_VECTOR_LEN;
+        wasm.readStitchPdf(retptr, ptr0, len0);
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
         var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
         var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
@@ -4637,6 +5981,33 @@ export function shareKind(backup) {
 }
 
 /**
+ * Reads bounds without constructing a secret or loading a carrier.
+ * @returns {StegoParameters}
+ */
+export function stegoParameters() {
+    const ret = wasm.stegoParameters();
+    return StegoParameters.__wrap(ret);
+}
+
+/**
+ * Runs the feature's startup cases, or includes its full Argon2 reference.
+ * @param {boolean} full
+ */
+export function stegoSelfCheck(full) {
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        wasm.stegoSelfCheck(retptr, full);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        if (r1) {
+            throw takeObject(r0);
+        }
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+    }
+}
+
+/**
  * The ids of the coins this build holds.
  * @returns {string[]}
  */
@@ -4768,6 +6139,16 @@ function __wbg_get_imports() {
             const ret = getObject(arg0) === undefined;
             return ret;
         },
+        __wbg___wbindgen_jsval_eq_02babf21faa37971: function(arg0, arg1) {
+            const ret = getObject(arg0) === getObject(arg1);
+            return ret;
+        },
+        __wbg___wbindgen_number_get_2e0e7dee9f701a71: function(arg0, arg1) {
+            const obj = getObject(arg1);
+            const ret = typeof(obj) === 'number' ? obj : undefined;
+            getDataViewMemory0().setFloat64(arg0 + 8 * 1, isLikeNone(ret) ? 0 : ret, true);
+            getDataViewMemory0().setInt32(arg0 + 4 * 0, !isLikeNone(ret), true);
+        },
         __wbg___wbindgen_string_get_0380ccaa2f57f0d9: function(arg0, arg1) {
             const obj = getObject(arg1);
             const ret = typeof(obj) === 'string' ? obj : undefined;
@@ -4895,12 +6276,36 @@ const ShareCardsFinalization = (typeof FinalizationRegistry === 'undefined')
 const SplitSharesFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_splitshares_free(ptr, 1));
+const StegoCarrierSetFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_stegocarrierset_free(ptr, 1));
+const StegoContentFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_stegocontent_free(ptr, 1));
+const StegoInputFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_stegoinput_free(ptr, 1));
+const StegoJobFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_stegojob_free(ptr, 1));
+const StegoParametersFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_stegoparameters_free(ptr, 1));
+const StegoPasswordComparisonFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_stegopasswordcomparison_free(ptr, 1));
+const StegoRecoverySetFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_stegorecoveryset_free(ptr, 1));
 const StitchLegendFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_stitchlegend_free(ptr, 1));
 const StitchPatternFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_stitchpattern_free(ptr, 1));
+const StitchSizesFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_stitchsizes_free(ptr, 1));
 const TypedHintFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_typedhint_free(ptr, 1));

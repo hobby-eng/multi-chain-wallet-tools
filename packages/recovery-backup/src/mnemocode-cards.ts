@@ -118,6 +118,11 @@ interface CardSettings {
   readonly pageSize?: string | undefined;
   readonly orientation?: string | undefined;
   readonly qr: boolean;
+  /**
+   * The sheet's QR shows the printed contact to ordinary scanners and keeps the record in its
+   * hidden bytes (MnemoCode docs/HIDDEN_QR.md); the page then offers no QR image of its own.
+   */
+  readonly hiddenQr?: boolean;
   readonly fileFormat: string;
   readonly profile?: MnemoCodeCardProfile;
   readonly copy?: MnemoCodeCardCopy;
@@ -277,6 +282,7 @@ export class MnemoCodeCardExporter {
       settings.qr,
     );
     try {
+      if (settings.qr && settings.hiddenQr === true) exporter.setHiddenQr(true);
       this.#session ??= new binding.CardSession();
       exporter.useSession(this.#session);
       for (const [field, value] of Object.entries(settings.profile ?? {}))
@@ -298,8 +304,11 @@ export class MnemoCodeCardExporter {
     const { plan } = this.#plan(request, encoded);
     const separate = mnemoCodeCardOutput(request.pageSize) === "individual";
     using documents = separate ? plan.separate() : plan.sheets();
+    // A hidden QR's visible contact is MnemoCode's: the page draws no image of it.
     const qrCodes: PrintedQr[] =
-      request.qr && !separate ? [{ reference: "cards", payload: encoded.payload }] : [];
+      request.qr && request.hiddenQr !== true && !separate
+        ? [{ reference: "cards", payload: encoded.payload }]
+        : [];
     return oneFile(
       files(documents, request.fileFormat),
       request.fileFormat,
@@ -339,7 +348,7 @@ export class MnemoCodeCardExporter {
       using documents = cards.documents(share);
       for (const [name, bytes] of files(documents, request.fileFormat))
         parts.set(`share-${share + 1}/${name}`, bytes);
-      const payload = request.qr ? cards.qrPayload(share) : undefined;
+      const payload = request.qr && request.hiddenQr !== true ? cards.qrPayload(share) : undefined;
       if (payload !== undefined) qrCodes.push({ reference: share + 1, payload });
     }
     return oneFile(

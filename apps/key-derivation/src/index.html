@@ -4222,6 +4222,16 @@
               type="button"
               role="tab"
               aria-selected="false"
+              aria-controls="mnemocode-stego-panel"
+              data-operation-tab
+            >
+              Photo or MP3
+            </button>
+            <button
+              class="backup-mode-tab"
+              type="button"
+              role="tab"
+              aria-selected="false"
               aria-controls="mnemocode-table-panel"
               data-operation-tab
             >
@@ -4541,6 +4551,12 @@
                 <input id="mnemocode-card-qr" type="checkbox" />
                 <span id="mnemocode-card-qr-text">Add one QR code with the complete data to the sheet</span>
               </label>
+              <label id="mnemocode-card-qr-hidden-row" class="checkbox-row" for="mnemocode-card-qr-hidden" hidden>
+                <input id="mnemocode-card-qr-hidden" type="checkbox" />
+                Hide the record in the QR behind the printed contact
+                <span class="answer-note">ordinary scanners show the contact card; MnemoCode reads the record</span>
+              </label>
+              <p id="mnemocode-card-qr-hidden-note" class="field-note" hidden></p>
               <label class="checkbox-row" for="mnemocode-card-own-details">
                 <input id="mnemocode-card-own-details" type="checkbox" />
                 Print my own details
@@ -4639,27 +4655,38 @@
               <div class="operation-block">
                 <p class="field-note">
                   Hides the phrase above in the legend of a cross-stitch pattern made from a picture of your own: an
-                  ordinary chart in DMC threads, on which nothing names MnemoCode. The legend holds the phrase masked
-                  with MnemoCode Seedshift and the dates above. Decode reads the legend back without the picture or the
-                  chart.
+                  ordinary chart in DMC threads that looks like one bought from a designer, on which nothing names
+                  MnemoCode. The legend holds the phrase masked with MnemoCode Seedshift and the dates above, or with
+                  Direct the phrase itself. Decode reads the legend back from the PDF or from the typed key, without the
+                  picture or the chart.
                 </p>
                 <p id="mnemocode-stitch-mode-note" class="warning-callout" hidden></p>
                 <label for="mnemocode-stitch-picture">
-                  Picture: a PNG or JPEG file
-                  <input id="mnemocode-stitch-picture" type="file" accept="image/png,image/jpeg,.png,.jpg,.jpeg" />
+                  Picture: a PNG, JPEG or WebP file
+                  <input
+                    id="mnemocode-stitch-picture"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
+                  />
                 </label>
                 <p class="field-note">
                   A photograph or a painting with smooth shades works best; a flat picture of a few colours cannot hold
                   a phrase. Up to 40 MiB and 60 megapixels; a pattern is at most 800 stitches high. The picture is not
                   kept.
                 </p>
-                <label for="mnemocode-stitch-width">
-                  Stitches across
-                  <input id="mnemocode-stitch-width" type="number" min="40" max="500" step="1" value="200" />
+                <label for="mnemocode-stitch-fabric">
+                  Which fabric?
+                  <select id="mnemocode-stitch-fabric"></select>
                 </label>
-                <p class="field-note">
-                  40 to 500. A pattern of 200 stitches across is about 36 cm wide on 14-count Aida.
-                </p>
+                <label for="mnemocode-stitch-size">
+                  <span id="mnemocode-stitch-size-label">How large?</span>
+                  <select id="mnemocode-stitch-size" disabled></select>
+                </label>
+                <p id="mnemocode-stitch-size-note" class="field-note">Choose a picture to see the sizes it allows.</p>
+                <label id="mnemocode-stitch-width-row" for="mnemocode-stitch-width" hidden>
+                  <span id="mnemocode-stitch-width-label">Width</span>
+                  <input id="mnemocode-stitch-width" type="number" step="any" />
+                </label>
                 <div class="actions">
                   <button id="mnemocode-stitch-make" class="primary" type="button" data-heavy-job>Make pattern</button>
                   <button id="mnemocode-stitch-stop" class="secondary" type="button" hidden>Cancel</button>
@@ -5538,6 +5565,214 @@
               </div>
               <p id="mnemocode-forgotten-status" class="status" role="status" aria-live="polite"></p>
               <div id="mnemocode-forgotten-result" class="share-results" aria-live="polite"></div>
+            </div>
+          </section>
+          <section
+            id="mnemocode-stego-panel"
+            class="backup-operation"
+            role="tabpanel"
+            data-operation-panel
+            data-secret-scope
+            hidden
+          >
+            <p class="field-note">
+              Hides a message, a small file or a MnemoCode backup record in a JPEG photograph or an MP3 file, encrypted
+              under a container password, optionally with a decoy under a second password, and opens it again. Several
+              files can share one record, so that a quorum of them recovers it.
+            </p>
+            <div class="warning-callout">
+              <strong>Steganography, not a guarantee.</strong>
+              <span id="mnemocode-stego-copies-note"></span>
+            </div>
+            <fieldset class="choice-group">
+              <legend>What should MnemoCode do with the hidden record?</legend>
+              <label class="checkbox-row" for="mnemocode-stego-task-hide">
+                <input
+                  id="mnemocode-stego-task-hide"
+                  type="radio"
+                  name="mnemocode-stego-task"
+                  value="hide"
+                  autocomplete="off"
+                  checked
+                />
+                Hide new contents <span class="answer-note">create a new file</span>
+              </label>
+              <label class="checkbox-row" for="mnemocode-stego-task-open">
+                <input
+                  id="mnemocode-stego-task-open"
+                  type="radio"
+                  name="mnemocode-stego-task"
+                  value="open"
+                  autocomplete="off"
+                />
+                Open hidden contents <span class="answer-note">with the matching password</span>
+              </label>
+            </fieldset>
+            <div id="mnemocode-stego-hide" class="operation-block">
+              <p id="mnemocode-stego-clean-note" class="field-note"></p>
+              <label for="mnemocode-stego-carriers">
+                JPEG or MP3 carrier files
+                <input
+                  id="mnemocode-stego-carriers"
+                  type="file"
+                  accept="image/jpeg,audio/mpeg,.jpg,.jpeg,.mp3"
+                  multiple
+                />
+              </label>
+              <p class="field-note">
+                One file holds the record alone or with a decoy. Two to 16 files make a set: each holds a share of the
+                key, and the files of the quorum recover the contents. JPEG and MP3 can be mixed.
+              </p>
+              <label id="mnemocode-stego-quorum-row" for="mnemocode-stego-quorum" hidden>
+                How many files must be present to recover?
+                <input id="mnemocode-stego-quorum" type="number" min="2" max="16" step="1" value="2" />
+              </label>
+              <fieldset class="choice-group">
+                <legend>What should the hidden record contain?</legend>
+                <label class="checkbox-row" for="mnemocode-stego-kind-backup">
+                  <input
+                    id="mnemocode-stego-kind-backup"
+                    type="radio"
+                    name="mnemocode-stego-kind"
+                    value="backup"
+                    autocomplete="off"
+                    checked
+                  />
+                  A MnemoCode backup record <span class="answer-note">compact; Decode reads it back</span>
+                </label>
+                <label class="checkbox-row" for="mnemocode-stego-kind-message">
+                  <input
+                    id="mnemocode-stego-kind-message"
+                    type="radio"
+                    name="mnemocode-stego-kind"
+                    value="message"
+                    autocomplete="off"
+                  />
+                  A message <span class="answer-note">exact text, never normalized</span>
+                </label>
+                <label class="checkbox-row" for="mnemocode-stego-kind-file">
+                  <input
+                    id="mnemocode-stego-kind-file"
+                    type="radio"
+                    name="mnemocode-stego-kind"
+                    value="file"
+                    autocomplete="off"
+                  />
+                  A small file <span class="answer-note">its exact bytes</span>
+                </label>
+              </fieldset>
+              <div id="mnemocode-stego-text-row">
+                <div class="field-heading-row">
+                  <label id="mnemocode-stego-text-label" for="mnemocode-stego-text">MNC1 backup record</label>
+                  <button
+                    id="toggle-mnemocode-stego-text"
+                    class="danger-outline compact"
+                    type="button"
+                    aria-pressed="false"
+                  >
+                    Show
+                  </button>
+                </div>
+                <textarea
+                  id="mnemocode-stego-text"
+                  class="concealed"
+                  rows="4"
+                  autocomplete="off"
+                  autocapitalize="none"
+                  spellcheck="false"
+                ></textarea>
+              </div>
+              <label id="mnemocode-stego-file-row" for="mnemocode-stego-file" hidden>
+                File to hide
+                <input id="mnemocode-stego-file" type="file" />
+              </label>
+              <p id="mnemocode-stego-size" class="field-note" aria-live="polite"></p>
+              <label id="mnemocode-stego-decoy-row" class="checkbox-row" for="mnemocode-stego-decoy-enabled">
+                <input id="mnemocode-stego-decoy-enabled" type="checkbox" autocomplete="off" />
+                Add a decoy <span class="answer-note">what you could disclose if forced, under its own password</span>
+              </label>
+              <div id="mnemocode-stego-decoy" class="operation-block" hidden>
+                <div class="field-heading-row">
+                  <label for="mnemocode-stego-decoy-text">Decoy to hide, what you could disclose if forced</label>
+                  <button
+                    id="toggle-mnemocode-stego-decoy-text"
+                    class="danger-outline compact"
+                    type="button"
+                    aria-pressed="false"
+                  >
+                    Show
+                  </button>
+                </div>
+                <textarea
+                  id="mnemocode-stego-decoy-text"
+                  class="concealed"
+                  rows="3"
+                  autocomplete="off"
+                  autocapitalize="none"
+                  spellcheck="false"
+                ></textarea>
+                <p id="mnemocode-stego-decoy-size" class="field-note" aria-live="polite"></p>
+                <label for="mnemocode-stego-decoy-password">
+                  Decoy password, a different one that you could disclose if forced
+                  <input id="mnemocode-stego-decoy-password" type="password" autocomplete="off" />
+                </label>
+                <label for="mnemocode-stego-decoy-password-again">
+                  Repeat the decoy password
+                  <input id="mnemocode-stego-decoy-password-again" type="password" autocomplete="off" />
+                </label>
+                <p class="field-note">
+                  A decoy takes the place a file with one record uses, and the original message hides behind it: a
+                  disclosed decoy password opens what any file with one record shows. Opening never says which record a
+                  password opened.
+                </p>
+              </div>
+              <label for="mnemocode-stego-password">
+                Container password (encrypts the hidden message; not the BIP39 passphrase)
+                <input id="mnemocode-stego-password" type="password" autocomplete="off" />
+              </label>
+              <label for="mnemocode-stego-password-again">
+                Repeat the container password
+                <input id="mnemocode-stego-password-again" type="password" autocomplete="off" />
+              </label>
+              <p id="mnemocode-stego-password-note" class="field-note"></p>
+              <div class="actions">
+                <button id="mnemocode-stego-analyze" class="secondary" type="button" data-heavy-job>Check space</button>
+                <button id="mnemocode-stego-hide-run" class="primary" type="button" data-heavy-job disabled>
+                  Hide
+                </button>
+                <button id="mnemocode-stego-hide-stop" class="secondary" type="button" hidden>Cancel</button>
+              </div>
+              <p id="mnemocode-stego-hide-status" class="status" role="status" aria-live="polite"></p>
+              <div id="mnemocode-stego-capacity" aria-live="polite"></div>
+              <div id="mnemocode-stego-hide-result" class="share-results" aria-live="polite"></div>
+            </div>
+            <div id="mnemocode-stego-open" class="operation-block" hidden>
+              <label for="mnemocode-stego-open-carriers">
+                JPEG or MP3 files with hidden data
+                <input
+                  id="mnemocode-stego-open-carriers"
+                  type="file"
+                  accept="image/jpeg,audio/mpeg,.jpg,.jpeg,.mp3"
+                  multiple
+                />
+              </label>
+              <p class="field-note">
+                Choose one file, or the files of a set: the quorum of a set recovers its contents. A password opens its
+                own record, the original message or a decoy, and never says which.
+              </p>
+              <label for="mnemocode-stego-open-password">
+                Container password
+                <input id="mnemocode-stego-open-password" type="password" autocomplete="off" />
+              </label>
+              <div class="actions">
+                <button id="mnemocode-stego-open-run" class="primary" type="button" data-heavy-job>Open</button>
+                <button id="mnemocode-stego-open-stop" class="secondary" type="button" hidden>Cancel</button>
+                <button id="toggle-mnemocode-stego-opened" class="danger-outline" type="button" aria-pressed="false">
+                  Show contents
+                </button>
+              </div>
+              <p id="mnemocode-stego-open-status" class="status" role="status" aria-live="polite"></p>
+              <div id="mnemocode-stego-open-result" class="share-results" aria-live="polite"></div>
             </div>
           </section>
           <section id="mnemocode-table-panel" class="backup-operation" role="tabpanel" data-operation-panel hidden>

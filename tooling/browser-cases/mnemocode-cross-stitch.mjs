@@ -72,16 +72,28 @@ export class MnemoCodeCrossStitchCase {
     const picture = page.locator("#mnemocode-stitch-picture");
 
     await make.click();
-    await waitText(page, status, /^Choose a picture: a PNG or JPEG file\.$/u);
+    await waitText(page, status, /^Choose a picture: a PNG, JPEG or WebP file\.$/u);
     // A flat picture cannot hold the phrase: another picture is asked for, and what was typed stays.
     await picture.setInputFiles({ name: "flat.png", mimeType: "image/png", buffer: FLAT });
+    await page.locator("#mnemocode-stitch-size:not([disabled])").waitFor();
     await make.click();
-    await waitText(page, status, /Choose another picture or other stitches across/u);
+    await waitText(page, status, /Choose another picture or another size/u);
     assert.equal(await page.locator("#mnemocode-encode-dates").inputValue(), DATES);
     await picture.setInputFiles({ name: "smooth.png", mimeType: "image/png", buffer: SMOOTH });
+    // MnemoCode's sizes for the picture on 14-count Aida: the sheets, then a width typed.
+    const size = page.locator("#mnemocode-stitch-size");
+    await size
+      .locator("option", { hasText: /^A\d, / })
+      .first()
+      .waitFor({ state: "attached" });
+    assert.match(
+      await page.locator("#mnemocode-stitch-size-note").innerText(),
+      /^More stitches give more detail: a photograph looks real from about \d+ across\.$/u,
+    );
+    await size.selectOption("stitches");
     await page.locator("#mnemocode-stitch-width").fill("39");
     await make.click();
-    await waitText(page, status, /^A pattern is 40 to 500 stitches wide\.$/u);
+    await waitText(page, status, /^Type a number from \d+ to \d+\.$/u);
     await page.locator("#mnemocode-stitch-width").fill("200");
     await make.click();
     await waitText(page, status, /^Pattern made in /u);
@@ -104,12 +116,8 @@ export class MnemoCodeCrossStitchCase {
       savePdf.click(),
     ]);
     assert.equal(download.suggestedFilename(), "cross-stitch-pattern.pdf");
-    assert.equal(
-      readFileSync(await download.path())
-        .subarray(0, 5)
-        .toString("latin1"),
-      "%PDF-",
-    );
+    const pdf = readFileSync(await download.path());
+    assert.equal(pdf.subarray(0, 5).toString("latin1"), "%PDF-");
     // Other dates retire the pattern shown.
     await page.locator("#mnemocode-encode-dates").fill("24-09-2026");
     assert.equal(await page.locator("#mnemocode-stitch-result article").count(), 0);
@@ -129,9 +137,29 @@ export class MnemoCodeCrossStitchCase {
     const output = page.locator("#mnemocode-decode-result textarea");
     await output.waitFor();
     assert.equal(await output.inputValue(), BrowserFixtures.mnemonic);
+
+    // The saved PDF keeps the legend line on its key page: Decode reads it from the file.
+    await page
+      .locator(
+        '#mnemocode-decode-panel label.file-choice:has-text("Open a cross-stitch pattern (PDF)") input',
+      )
+      .setInputFiles({
+        name: "cross-stitch-pattern.pdf",
+        mimeType: "application/pdf",
+        buffer: pdf,
+      });
+    await waitText(
+      page,
+      "#mnemocode-decode-result",
+      /The legend line was read from the pattern\./u,
+    );
+    assert.match(await page.locator("#mnemocode-input").inputValue(), /^MNC1:seedshift:indexes:/u);
+    await page.locator("#decode-mnemocode").click();
+    await output.waitFor();
+    assert.equal(await output.inputValue(), BrowserFixtures.mnemonic);
     assert.deepEqual(run.requests, []);
     run.checks.push(
-      "Encode's cross-stitch pattern is made in MnemoCode's worker from a synthetic picture, asks for another picture where one cannot hold the phrase, saves its PDF, and Decode reads its legend back with one row corrected and named.",
+      "Encode's cross-stitch pattern is made in MnemoCode's worker from a synthetic picture on the sizes MnemoCode offers, asks for another picture where one cannot hold the phrase, saves its PDF, and Decode reads its legend back from the PDF and as typed with one row corrected and named.",
     );
   }
 }

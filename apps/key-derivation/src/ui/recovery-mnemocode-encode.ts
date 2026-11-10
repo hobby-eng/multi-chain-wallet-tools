@@ -1,4 +1,5 @@
 import { MnemoCodeDownload } from "./recovery-mnemocode-download.js";
+import { stegoHandoverButton } from "./recovery-mnemocode-stego.js";
 import { RenderedSecrets } from "./secrets.js";
 import { RecoverySecretLifecycle } from "./recovery-secret-lifecycle.js";
 import { MnemoCodeDisclosureFields } from "./recovery-mnemocode-disclosure.js";
@@ -221,7 +222,11 @@ export class MnemoCodeEncodeTab {
         "text/plain",
       );
     });
-    recordActions.append(save);
+    // As MnemoCode's Encode offers "A photo or MP3 file" among its destinations.
+    recordActions.append(
+      save,
+      stegoHandoverButton(() => ({ kind: "backup", text: result.record })),
+    );
     const saveNote = document.createElement("p");
     saveNote.className = "field-note";
     saveNote.textContent =

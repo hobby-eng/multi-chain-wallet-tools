@@ -1,9 +1,9 @@
 {
-  "buildId": "01b130fcb5f504ca",
+  "buildId": "efe2d7a6c5676cf7",
   "files": {
-    "mnemocode.d.ts": "57bed4983769f78e455aff08122bb2dd60e5a1fc7efcc39a911a8653d9644df8",
-    "mnemocode.js": "0e7f293784b863d6cd3e97d00e109d3d02f10de273064c1666064f6b4069baad",
-    "mnemocode.wasm": "b86cdb912263fd10c9b5fb643bad7bc7eeee59aba3ae110c55ee76c8bb1b3f47"
+    "mnemocode.d.ts": "7c2ce6da20ec4f7f37a8558d15bc2522407b50d1cbcfc118b282c81d2dc5663c",
+    "mnemocode.js": "f1b59f9b03dd12e395e289c56c1f90762811e80cf17566d21bb2744bf8bf3db1",
+    "mnemocode.wasm": "721f5199c4b17343eb97fe00c1a93ffcd8276f7c3607a33c2e6bd950f9dd5caf"
   },
   "modules": [
     "phrase",
@@ -13,7 +13,8 @@
     "sskr",
     "recovery",
     "cards",
-    "embroidery"
+    "embroidery",
+    "stego"
   ],
   "profile": "dash-community/key-derivation",
   "units": [

@@ -11,6 +11,7 @@ import {
   type SearchProgress,
   type SearchQuestion,
 } from "@ckd/recovery-backup/mnemocode-search.js";
+import { readHiddenQrRecord } from "@ckd/recovery-backup/mnemocode-hidden-qr.js";
 import { mnemocode } from "@ckd/recovery-backup/mnemocode-engine.js";
 import { Masking, PHRASE_WORDS } from "@ckd/recovery-backup/mnemocode-facts.js";
 import type { MnemoCodeSearchRequest } from "../workers/mnemocode-search-worker.js";
@@ -87,7 +88,7 @@ export class MnemoCodeForgottenTab {
     installSecretToggle(`#toggle-${PREFIX}-phrase`, `#${PREFIX}-phrase`, "Show", "Hide", "phrase");
     installFieldImports(this.#phrase, (message) => (this.#status.textContent = message), {
       file: PHRASE_FILE_IMPORT,
-      qr: {},
+      qr: { readHidden: readHiddenQrRecord },
     });
     attachMnemoCodeWordHints(this.#phrase, "phrase");
     this.#list.onChange((wanted) => {

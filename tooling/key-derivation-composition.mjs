@@ -416,7 +416,17 @@ const featureSourceMarkers = {
     "/recovery-backup/src/mnemocode-reencoding.ts",
     "/recovery-backup/src/mnemocode-backup-check.ts",
     "/recovery-mnemocode-stitch.ts",
+    "/recovery-mnemocode-stitch-pdf.ts",
     "/recovery-backup/src/mnemocode-stitch.ts",
+    "/recovery-mnemocode-section-run.ts",
+    // Photo or MP3: MnemoCode's steganography, and its QR codes with a hidden record.
+    "/recovery-mnemocode-stego.ts",
+    "/recovery-mnemocode-stego-hide.ts",
+    "/recovery-mnemocode-stego-open.ts",
+    "/recovery-mnemocode-stego-files.ts",
+    "/recovery-backup/src/mnemocode-stego.ts",
+    "/recovery-backup/src/mnemocode-stego-words.ts",
+    "/recovery-backup/src/mnemocode-hidden-qr.ts",
     "/mnemocode-search-worker.ts",
     "/mnemocode-worker-client.ts",
     // The page's BIP39 list in a worker, which only MnemoCode's worker is given.

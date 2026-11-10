@@ -1,3 +1,4 @@
+import { readHiddenQrRecord } from "@ckd/recovery-backup/mnemocode-hidden-qr.js";
 import { MnemoCodeDownload } from "./recovery-mnemocode-download.js";
 import { fingerprintWithoutPassphrase } from "@ckd/recovery-backup/fingerprint.js";
 import { RecoverySecretLifecycle } from "./recovery-secret-lifecycle.js";
@@ -60,7 +61,7 @@ const grouped = (count: number): string => count.toLocaleString("en-US");
 function installShareImports(input: HTMLTextAreaElement, status: HTMLElement): void {
   installFieldImports(input, (message) => (status.textContent = message), {
     file: SHARES_FILE_IMPORT,
-    qr: QR_IMAGES_IMPORT,
+    qr: { ...QR_IMAGES_IMPORT, readHidden: readHiddenQrRecord },
   });
 }
 

@@ -16,7 +16,7 @@ import { SecretValue } from "@ckd/core/secret-value.js";
 const DROPPED = "The inputs changed while the job ran, so its result was dropped.";
 
 /** Owns confirmation bytes, the current native job and its Cancel/status presentation together. */
-export class MnemoCodeWorkerJob<Request, Outcome> implements Disposable {
+export class MnemoCodeWorkerJob<Request, Outcome, Progress = SearchProgress> implements Disposable {
   readonly #source: string;
   readonly #button: HTMLButtonElement;
   readonly #cancel: HTMLButtonElement;
@@ -28,7 +28,7 @@ export class MnemoCodeWorkerJob<Request, Outcome> implements Disposable {
   #revision = 0;
   #runRevision = 0;
   #cancelledRun: number | undefined;
-  #active: MnemoCodeWorker<Request, Outcome> | undefined;
+  #active: MnemoCodeWorker<Request, Outcome, Progress> | undefined;
 
   /** `source` is the text of the worker script that the build embeds. */
   constructor(
@@ -104,12 +104,14 @@ export class MnemoCodeWorkerJob<Request, Outcome> implements Disposable {
 
   /**
    * Runs `request`, with `progressLine` on the status line; the outcome and the time it took, or
-   * undefined when Cancel stopped the job or the inputs changed meanwhile.
+   * undefined when Cancel stopped the job or the inputs changed meanwhile. `transfer` moves the
+   * request's own buffers to the worker.
    */
   async run(
     request: Request,
-    progressLine: (progress: SearchProgress, elapsed: string) => string,
+    progressLine: (progress: Progress, elapsed: string) => string,
     startLine: string,
+    transfer: readonly Transferable[] = [],
   ): Promise<
     { readonly outcome: Exclude<Outcome, WorkerStopped>; readonly elapsed: string } | undefined
   > {
@@ -129,17 +131,21 @@ export class MnemoCodeWorkerJob<Request, Outcome> implements Disposable {
       if (runRevision === this.#runRevision)
         this.#status.textContent = this.#cancelledRun === runRevision ? JOB_STOPPED : DROPPED;
     };
-    let worker: MnemoCodeWorker<Request, Outcome> | undefined;
+    let worker: MnemoCodeWorker<Request, Outcome, Progress> | undefined;
     try {
-      worker = new MnemoCodeWorker<Request, Outcome>(this.#source);
+      worker = new MnemoCodeWorker<Request, Outcome, Progress>(this.#source);
       this.#active = worker;
       const clock = new JobClock();
       this.#cancel.hidden = false;
       this.#status.textContent = startLine;
-      const outcome = await worker.run(request, (progress) => {
-        if (!current()) return;
-        this.#status.textContent = progressLine(progress, formatDuration(clock.elapsed()));
-      });
+      const outcome = await worker.run(
+        request,
+        (progress) => {
+          if (!current()) return;
+          this.#status.textContent = progressLine(progress, formatDuration(clock.elapsed()));
+        },
+        transfer,
+      );
       if (!current()) {
         MnemoCodeWorkerProtocol.discard(outcome);
         dropped();

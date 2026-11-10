@@ -24,7 +24,15 @@ export interface SelfTestCheck {
 }
 
 type Part =
-  "phrase" | "wallet" | "qr" | "candidates" | "sskr" | "recovery" | "cards" | "embroidery";
+  | "phrase"
+  | "wallet"
+  | "qr"
+  | "candidates"
+  | "sskr"
+  | "recovery"
+  | "cards"
+  | "embroidery"
+  | "stego";
 
 const PARTS: Readonly<
   Record<
@@ -64,6 +72,11 @@ const PARTS: Readonly<
     detail: "SeedStitch legends, misread rows and a pattern",
     check: "selfCheckEmbroidery",
   },
+  stego: {
+    name: "Photos and MP3 files",
+    detail: "hidden records, decoys, sets and the full Argon2id reference",
+    check: "stegoSelfCheck",
+  },
 };
 
 export class MnemoCodeSelfTestRun {
@@ -74,6 +87,7 @@ export class MnemoCodeSelfTestRun {
     "candidates",
     "recovery",
     "embroidery",
+    "stego",
   ]);
   readonly #after: SelfTestCheck[] = [];
 

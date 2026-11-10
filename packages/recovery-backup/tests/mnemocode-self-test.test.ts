@@ -28,6 +28,7 @@ describe("MnemoCode self-tests in the Deriver", () => {
       "Candidate lists",
       "Recovery",
       "Cross-stitch patterns",
+      "Photos and MP3 files",
       "Page check",
     ]);
     expect(ran).toEqual(["page"]);

@@ -1,9 +1,9 @@
 {
-  "buildId": "c52799e6a967806a",
+  "buildId": "5e10f42dd66a84dd",
   "files": {
-    "mnemocode.d.ts": "77276375339d1c87f25f6d96db31b3bb8db494f955d73e9c13ef8fb62eddf35a",
-    "mnemocode.js": "46a04f51094ef07fb2dc36c718440ab8c08164e04f221a389f78f0c534b4b981",
-    "mnemocode.wasm": "fc3fe0292c2760680149b215679fce0d275aed40228e62ce07b247c168b55ed9"
+    "mnemocode.d.ts": "ceaeeed58caa2f627f9b5dd2762b6c5890c5aacd22a0fee18b0dc4d21bb41f4f",
+    "mnemocode.js": "79b1061d2df7e1a7b21a3cdc92013cd017dbba0965fbdc4c27ad6be97f7f30f2",
+    "mnemocode.wasm": "e2f5df7ccdd3b0c0ee62794df43991c70a54880104db1c6a5f35e186e70d237a"
   },
   "modules": [
     "phrase",
@@ -13,7 +13,8 @@
     "sskr",
     "recovery",
     "cards",
-    "embroidery"
+    "embroidery",
+    "stego"
   ],
   "profile": "multi-chain/key-derivation",
   "units": [

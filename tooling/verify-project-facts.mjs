@@ -148,7 +148,12 @@ function markdownFiles(directory, output = []) {
   }
   return output;
 }
+// Upstream files vendored byte for byte keep their links, which are relative to their own repository.
+const VENDORED_UPSTREAM_MARKDOWN = new Set([
+  resolve(root, "packages/recovery-mnemocode-wasm/THIRD_PARTY_NOTICES.md"),
+]);
 for (const path of markdownFiles(root)) {
+  if (VENDORED_UPSTREAM_MARKDOWN.has(path)) continue;
   const text = readFileSync(path, "utf8");
   for (const match of text.matchAll(/\[[^\]]+\]\(([^)]+)\)/gu)) {
     const target = match[1].split("#")[0];

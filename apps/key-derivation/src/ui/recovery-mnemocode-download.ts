@@ -39,6 +39,11 @@ export class MnemoCodeDownload {
     }
   }
 
+  /** Saves a Blob as it is, such as a photo whose saved bytes MnemoCode has read back. */
+  static blob(blob: Blob, fileName: unknown): void {
+    downloadBlob(blob, checkedExportFileName(fileName));
+  }
+
   /** Admits the same safe filename before calling the workspace's gated text export. */
   static text(
     host: Pick<RecoveryFeatureContext, "downloadText">,

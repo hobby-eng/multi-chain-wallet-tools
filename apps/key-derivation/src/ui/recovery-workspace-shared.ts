@@ -9,7 +9,11 @@ import type { RecoveryJobGate } from "./recovery-job-gate.js";
 import type { RecoverySourceReference, RecoverySourceTarget } from "./recovery-source-link.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { createQrAction } from "@ckd/ui/payment-qr.js";
-import { installQrImageImport, type DecodedQrImage } from "@ckd/ui/qr-image-import.js";
+import {
+  installQrImageImport,
+  type DecodedQrImage,
+  type HiddenQrReader,
+} from "@ckd/ui/qr-image-import.js";
 import { qrText } from "@ckd/ui/qr-text.js";
 import { installTextFileImport, type TextFileImportOptions } from "@ckd/ui/text-file-import.js";
 import { SeedDiagnosticView } from "./seed-diagnostic-view.js";
@@ -719,6 +723,7 @@ export function installFieldImports(
       readonly label?: string;
       readonly multiple?: boolean;
       readonly onDecoded?: (decoded: DecodedQrImage) => string;
+      readonly readHidden?: HiddenQrReader;
     };
   },
 ): void {

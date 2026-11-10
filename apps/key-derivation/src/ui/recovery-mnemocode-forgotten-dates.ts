@@ -5,6 +5,7 @@ import {
   type MnemoCodeFormat,
   type MnemoCodeMode,
 } from "@ckd/recovery-backup/mnemocode.js";
+import { readHiddenQrRecord } from "@ckd/recovery-backup/mnemocode-hidden-qr.js";
 import { mnemocode } from "@ckd/recovery-backup/mnemocode-engine.js";
 import { Masking } from "@ckd/recovery-backup/mnemocode-facts.js";
 import {
@@ -53,7 +54,7 @@ export class MnemoCodeForgottenDates {
     installSecretToggle(`#toggle-${PREFIX}-codes`, `#${PREFIX}-codes`, "Show", "Hide", "codes");
     installFieldImports(this.#codes, (message) => (status.textContent = message), {
       file: RECORD_FILE_IMPORT,
-      qr: {},
+      qr: { readHidden: readHiddenQrRecord },
     });
     attachMnemoCodeWordHints(this.#codes, "codes");
   }

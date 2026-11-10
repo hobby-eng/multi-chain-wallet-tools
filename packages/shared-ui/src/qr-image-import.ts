@@ -49,9 +49,16 @@ export function decodeQrPixels(
   }
 }
 
+/**
+ * Reads a record a QR's PNG keeps beyond what ordinary scanners show, such as MnemoCode's hidden
+ * QR record; undefined where the image keeps none, and the image is then read as any QR code.
+ */
+export type HiddenQrReader = (png: Uint8Array) => string | undefined;
+
 async function decodeQrImage(
   file: File,
   current: () => boolean,
+  readHidden?: HiddenQrReader,
 ): Promise<DecodedQrImage | undefined> {
   if (!file.type.startsWith("image/"))
     throw new Error("Choose a PNG, JPEG, WebP, or other browser-readable image.");
@@ -67,6 +74,8 @@ async function decodeQrImage(
   try {
     if (!current()) return undefined;
     if (file.type === PNG_MIME_TYPE || BrowserPngAdmission.hasSignature(bytes)) {
+      const hidden = readHidden?.(bytes);
+      if (hidden !== undefined) return { text: hidden, utf8: true };
       // decode() owns its snapshot synchronously, so the file-read buffer can be wiped now.
       return PNG_ADMISSION.decode(bytes, (owned) =>
         decodeQrBlob(new Blob([owned], { type: PNG_MIME_TYPE }), current),
@@ -117,6 +126,8 @@ async function decodeQrBlob(
 export interface QrImageImportOptions {
   readonly label?: string;
   readonly multiple?: boolean;
+  /** Tried first on a PNG: the hidden record it keeps, read instead of the visible text. */
+  readonly readHidden?: HiddenQrReader;
   onDecoded?(decoded: DecodedQrImage): string;
   onError?(message: string): void;
 }
@@ -152,7 +163,11 @@ export class QrImageImport {
     try {
       for (const file of files) {
         if (!current.current()) return;
-        const decoded = await decodeQrImage(file, () => current.current());
+        const decoded = await decodeQrImage(
+          file,
+          () => current.current(),
+          this.#options.readHidden,
+        );
         if (decoded === undefined) return;
         try {
           if (!current.current()) return;

@@ -1,3 +1,4 @@
+import { HIDDEN_QR_NOTE } from "@ckd/recovery-backup/mnemocode-hidden-qr.js";
 import { MnemoCodeDownload } from "./recovery-mnemocode-download.js";
 import {
   cardTemplates,
@@ -173,6 +174,12 @@ function installMnemoCodeCards(context: RecoveryFeatureContext): void {
   fillSelect(fileFormat, MNEMOCODE_CARD_FILE_FORMATS);
   const qr = required<HTMLInputElement>("#mnemocode-card-qr");
   const qrRow = required<HTMLElement>("#mnemocode-card-qr-row");
+  // As MnemoCode's QR question: an ordinary QR, or one whose visible text is the printed contact
+  // and whose hidden bytes keep the record (MnemoCode docs/HIDDEN_QR.md).
+  const hiddenQr = required<HTMLInputElement>("#mnemocode-card-qr-hidden");
+  const hiddenQrRow = required<HTMLElement>("#mnemocode-card-qr-hidden-row");
+  const hiddenQrNote = required<HTMLElement>("#mnemocode-card-qr-hidden-note");
+  hiddenQrNote.textContent = `${HIDDEN_QR_NOTE} The contact is the vCard of the card's details: invented ones, or your own.`;
   const title = required<HTMLInputElement>("#mnemocode-card-title");
   const outputNote = required<HTMLElement>("#mnemocode-card-output-note");
   const synchronizeOutput = (): void => {
@@ -184,6 +191,9 @@ function installMnemoCodeCards(context: RecoveryFeatureContext): void {
     // A QR code belongs to a sheet only; a separate card never carries one.
     qrRow.hidden = separate || layout === "qr";
     if (qrRow.hidden) qr.checked = false;
+    hiddenQrRow.hidden = !qr.checked;
+    if (hiddenQrRow.hidden) hiddenQr.checked = false;
+    hiddenQrNote.hidden = !hiddenQr.checked;
     // As MnemoCode's design question: separate cards are made in the business card designs only.
     for (const [index, design] of templates.entries()) {
       const option = template.options.item(index);
@@ -226,6 +236,8 @@ function installMnemoCodeCards(context: RecoveryFeatureContext): void {
   sharesChoice?.addEventListener("change", synchronizeOutput);
   phraseChoice?.addEventListener("change", synchronizeOutput);
   shareQr?.addEventListener("change", synchronizeOutput);
+  qr.addEventListener("change", synchronizeOutput);
+  hiddenQr.addEventListener("change", synchronizeOutput);
   representation.addEventListener("change", synchronizeOutput);
   latestShares.onChange(synchronizeOutput);
   synchronizeOutput();
@@ -309,6 +321,7 @@ function installMnemoCodeCards(context: RecoveryFeatureContext): void {
       pageSize: pageSize.value,
       orientation: orientation.value,
       qr: qr.checked,
+      hiddenQr: qr.checked && hiddenQr.checked,
       fileFormat: fileFormat.value,
       // Hidden fields are ignored, so unticking the box returns to the invented details.
       profile: ownDetails.checked ? profile() : {},

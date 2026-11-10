@@ -109,6 +109,10 @@ export class CardExport {
      */
     setDetail(field: string, value: string): void;
     /**
+     * Choose a contact in the sheet QR and the exact backup record in its filler bytes.
+     */
+    setHiddenQr(enabled: boolean): void;
+    /**
      * The text `part` of the design: studioName, slogan, subtitle, footer or referenceLabel; "-"
      * hides its line.
      */
@@ -849,6 +853,290 @@ export class SplitShares {
 }
 
 /**
+ * Clean input owners for one new threshold generation; incomplete groups export no files.
+ */
+export class StegoCarrierSet {
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Moves a completed analysis into the group without another file copy or
+     * password stretch. Admission failure retains the analysis for the host.
+     */
+    addAnalyzed(job: StegoJob): void;
+    /**
+     * Admits aggregate source bytes before copying this input into Rust.
+     * Each member holds its share as the original message of its file.
+     */
+    add(file: Uint8Array, password: any): void;
+    /**
+     * Common guaranteed payload bytes after envelope overhead. No value means
+     * at least one input was not analyzed; it does not mean zero capacity.
+     */
+    capacityBytes(selected_density: any): number | undefined;
+    /**
+     * Starts an empty selection of original carriers.
+     */
+    constructor(selected_density: any);
+    /**
+     * Changes the requested profile without discarding admitted analyses. The
+     * exact contents are checked against common capacity when `start` is called.
+     */
+    selectDensity(selected_density: any): void;
+    /**
+     * Consumes the inputs and contents; the core validates the requested quorum.
+     */
+    start(content: StegoContent, needed: any): StegoJob;
+}
+
+/**
+ * A typed hidden message in an owning wiped buffer; `free()` releases it.
+ */
+export class StegoContent {
+    private constructor();
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * MNC1 text for a compact backup; the host must promptly clear its JS copy.
+     */
+    backupRecord(): string | undefined;
+    /**
+     * Packs an existing MNC1 backup without changing any legacy checksum bits.
+     */
+    static backup(record: any): StegoContent;
+    /**
+     * Required files for a threshold envelope, or zero for ordinary contents.
+     */
+    filesNeeded(): number;
+    /**
+     * Opaque bytes, or no value for a compact backup or a threshold envelope.
+     */
+    opaqueBytes(): Uint8Array | undefined;
+    /**
+     * Nonempty exact bytes, including arbitrary binary files; never normalized.
+     */
+    static opaque(bytes: Uint8Array): StegoContent;
+    /**
+     * Releases the contents now; subsequent uses are refused.
+     */
+    wipe(): void;
+}
+
+/**
+ * One carrier and normalized password: the original message's, or a decoy's or set
+ * member's where the call says so. Opening finds the password's record by itself.
+ */
+export class StegoInput {
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Checks a proposed decoy password without consuming the input or changing either password.
+     * Use only on the private creation screen. hideWithDecoy repeats core admission before
+     * consuming inputs; this method is feedback, not an authorization token.
+     */
+    compareDecoyPassword(decoy: any): StegoPasswordComparison;
+    /**
+     * Metadata condition codes from the admitted input, before a job takes it.
+     */
+    metadataNotices(): string[];
+    /**
+     * The host checks aggregate file sizes before constructing a group. Its
+     * other JS/Blob copies are outside the library's 512MiB managed budget.
+     */
+    constructor(file: Uint8Array, password: any);
+}
+
+/**
+ * An owned stepped operation. Use a worker: Argon2 is one blocking 128MiB step.
+ * `free()` or `cancel()` drops all passwords and incomplete results.
+ */
+export class StegoJob {
+    private constructor();
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Analyzes a new password for a record of `role` without searching old records:
+     * undefined or "original" for the original message alone, "decoy", or
+     * "original-behind-decoy". For a decoy pair, analyze both roles with their own
+     * passwords and take the smaller space. On completion `status` is "analyzed" and
+     * capacities become available; only an "original" analysis can `encodeAnalyzed`.
+     */
+    static analyze(input: StegoInput, role: any): StegoJob;
+    /**
+     * Copies one candidate to JS for a Blob. This alone does not verify the Blob.
+     */
+    bytes(file_index: any): Uint8Array;
+    /**
+     * Drops unfinished state and results; subsequent steps return "cancelled".
+     */
+    cancel(): void;
+    /**
+     * Guaranteed ordinary-message bytes for this exact file, password and role.
+     * Zero means no supported bucket; an unfinished or consumed analysis throws.
+     */
+    capacityBytes(selected_density: any): number;
+    /**
+     * Reuses the analyzed key and source. A decoy-pair analysis, an invalid density or
+     * insufficient space retains both owners; success consumes this analysis and the contents.
+     */
+    encodeAnalyzed(content: StegoContent, selected_density: any): StegoJob;
+    /**
+     * Metadata outcomes for one verified candidate; this does not verify a saved Blob.
+     */
+    fileMetadataNotices(file_index: any): string[];
+    /**
+     * Creates the original message and a decoy together in a clean source, at one
+     * density. Passwords must pass pair admission; the decoy opens what looks like a file with
+     * one record. Verify the saved bytes with each password.
+     */
+    static hideWithDecoy(input: StegoInput, content: StegoContent, decoy_password: any, decoy: StegoContent, selected_density: any): StegoJob;
+    /**
+     * Creates the original message alone in a clean source; old records are not
+     * searched. The smallest fitting bucket is automatic.
+     */
+    static hide(input: StegoInput, content: StegoContent, selected_density: any): StegoJob;
+    /**
+     * Opens the record of this password, the original message or a decoy, without
+     * telling which. No-record never means empty.
+     */
+    static open(input: StegoInput): StegoJob;
+    /**
+     * Performs one bounded step; a refusal drops the working job immediately.
+     */
+    step(): string;
+    /**
+     * Takes an authenticated content owner, including a threshold envelope.
+     */
+    takeContent(): StegoContent;
+    /**
+     * Guaranteed ordinary-message bytes after threshold-envelope overhead.
+     */
+    thresholdCapacityBytes(selected_density: any): number;
+    /**
+     * Reopens the exact final Blob bytes with their password. Other retained
+     * candidate files are counted before the ordinary saved-byte verifier starts.
+     */
+    verifySaved(file_index: any, saved: Uint8Array, password: any): StegoJob;
+    /**
+     * Number of fully verified candidates; none leave an incomplete group.
+     */
+    readonly fileCount: number;
+    /**
+     * Stable outcome or "working". Stage strings from `step()` are progress only.
+     */
+    readonly status: string;
+}
+
+/**
+ * Public bounds for admission before a page reads large file buffers.
+ */
+export class StegoParameters {
+    private constructor();
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Names of available embedding densities, least to most dense. Higher is
+     * not a security guarantee; callers must request a profile explicitly.
+     */
+    readonly densities: string[];
+    /**
+     * Largest single input file, in bytes.
+     */
+    readonly inputBytes: number;
+    /**
+     * Fixed Argon2 workspace size, in bytes.
+     */
+    readonly kdfMemoryBytes: number;
+    /**
+     * The browser-managed buffer budget, excluding JS copies.
+     */
+    readonly memoryBytes: number;
+    /**
+     * Largest ordinary payload, in bytes; a carrier may hold less.
+     */
+    readonly messageBytes: number;
+    /**
+     * Payload input bytes admitted before the browser creates large buffers.
+     * This is a host-memory bound, not a limit on the record representation.
+     */
+    readonly messageInputBytes: number;
+    /**
+     * Heuristic minimum OSA difference for new decoy pairs; not password strength.
+     */
+    readonly passwordDifferencePercent: number;
+    /**
+     * Largest raw UTF-8 password input before NFKD.
+     */
+    readonly passwordInputBytes: number;
+    /**
+     * Minimum normalized UTF-8 password length, not an entropy estimate.
+     */
+    readonly passwordMinBytes: number;
+    /**
+     * Largest primary image area, in pixels, subject to memory admission.
+     */
+    readonly pixels: number;
+}
+
+/**
+ * Private admission feedback, not strength. Hosts must not log or persist its fields.
+ */
+export class StegoPasswordComparison {
+    private constructor();
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Whether the full creation policy accepts the pair, including derivation checks.
+     */
+    readonly accepted: boolean;
+    /**
+     * Scalar count of the longer normalized input, the percentage denominator.
+     */
+    readonly comparedCharacters: number;
+    /**
+     * OSA difference rounded down to a whole percentage, not an entropy estimate.
+     */
+    readonly differencePercent: number;
+    /**
+     * Unicode-scalar OSA edits between the normalized inputs.
+     */
+    readonly editDistance: number;
+    /**
+     * Stable refusal code for this pair, or undefined when accepted.
+     */
+    readonly refusalCode: string | undefined;
+}
+
+/**
+ * Authenticated records opened from separate files. Recovery rejects duplicate
+ * members and mixed generations through the established threshold validator.
+ */
+export class StegoRecoverySet {
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Consumes one opened threshold record in a wiped owner.
+     */
+    add(content: StegoContent): void;
+    /**
+     * Required count from the authenticated first member; zero before any input.
+     */
+    filesNeeded(): number;
+    /**
+     * Starts an empty recovery selection; add authenticated envelopes only.
+     */
+    constructor();
+    /**
+     * Compatible but insufficient inputs return no value; malformed or mixed
+     * inputs and an empty selection throw a refusal. A recovered content owner must be freed promptly.
+     */
+    recover(): StegoContent | undefined;
+    /**
+     * Drops every owned share and its encrypted payload.
+     */
+    wipe(): void;
+}
+
+/**
  * A legend line read back.
  */
 export class StitchLegend {
@@ -856,8 +1144,8 @@ export class StitchLegend {
     free(): void;
     [Symbol.dispose](): void;
     /**
-     * The record of the masked phrase, `MNC1:seedshift:indexes:…`, which the recovery part decodes
-     * with the dates.
+     * The record of the phrase: `MNC1:seedshift:indexes:…`, which the recovery part decodes with
+     * the dates, or `MNC1:direct:indexes:…` for a legend made with `--mode direct`.
      */
     record(): string;
     /**
@@ -868,7 +1156,7 @@ export class StitchLegend {
 }
 
 /**
- * A pattern whose legend holds a masked phrase, and how near it looks to its picture.
+ * A pattern whose legend holds a phrase, and how near it looks to its picture.
  */
 export class StitchPattern {
     free(): void;
@@ -879,15 +1167,19 @@ export class StitchPattern {
     legend(): string;
     /**
      * `phrase`, masked with `dates` (a typed line of them) by MnemoCode Seedshift, hidden in the
-     * legend of a pattern of `picture`, a PNG or JPEG file, `stitchesAcross` wide (0: 200).
-     * Refused as the library refuses the phrase, the dates, the picture and the width, and where
-     * the picture has too few colors to hold the phrase.
+     * legend of a pattern of `picture`, a PNG, JPEG or WebP file, `stitchesAcross` wide (0: 200).
+     * `mode`, which a page may leave out, is "seedshift" or "direct" for the phrase itself, with
+     * no dates: anyone who knows the public format reads it from the legend. Refused as the
+     * library refuses the mode, the phrase, the dates, the picture and the width, and where the
+     * picture has too few colors to hold the phrase.
      */
-    constructor(phrase: any, dates: any, picture: Uint8Array, stitches_across: number);
+    constructor(phrase: any, dates: any, picture: Uint8Array, stitches_across: number, mode?: string | null);
     /**
-     * The pattern as a PDF: a cover, the legend and the chart pages.
+     * The pattern as a PDF dressed as a bought one: a cover, the floss key and the chart in colour,
+     * for `fabric`, as `stitch --fabric` names it ("14" or "linen-28"), 14-count Aida where a page
+     * leaves it out. The key page keeps the legend line, which [`read_stitch_pdf`] reads back.
      */
-    pdf(): Uint8Array;
+    pdf(fabric?: string | null): Uint8Array;
     /**
      * The stitches down.
      */
@@ -909,6 +1201,86 @@ export class StitchPattern {
      * The stitches across.
      */
     readonly width: number;
+}
+
+/**
+ * How large a pattern of a picture may be on a fabric, as the menu offers it: the sheets from A6 to
+ * A2 that hold the picture, each with the stitches it takes there, and the widths the picture
+ * allows. The picture is no secret.
+ */
+export class StitchSizes {
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * The stitches across the picture takes in the sheet at `at`; none past the last.
+     */
+    across(at: number): number | undefined;
+    /**
+     * The centimetres across that the stitches of the sheet at `at` take on the fabric; none past
+     * the last.
+     */
+    centimetresAcross(at: number): number | undefined;
+    /**
+     * The centimetres down that the stitches of the sheet at `at` take on the fabric; none past
+     * the last.
+     */
+    centimetresDown(at: number): number | undefined;
+    /**
+     * The stitches down the picture takes in the sheet at `at`; none past the last.
+     */
+    down(at: number): number | undefined;
+    /**
+     * The long side of the sheet at `at`, in millimetres; none past the last.
+     */
+    longSide(at: number): number | undefined;
+    /**
+     * The name of the sheet at `at`, smallest first, as "A4"; none past the last.
+     */
+    name(at: number): string | undefined;
+    /**
+     * The sizes of `picture`, a PNG, JPEG or WebP file, on `fabric` ("14" or "linen-28"; 14-count
+     * Aida where a page leaves it out). Refused as the library refuses the picture and the fabric.
+     */
+    constructor(picture: Uint8Array, fabric?: string | null);
+    /**
+     * The short side of the sheet at `at`, in millimetres; none past the last.
+     */
+    shortSide(at: number): number | undefined;
+    /**
+     * The stitches across of a width of `centimetres` that a person typed; none where it is no
+     * number above 0 or its stitches are not within the widths the picture allows.
+     */
+    typedWidth(centimetres: number): number | undefined;
+    /**
+     * How many sheets hold the picture.
+     */
+    readonly count: number;
+    /**
+     * The stitches across from which a photograph looks real, for the page to say why it selects
+     * [`StitchSizes::first`].
+     */
+    readonly detailedFrom: number;
+    /**
+     * The fewest stitches across the picture may have.
+     */
+    readonly fewestAcross: number;
+    /**
+     * The fewest centimetres across that a width typed in them may have, rounded up.
+     */
+    readonly fewestCentimetres: number;
+    /**
+     * The place of the sheet a page selects first: the smallest that gives [`DETAILED_ACROSS`]
+     * stitches across, else the largest; none where no sheet holds the picture.
+     */
+    readonly first: number | undefined;
+    /**
+     * The most stitches across the picture may have.
+     */
+    readonly mostAcross: number;
+    /**
+     * The most centimetres across that a width typed in them may have, rounded down.
+     */
+    readonly mostCentimetres: number;
 }
 
 /**
@@ -1099,9 +1471,25 @@ export function checkShareBackup(phrase: any, mode: any, threshold: number, date
 export function checkShareQr(colors: any, payload: any, labels: any): void;
 
 /**
+ * Checks metadata sizes before a page materializes File/Blob ArrayBuffers.
+ * Parsed plans and actual working buffers are admitted separately by core.
+ */
+export function checkStegoFileSizes(sizes: Float64Array): void;
+
+/**
+ * Checks a payload File size before creating its ArrayBuffer or WASM copy.
+ */
+export function checkStegoMessageSize(bytes: number): void;
+
+/**
  * The candidate list in the age `file`, opened with `passphrase`.
  */
 export function decryptWithPassphrase(file: Uint8Array, passphrase: any): Uint8Array;
+
+/**
+ * A PNG with visible text for ordinary scanners and an exact hidden UTF-8 record.
+ */
+export function hiddenQrPng(visible: any, record: any): Uint8Array;
 
 /**
  * Whether `text`, given for the words of a phrase, is codes.
@@ -1144,6 +1532,11 @@ export function protectList(list: Uint8Array, kind: any, secret: any): Uint8Arra
 export function qrPng(payload: any): Uint8Array;
 
 /**
+ * A hidden record from a PNG, refused when its format or check is invalid.
+ */
+export function readHiddenQrPng(bytes: Uint8Array): string;
+
+/**
  * The text of the QR code in the PNG file `bytes`, admitted and read as the library reads it.
  */
 export function readQrPng(bytes: Uint8Array): string;
@@ -1153,6 +1546,13 @@ export function readQrPng(bytes: Uint8Array): string;
  * record. Refused for a line that is no legend, or that reads as no phrase or as more than one.
  */
 export function readStitchLegend(line: any): StitchLegend | undefined;
+
+/**
+ * The legend line that the PDF `pdf` of a pattern keeps, read back as [`read_stitch_legend`]
+ * reads a typed one; undefined where the PDF keeps none, as when another program saved it again,
+ * and the page asks for the legend typed from the key instead.
+ */
+export function readStitchPdf(pdf: Uint8Array): StitchLegend | undefined;
 
 /**
  * The candidates part's known answers: the startup cases, or with `full` every case, scrypt's
@@ -1205,6 +1605,16 @@ export function shareForm(share: any): string;
  * What the text `text` given for the codes is: "share", "either", or undefined for neither.
  */
 export function shareKind(backup: any): string | undefined;
+
+/**
+ * Reads bounds without constructing a secret or loading a carrier.
+ */
+export function stegoParameters(): StegoParameters;
+
+/**
+ * Runs the feature's startup cases, or includes its full Argon2 reference.
+ */
+export function stegoSelfCheck(full: boolean): void;
 
 /**
  * The ids of the coins this build holds.
@@ -1262,8 +1672,16 @@ export interface InitOutput {
     readonly __wbg_sessionidentity_free: (a: number, b: number) => void;
     readonly __wbg_sharecards_free: (a: number, b: number) => void;
     readonly __wbg_splitshares_free: (a: number, b: number) => void;
+    readonly __wbg_stegocarrierset_free: (a: number, b: number) => void;
+    readonly __wbg_stegocontent_free: (a: number, b: number) => void;
+    readonly __wbg_stegoinput_free: (a: number, b: number) => void;
+    readonly __wbg_stegojob_free: (a: number, b: number) => void;
+    readonly __wbg_stegoparameters_free: (a: number, b: number) => void;
+    readonly __wbg_stegopasswordcomparison_free: (a: number, b: number) => void;
+    readonly __wbg_stegorecoveryset_free: (a: number, b: number) => void;
     readonly __wbg_stitchlegend_free: (a: number, b: number) => void;
     readonly __wbg_stitchpattern_free: (a: number, b: number) => void;
+    readonly __wbg_stitchsizes_free: (a: number, b: number) => void;
     readonly __wbg_typedhint_free: (a: number, b: number) => void;
     readonly __wbg_walletcheck_free: (a: number, b: number) => void;
     readonly __wbg_walletevidence_free: (a: number, b: number) => void;
@@ -1289,6 +1707,7 @@ export interface InitOutput {
     readonly cardexport_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
     readonly cardexport_preview: (a: number, b: number, c: number, d: number) => void;
     readonly cardexport_setDetail: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
+    readonly cardexport_setHiddenQr: (a: number, b: number) => void;
     readonly cardexport_setText: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly cardexport_setTitle: (a: number, b: number, c: number) => void;
     readonly cardexport_shares: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
@@ -1300,6 +1719,8 @@ export interface InitOutput {
     readonly checkCandidateFileSize: (a: number, b: number) => void;
     readonly checkShareBackup: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
     readonly checkShareQr: (a: number, b: number, c: number, d: number) => void;
+    readonly checkStegoFileSizes: (a: number, b: number, c: number) => void;
+    readonly checkStegoMessageSize: (a: number, b: number) => void;
     readonly decodedbackup_checksumValid: (a: number, b: number) => number;
     readonly decodedbackup_count: (a: number) => number;
     readonly decodedbackup_encodedFingerprint: (a: number, b: number) => void;
@@ -1314,6 +1735,7 @@ export interface InitOutput {
     readonly heirpage_encodedSheet: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
     readonly heirpage_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number) => void;
     readonly heirpage_sharesSheet: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => void;
+    readonly hiddenQrPng: (a: number, b: number, c: number) => void;
     readonly isCodes: (a: number, b: number) => void;
     readonly legacyLastWords: (a: number, b: number) => void;
     readonly legacylastwords_count: (a: number) => number;
@@ -1342,8 +1764,10 @@ export interface InitOutput {
     readonly qrmatrix_isDark: (a: number, b: number, c: number) => number;
     readonly qrmatrix_of: (a: number, b: number) => void;
     readonly qrmatrix_size: (a: number) => number;
+    readonly readHiddenQrPng: (a: number, b: number, c: number) => void;
     readonly readQrPng: (a: number, b: number, c: number) => void;
     readonly readStitchLegend: (a: number, b: number) => void;
+    readonly readStitchPdf: (a: number, b: number, c: number) => void;
     readonly readbackup_decode: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly readbackup_formConflict: (a: number, b: number, c: number) => void;
     readonly readbackup_forms: (a: number, b: number, c: number) => void;
@@ -1438,16 +1862,84 @@ export interface InitOutput {
     readonly splitshares_keepingNote: (a: number, b: number, c: number) => void;
     readonly splitshares_shares: (a: number, b: number) => void;
     readonly splitshares_split: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
+    readonly stegoParameters: () => number;
+    readonly stegoSelfCheck: (a: number, b: number) => void;
+    readonly stegocarrierset_add: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly stegocarrierset_addAnalyzed: (a: number, b: number, c: number) => void;
+    readonly stegocarrierset_capacityBytes: (a: number, b: number, c: number) => void;
+    readonly stegocarrierset_new: (a: number, b: number) => void;
+    readonly stegocarrierset_selectDensity: (a: number, b: number, c: number) => void;
+    readonly stegocarrierset_start: (a: number, b: number, c: number, d: number) => void;
+    readonly stegocontent_backup: (a: number, b: number) => void;
+    readonly stegocontent_backupRecord: (a: number, b: number) => void;
+    readonly stegocontent_filesNeeded: (a: number, b: number) => void;
+    readonly stegocontent_opaque: (a: number, b: number, c: number) => void;
+    readonly stegocontent_opaqueBytes: (a: number, b: number) => void;
+    readonly stegocontent_wipe: (a: number) => void;
+    readonly stegoinput_compareDecoyPassword: (a: number, b: number, c: number) => void;
+    readonly stegoinput_metadataNotices: (a: number, b: number) => void;
+    readonly stegoinput_new: (a: number, b: number, c: number, d: number) => void;
+    readonly stegojob_analyze: (a: number, b: number, c: number) => void;
+    readonly stegojob_bytes: (a: number, b: number, c: number) => void;
+    readonly stegojob_cancel: (a: number) => void;
+    readonly stegojob_capacityBytes: (a: number, b: number, c: number) => void;
+    readonly stegojob_encodeAnalyzed: (a: number, b: number, c: number, d: number) => void;
+    readonly stegojob_fileCount: (a: number) => number;
+    readonly stegojob_fileMetadataNotices: (a: number, b: number, c: number) => void;
+    readonly stegojob_hide: (a: number, b: number, c: number, d: number) => void;
+    readonly stegojob_hideWithDecoy: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
+    readonly stegojob_open: (a: number, b: number) => void;
+    readonly stegojob_status: (a: number, b: number) => void;
+    readonly stegojob_step: (a: number, b: number) => void;
+    readonly stegojob_takeContent: (a: number, b: number) => void;
+    readonly stegojob_thresholdCapacityBytes: (a: number, b: number, c: number) => void;
+    readonly stegojob_verifySaved: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
+    readonly stegoparameters_densities: (a: number, b: number) => void;
+    readonly stegoparameters_inputBytes: (a: number) => number;
+    readonly stegoparameters_kdfMemoryBytes: (a: number) => number;
+    readonly stegoparameters_memoryBytes: (a: number) => number;
+    readonly stegoparameters_messageBytes: (a: number) => number;
+    readonly stegoparameters_messageInputBytes: (a: number) => number;
+    readonly stegoparameters_passwordDifferencePercent: (a: number) => number;
+    readonly stegoparameters_passwordInputBytes: (a: number) => number;
+    readonly stegoparameters_passwordMinBytes: (a: number) => number;
+    readonly stegoparameters_pixels: (a: number) => number;
+    readonly stegopasswordcomparison_accepted: (a: number) => number;
+    readonly stegopasswordcomparison_comparedCharacters: (a: number) => number;
+    readonly stegopasswordcomparison_differencePercent: (a: number) => number;
+    readonly stegopasswordcomparison_editDistance: (a: number) => number;
+    readonly stegopasswordcomparison_refusalCode: (a: number, b: number) => void;
+    readonly stegorecoveryset_add: (a: number, b: number, c: number) => void;
+    readonly stegorecoveryset_filesNeeded: (a: number, b: number) => void;
+    readonly stegorecoveryset_new: () => number;
+    readonly stegorecoveryset_recover: (a: number, b: number) => void;
+    readonly stegorecoveryset_wipe: (a: number) => void;
     readonly stitchlegend_correctedRow: (a: number) => number;
     readonly stitchlegend_record: (a: number, b: number) => void;
     readonly stitchpattern_height: (a: number) => number;
     readonly stitchpattern_legend: (a: number, b: number) => void;
     readonly stitchpattern_moved: (a: number) => number;
-    readonly stitchpattern_new: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
-    readonly stitchpattern_pdf: (a: number, b: number) => void;
+    readonly stitchpattern_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
+    readonly stitchpattern_pdf: (a: number, b: number, c: number, d: number) => void;
     readonly stitchpattern_rows: (a: number) => number;
     readonly stitchpattern_seenDifference: (a: number) => number;
     readonly stitchpattern_width: (a: number) => number;
+    readonly stitchsizes_across: (a: number, b: number) => number;
+    readonly stitchsizes_centimetresAcross: (a: number, b: number, c: number) => void;
+    readonly stitchsizes_centimetresDown: (a: number, b: number, c: number) => void;
+    readonly stitchsizes_count: (a: number) => number;
+    readonly stitchsizes_detailedFrom: (a: number) => number;
+    readonly stitchsizes_down: (a: number, b: number) => number;
+    readonly stitchsizes_fewestAcross: (a: number) => number;
+    readonly stitchsizes_fewestCentimetres: (a: number) => number;
+    readonly stitchsizes_first: (a: number) => number;
+    readonly stitchsizes_longSide: (a: number, b: number, c: number) => void;
+    readonly stitchsizes_mostAcross: (a: number) => number;
+    readonly stitchsizes_mostCentimetres: (a: number) => number;
+    readonly stitchsizes_name: (a: number, b: number, c: number) => void;
+    readonly stitchsizes_new: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly stitchsizes_shortSide: (a: number, b: number, c: number) => void;
+    readonly stitchsizes_typedWidth: (a: number, b: number) => number;
     readonly typedhint_letters: (a: number, b: number) => void;
     readonly typedhint_said: (a: number, b: number) => void;
     readonly typedhint_wordEnds: (a: number) => number;

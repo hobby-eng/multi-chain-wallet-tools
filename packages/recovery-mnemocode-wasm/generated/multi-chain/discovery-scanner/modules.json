@@ -1,9 +1,9 @@
 {
-  "buildId": "7ce2aa259b29dcb5",
+  "buildId": "2807e6cd88a113c3",
   "files": {
     "mnemocode.d.ts": "095c774232caeab8efe2c7e492856095dd8ce37635dbe3e68de6a3b8e2ebc457",
     "mnemocode.js": "da2b9eba078252470c3e5f84d159b868f6cd21a0bf6d435e6d5ac965b2a45952",
-    "mnemocode.wasm": "58735654899c4bf0b572c367d4d0ad38b43bc13163111b26bb00269a9e5fb9b7"
+    "mnemocode.wasm": "a2e596f79a29b5a84d87b512dd049cb43a2ee69822bfda89b933822913520291"
   },
   "modules": [
     "candidates"

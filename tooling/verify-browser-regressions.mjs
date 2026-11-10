@@ -1,3 +1,4 @@
+import { MnemoCodeStegoFilesCase } from "./browser-cases/mnemocode-stego-files.mjs";
 import { MnemoCodePrintSettingsCase } from "./browser-cases/mnemocode-print-settings.mjs";
 import { MnemoCodeFileInputsCase } from "./browser-cases/mnemocode-file-inputs.mjs";
 import { MnemoCodeReEncodingCase } from "./browser-cases/mnemocode-reencoding.mjs";
@@ -251,6 +252,11 @@ for (const browserName of (process.env.BROWSER_ENGINES ?? "chromium,firefox").sp
       cases.push({
         name: "recovery-backup-roundtrips",
         execute: (context, run) => recoveryBackupRoundTrips(context, profile, run),
+      });
+      cases.push({
+        name: "mnemocode-stego-files",
+        execute: (context, run) =>
+          MnemoCodeStegoFilesCase.run(context, profile, run, openWithLinkedPhrase, waitText),
       });
       cases.push({
         name: "mnemocode-roundtrip",

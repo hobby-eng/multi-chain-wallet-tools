@@ -179,3 +179,35 @@ it.each(["QR", "text"])("mixed choosers suppress an older %s refusal", async (ol
   }
   expect(view.errors).not.toHaveBeenCalled();
 });
+
+it("reads the hidden record a PNG keeps before its visible QR, and only then the image", async () => {
+  const page = new PassiveQrPage();
+  const target = page.add("qr-input", "textarea");
+  target.value = OLD;
+  target.after = (...nodes) => page.body.append(...nodes);
+  const { pending } = new QrImageBoundary(page);
+  const seen: number[][] = [];
+  const readHidden = vi.fn((png: Uint8Array) => {
+    seen.push([...png.subarray(0, 8)]);
+    return "public hidden record";
+  });
+  installQrImageImport(page.asDocument(), target as unknown as HTMLTextAreaElement, {
+    readHidden,
+  });
+  const chooser = page.body
+    .querySelectorAll("input")
+    .find((input) => String(Reflect.get(input, "accept")).startsWith("image/"));
+  if (chooser === undefined) throw new Error("The actual FileChoice input is missing.");
+  const png = Uint8Array.of(137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0);
+  Object.defineProperty(chooser, "files", {
+    configurable: true,
+    value: [new File([png], "public.png", { type: "image/png" })],
+  });
+  chooser.dispatchEvent(new Event("change"));
+  await settlePromises();
+  expect(readHidden).toHaveBeenCalledOnce();
+  expect(seen).toEqual([[137, 80, 78, 71, 13, 10, 26, 10]]);
+  expect(target.value).toBe("public hidden record");
+  // No bitmap was decoded: the hidden record was the answer.
+  expect(pending).toHaveLength(0);
+});

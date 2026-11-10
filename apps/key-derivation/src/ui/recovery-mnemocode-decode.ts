@@ -1,3 +1,4 @@
+import { readHiddenQrRecord } from "@ckd/recovery-backup/mnemocode-hidden-qr.js";
 import { RenderedSecrets } from "./secrets.js";
 import { qrText } from "@ckd/ui/qr-text.js";
 // The Decode tab of the MnemoCode panel: an MNC1 record or a raw representation back into the
@@ -61,6 +62,7 @@ import {
   RECORD_FILE_IMPORT,
   RESERVED_NOTE_LINE,
 } from "./recovery-workspace-shared.js";
+import { installStitchPdfImport } from "./recovery-mnemocode-stitch-pdf.js";
 import { handOverShare } from "./recovery-mnemocode-share-handover.js";
 import { InputRevision } from "./recovery-input-revision.js";
 import { attachMnemoCodeWordHints } from "./recovery-mnemocode-word-hints.js";
@@ -133,6 +135,7 @@ export class MnemoCodeDecodeTab {
     installFieldImports(this.#input, (message) => RenderedSecrets.text(this.#result, message), {
       file: RECORD_FILE_IMPORT,
       qr: {
+        readHidden: readHiddenQrRecord,
         onDecoded: (decoded) => {
           const text = qrText(decoded).trim();
           this.#qrText = text;
@@ -152,6 +155,7 @@ export class MnemoCodeDecodeTab {
         },
       },
     });
+    installStitchPdfImport(this.#input, (message) => RenderedSecrets.text(this.#result, message));
     attachMnemoCodeWordHints(this.#input, "codes");
     for (const input of [this.#input, this.#mode, this.#format, this.#words, this.#dates.input]) {
       input.addEventListener("input", () => this.#inputChanged());

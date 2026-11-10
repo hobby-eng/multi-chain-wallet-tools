@@ -10,7 +10,11 @@ import {
   isStitchLegendRefusal,
   makeStitchPattern,
   readStitchLegendLine,
+  readStitchPdfLegend,
+  STITCH_FABRICS,
   STITCHES_ACROSS,
+  StitchSizeOffer,
+  stitchFabricNote,
 } from "../src/mnemocode-stitch.js";
 
 // MnemoCode's published SeedStitch example, a public BIP39 test phrase, MnemoCode's published
@@ -92,6 +96,8 @@ describe("a cross-stitch pattern made by MnemoCode", () => {
       dates: DATES,
       picture: smoothPicture(),
       stitchesAcross: 0,
+      mode: "seedshift",
+      fabric: "14",
     });
     expect(pattern.width).toBe(STITCHES_ACROSS.default);
     expect(pattern.height).toBe(150);
@@ -107,12 +113,57 @@ describe("a cross-stitch pattern made by MnemoCode", () => {
       dates: DATES,
     });
     expect(decoded).toMatchObject({ mode: "seedshift", format: "indexes", mnemonic: PHRASE });
+    // The key page of the PDF keeps the legend line, which MnemoCode reads back.
+    expect(readStitchPdfLegend(pattern.pdf)).toEqual(reading);
+    expect(readStitchPdfLegend(new TextEncoder().encode("%PDF-1.7\n%%EOF\n"))).toBeUndefined();
   }, 60_000);
+
+  it("holds the phrase itself with Direct, on the fabric chosen", () => {
+    const pattern = makeStitchPattern(binding, {
+      phrase: PHRASE,
+      dates: "",
+      picture: smoothPicture(),
+      stitchesAcross: 0,
+      mode: "direct",
+      fabric: "linen-28",
+    });
+    const reading = readStitchPdfLegend(pattern.pdf);
+    expect(reading?.record).toMatch(/^MNC1:direct:indexes:/u);
+    const decoded = decodeMnemoCode(reading?.record ?? "", { mode: "direct", format: "auto" });
+    expect(decoded).toMatchObject({ mode: "direct", mnemonic: PHRASE });
+  }, 60_000);
+
+  it("offers the sheets that hold the picture on a fabric, and the widths typed", () => {
+    using sizes = new StitchSizeOffer(smoothPicture(), "14");
+    expect(sizes.sheets.length).toBeGreaterThan(0);
+    for (const sheet of sizes.sheets) {
+      expect(sheet.label).toMatch(/^A[2-6], \d+(\.\d)? x \d+(\.\d)? cm$/u);
+      expect(sheet.note).toMatch(/^\d+ x \d+ stitches, \d+\.\d x \d+\.\d cm$/u);
+    }
+    expect(sizes.first).toBeDefined();
+    expect(sizes.detailNote).toMatch(/looks real from about \d+ across\.$/u);
+    expect(sizes.stitchRange).toMatch(/^\d+ to \d+$/u);
+    expect(sizes.typedStitches("200")).toBe(200);
+    expect(sizes.typedStitches("20.5")).toBeUndefined();
+    expect(sizes.typedStitches("9999")).toBeUndefined();
+    expect(sizes.typedCentimetres("21,0")).toBe(sizes.typedCentimetres("21"));
+    expect(sizes.typedCentimetres("21 cm")).toBeUndefined();
+    expect(STITCH_FABRICS.map((fabric) => stitchFabricNote(fabric))[0]).toBe(
+      "5.5 stitches a centimetre, the most usual",
+    );
+  });
 
   it("asks for another picture where the picture cannot hold the phrase", () => {
     const refusal = (picture: Uint8Array, stitchesAcross = 0, dates = DATES): unknown => {
       try {
-        makeStitchPattern(binding, { phrase: PHRASE, dates, picture, stitchesAcross });
+        makeStitchPattern(binding, {
+          phrase: PHRASE,
+          dates,
+          picture,
+          stitchesAcross,
+          mode: "seedshift",
+          fabric: "14",
+        });
       } catch (cause) {
         return cause;
       }

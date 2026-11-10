@@ -55,8 +55,8 @@ export class RecoveryWorkerProtocol {
   }
 
   /**
-   * Retires owned entropy, candidate-list wire bytes or a pattern's PDF, which holds its legend,
-   * that cannot be handed to the caller.
+   * Retires owned entropy, candidate-list wire bytes, a pattern's PDF, which holds its legend, or
+   * the bytes opened from a photo or MP3, that cannot be handed to the caller.
    */
   static discard(this: void, value: unknown): void {
     const bytes =
@@ -75,7 +75,12 @@ export class RecoveryWorkerProtocol {
               "pdf" in value &&
               value.pdf instanceof Uint8Array
             ? value.pdf
-            : undefined;
+            : typeof value === "object" &&
+                value !== null &&
+                "bytes" in value &&
+                value.bytes instanceof Uint8Array
+              ? value.bytes
+              : undefined;
     if (bytes !== undefined && bytes.byteLength !== 0) bytes.fill(0);
   }
 

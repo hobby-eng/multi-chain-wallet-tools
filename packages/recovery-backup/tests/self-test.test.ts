@@ -31,7 +31,7 @@ describe("embedded recovery startup self-test", () => {
     expect(report.checks).toEqual([
       "SeedQR encode/decode",
       expect.stringMatching(
-        /^MnemoCode v\d+\.\d+\.\d+ WebAssembly: phrase, wallet, QR, candidate, share, recovery and cross-stitch known answers$/u,
+        /^MnemoCode v\d+\.\d+\.\d+ WebAssembly: phrase, wallet, QR, candidate, share, recovery, cross-stitch and steganography known answers$/u,
       ),
       "MnemoCode encode and decode round trips in every form",
       "MnemoCode SeedStitch: the specification's legend read back",

@@ -1,7 +1,8 @@
 // MnemoCode's startup known answers in the Deriver: its WebAssembly is compiled and loaded, each of
-// its parts that the page uses runs its startup cases (selfCheck* of the binding), a public
-// phrase goes through the page's own adapter once, encoded in every form and decoded again, and the
-// legend of MnemoCode's SeedStitch specification is read back into the record of its phrase.
+// its parts that the page uses runs its startup cases (selfCheck* and stegoSelfCheck of the
+// binding), a public phrase goes through the page's own adapter once, encoded in every form and
+// decoded again, and the legend of MnemoCode's SeedStitch specification is read back into the
+// record of its phrase.
 import type { CryptoSelfTestReport } from "@ckd/self-test-types";
 import { wordlist } from "@scure/bip39/wordlists/english.js";
 import { loadMnemoCode } from "./mnemocode-module.js";
@@ -37,6 +38,7 @@ export async function runMnemoCodeSelfTest(): Promise<CryptoSelfTestReport> {
     binding.selfCheckSskr,
     binding.selfCheckRecovery,
     binding.selfCheckEmbroidery,
+    binding.stegoSelfCheck,
   ])
     check(false);
   expectText(
@@ -64,7 +66,7 @@ export async function runMnemoCodeSelfTest(): Promise<CryptoSelfTestReport> {
   return {
     passed: true,
     checks: [
-      `MnemoCode v${MNEMOCODE_VERSION} WebAssembly: phrase, wallet, QR, candidate, share, recovery and cross-stitch known answers`,
+      `MnemoCode v${MNEMOCODE_VERSION} WebAssembly: phrase, wallet, QR, candidate, share, recovery, cross-stitch and steganography known answers`,
       "MnemoCode encode and decode round trips in every form",
       "MnemoCode SeedStitch: the specification's legend read back",
     ],
