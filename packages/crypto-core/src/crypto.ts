@@ -33,6 +33,13 @@ export function encodeP2pkh(hash: Uint8Array, prefix: number): string {
   return encodeBase58Check(concatBytes(Uint8Array.of(prefix), hash));
 }
 
+/** The hex scriptPubKey of a P2PKH output: OP_DUP OP_HASH160 <20-byte hash> OP_EQUALVERIFY OP_CHECKSIG. */
+export function p2pkhScriptHex(hash: Uint8Array): string {
+  if (hash.length !== ADDRESS_HASH_BYTES)
+    throw new Error(`P2PKH hash must be ${ADDRESS_HASH_BYTES} bytes.`);
+  return `76a914${bytesToHex(hash)}88ac`;
+}
+
 export function encodeP2sh(hash: Uint8Array, prefix: number): string {
   if (hash.length !== ADDRESS_HASH_BYTES)
     throw new Error(`P2SH hash must be ${ADDRESS_HASH_BYTES} bytes.`);

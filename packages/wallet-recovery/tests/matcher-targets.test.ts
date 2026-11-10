@@ -26,6 +26,22 @@ describe("wallet matcher target detection", () => {
     );
   });
 
+  it("reads a Dash Core address of its own network only, with a valid checksum", () => {
+    // The first Dash Core addresses of "abandon … about" (packages/verification/src/derivation-self-test-dash.ts).
+    const mainnet = "XoJA8qE3N2Y3jMLEtZ3vcN42qseZ8LvFf5";
+    const testnet = "yRd4FhXfVGHXpsuZXPNkMrfD9GVj46pnjt";
+    expect(detectDashMatcherTargets(testnet, "testnet", false)[0]?.adapterIds).toEqual([
+      "dash-core",
+      "dash-legacy-mobile",
+      "dash-core-coinjoin",
+    ]);
+    expect(() => detectDashMatcherTargets(mainnet, "testnet", false)).toThrow(/not recognized/u);
+    expect(() => detectDashMatcherTargets(testnet, "mainnet", false)).toThrow(/not recognized/u);
+    expect(() =>
+      detectDashMatcherTargets("XoJA8qE3N2Y3jMLEtZ3vcN42qseZ8LvFf6", "mainnet", false),
+    ).toThrow(/not recognized/u);
+  });
+
   it("routes a Dash Identity MASTER public-key HASH160 to the DIP13 profile", () => {
     expect(
       detectDashMatcherTargets(DASH_IDENTITY_MASTER_HASH.toUpperCase(), "mainnet", true)[0],
