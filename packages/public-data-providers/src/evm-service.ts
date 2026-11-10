@@ -6,26 +6,12 @@ import {
   type EvmChainFacts,
   type EvmNetworkFacts,
 } from "./evm-network-facts.js";
-import { fetchJson, record } from "./http.js";
+import { jsonRpcBatch, jsonRpcCall as call, type JsonRpcCall } from "./json-rpc.js";
 import {
   RECOVERY_EVM_ACCOUNT_BATCH,
   type EvmAccountBatchView,
   type PublicDataNetwork,
 } from "./types.js";
-
-interface RpcCall {
-  readonly jsonrpc: "2.0";
-  readonly id: string;
-  readonly method: string;
-  readonly params: readonly string[];
-}
-
-const call = (id: string, method: string, params: readonly string[] = []): RpcCall => ({
-  jsonrpc: "2.0",
-  id,
-  method,
-  params,
-});
 
 /**
  * Balances and nonces of EVM accounts, read from each network's own JSON-RPC endpoint. The networks
@@ -93,41 +79,23 @@ export class EvmAccountService {
   }
 
   /**
-   * One JSON-RPC batch: the quantity each call returned, read by the call's id. Every call must come
-   * back exactly once as a hex quantity; an error object, a repeated or foreign id or a short batch
-   * fails.
+   * One JSON-RPC batch (jsonRpcBatch): the quantity each call returned, read by the call's id. A
+   * result that is not a hex quantity fails like an error object.
    */
   async #batch(
     label: string,
     endpoint: EvmChainFacts,
     signal: AbortSignal | undefined,
-    calls: readonly RpcCall[],
+    calls: readonly JsonRpcCall[],
   ): Promise<(id: string) => bigint> {
-    const raw = await fetchJson(endpoint.rpc, signal, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(calls),
-    });
-    if (!Array.isArray(raw) || raw.length !== calls.length)
-      throw EVM_NETWORK_ERRORS.response(label, "an incomplete batch");
-    const expected = new Set(calls.map(({ id }) => id));
-    const results = new Map<string, string>();
-    for (const item of raw) {
-      const response = record(item, `${label} RPC response`);
-      if (
-        response.error !== undefined ||
-        typeof response.id !== "string" ||
-        typeof response.result !== "string" ||
-        !EVM_RPC_QUANTITY.test(response.result)
-      )
-        throw EVM_NETWORK_ERRORS.response(label, "a malformed or failed response");
-      if (!expected.has(response.id) || results.has(response.id))
-        throw EVM_NETWORK_ERRORS.response(label, "a repeated or unrequested response ID");
-      results.set(response.id, response.result);
-    }
+    const fail = (what: string) => EVM_NETWORK_ERRORS.response(label, what);
+    const results = await jsonRpcBatch(endpoint.rpc, calls, fail, signal);
+    for (const result of results.values())
+      if (typeof result !== "string" || !EVM_RPC_QUANTITY.test(result))
+        throw fail("a malformed or failed response");
     return (id) => {
       const result = results.get(id);
-      if (result === undefined) throw EVM_NETWORK_ERRORS.response(label, "no result for a call");
+      if (typeof result !== "string") throw fail("no result for a call");
       return BigInt(result);
     };
   }

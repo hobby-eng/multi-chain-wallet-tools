@@ -1,5 +1,5 @@
 import { SOLANA_COIN_ADAPTERS } from "@ckd/coins/adapters/solana.js";
-import { solanaDerivation } from "@ckd/coins/solana/index.js";
+import { SOLANA_ADDRESSES, solanaDerivation } from "@ckd/coins/solana/index.js";
 import { singleKeyCoinSelfTest } from "./single-key-coin-self-test.js";
 
 // Solana publishes no phrase vector: these come from test/oracles/ed25519_oracle.py, an independent
@@ -10,6 +10,7 @@ export const runSolanaDerivationSelfTest = singleKeyCoinSelfTest({
   group: "Solana",
   adapters: SOLANA_COIN_ADAPTERS,
   derivation: solanaDerivation,
+  addresses: SOLANA_ADDRESSES,
   vectors: [
     {
       adapterId: "solana",

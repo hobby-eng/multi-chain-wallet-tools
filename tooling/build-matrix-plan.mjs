@@ -12,7 +12,10 @@ function nonemptySubsets(values) {
   });
 }
 
-/** The coins that share one implementation each: the single-key coins and the EVM networks. */
+/**
+ * The coins that share one implementation each: the single-key coins (the account coins of the
+ * connected tools among them) and the EVM networks.
+ */
 const TABLE_COIN_IDS = Object.freeze([...SINGLE_KEY_COIN_IDS, ...EVM_NETWORK_IDS]);
 
 /**
@@ -34,10 +37,17 @@ function coinSets(coins) {
   ];
 }
 
-function featureSets(policy, coins) {
-  // Profile defaults bound candidates; admission owns every dependency between them.
+/**
+ * The builds of a coin set: each feature set of the profile's defaults with the coins it can scan
+ * (a watch-only Scanner leaves the account coins out, as a build without --coins does), where
+ * admission takes them; admission owns every dependency between features.
+ */
+function builds(policy, coins) {
   const candidates = policy.defaultFeatures(coins);
-  return [[], ...nonemptySubsets(candidates)].filter((features) => policy.isLegal(coins, features));
+  return [[], ...nonemptySubsets(candidates)].flatMap((features) => {
+    const scannable = policy.scannableCoins(coins, features);
+    return policy.isLegal(scannable, features) ? [{ coins: scannable, features }] : [];
+  });
 }
 
 export function createBuildMatrixPlan(profileIds = Object.keys(BUILD_PROFILES), requestedTool) {
@@ -47,18 +57,15 @@ export function createBuildMatrixPlan(profileIds = Object.keys(BUILD_PROFILES), 
     return profileToolIds(profile).flatMap((toolId) => {
       if (requestedTool !== undefined && requestedTool !== toolId) return [];
       const policy = new ToolBuildPolicy(toolId, profile);
-      return coinSets(policy.profileCoins()).flatMap((coins) =>
-        featureSets(policy, coins).map((features) => {
+      const jobs = new Map();
+      for (const set of coinSets(policy.profileCoins()))
+        for (const { coins, features } of builds(policy, set)) {
           const featureSlug = features.length === 0 ? "base" : features.join("_");
-          return {
-            profileId,
-            toolId,
-            coins,
-            features,
-            relativePath: `dist/build-matrix/${profileId}/${toolId}/${coins.join("-")}/${featureSlug}.html`,
-          };
-        }),
-      );
+          const relativePath = `dist/build-matrix/${profileId}/${toolId}/${coins.join("-")}/${featureSlug}.html`;
+          // Two coin sets that differ only in coins a feature set cannot scan give one build.
+          jobs.set(relativePath, { profileId, toolId, coins, features, relativePath });
+        }
+      return [...jobs.values()];
     });
   });
 }

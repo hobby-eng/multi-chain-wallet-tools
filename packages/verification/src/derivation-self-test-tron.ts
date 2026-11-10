@@ -1,5 +1,5 @@
 import { TRON_COIN_ADAPTERS } from "@ckd/coins/adapters/tron.js";
-import { tronDerivation } from "@ckd/coins/tron/index.js";
+import { TRON_ADDRESSES, tronDerivation } from "@ckd/coins/tron/index.js";
 import { singleKeyCoinSelfTest } from "./single-key-coin-self-test.js";
 
 // The first addresses of the public phrase, which MnemoCode's own Rust derivation finds at the same
@@ -11,6 +11,7 @@ export const runTronDerivationSelfTest = singleKeyCoinSelfTest({
   group: "Tron",
   adapters: TRON_COIN_ADAPTERS,
   derivation: tronDerivation,
+  addresses: TRON_ADDRESSES,
   vectors: [
     {
       adapterId: "tron",

@@ -9,6 +9,9 @@ export const EVM_NETWORKS = Object.freeze(
   Object.entries(TABLE).map(([id, row]) => Object.freeze({ id, ...row })),
 );
 
+/** The coin menus' group of the EVM networks (apps/discovery-scanner/src/coins/evm/coin.ts). */
+export const EVM_NETWORK_GROUP = "EVM networks";
+
 /** The EVM networks besides Ethereum: the coins they add to the connected tools' manifests. */
 export const EVM_NETWORK_IDS = Object.freeze(
   EVM_NETWORKS.filter(({ id }) => id !== "ethereum").map(({ id }) => id),
@@ -77,12 +80,12 @@ export function evmArtifactMarkers() {
   return {
     required: [
       "eth_chainId",
-      "EVM networks",
+      EVM_NETWORK_GROUP,
       ...EVM_NETWORKS.flatMap((row) => [row.label, new URL(row.networks.mainnet.rpc).host]),
     ],
     forbidden: [
       "eth_chainId",
-      "EVM networks",
+      EVM_NETWORK_GROUP,
       ...EVM_NETWORKS.flatMap((row) => [
         ...(row.label === "Base" ? [] : [row.label]),
         ...evmProviderHosts(row),

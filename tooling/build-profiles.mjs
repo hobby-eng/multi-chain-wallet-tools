@@ -224,3 +224,10 @@ export function assertDashOnlyGraph(inputs, label) {
     );
   }
 }
+
+/** The profiles a browser suite runs: every profile, or the one BROWSER_PROFILE names. */
+export function browserSuiteProfiles(env = process.env) {
+  return Object.values(BUILD_PROFILES).filter(
+    (profile) => !env.BROWSER_PROFILE || env.BROWSER_PROFILE === profile.id,
+  );
+}

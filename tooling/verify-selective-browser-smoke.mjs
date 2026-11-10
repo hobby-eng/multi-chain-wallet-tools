@@ -56,6 +56,40 @@ const variants = [
     },
   },
   {
+    // An account coin alone: its own option, Mainnet only.
+    id: "activity-xrp",
+    script: "apps/activity-viewer/scripts/build-activity-viewer-html.mjs",
+    args: ["--coins", "xrp"],
+    selfTest: "#viewer-crypto-self-test-status.pass, #viewer-crypto-self-test-status.passed",
+    fingerprint: "#viewer-build-fingerprint",
+    inspect: async (page) => {
+      assert.deepEqual(await page.locator("#viewer-coin option").allTextContents(), ["XRP"]);
+      await page.waitForFunction(
+        () => document.querySelector('#viewer-network option[value="testnet"]').disabled,
+      );
+    },
+  },
+  {
+    // Two account coins of different kinds: their group, their derivation self-tests.
+    id: "discovery-account-coins",
+    script: "apps/discovery-scanner/scripts/build-discovery-scanner-html.mjs",
+    args: ["--coins", "solana,tron", "--features", "seed-discovery"],
+    selfTest: "#recovery-crypto-self-test-status.passed",
+    fingerprint: "#recovery-build-fingerprint",
+    frame: "#recovery-secret-vault",
+    inspect: async (scope) => {
+      assert.deepEqual(
+        await scope
+          .locator('#recovery-coin optgroup[label="Other networks"] option')
+          .allTextContents(),
+        ["Solana", "Tron"],
+      );
+      const details = await scope.locator("#recovery-crypto-self-test-details").textContent();
+      assert.match(details, /Solana/u);
+      assert.match(details, /Tron/u);
+    },
+  },
+  {
     id: "discovery-seed-without-custom-paths",
     script: "apps/discovery-scanner/scripts/build-discovery-scanner-html.mjs",
     args: ["--coins", "bitcoin", "--features", "seed-discovery"],

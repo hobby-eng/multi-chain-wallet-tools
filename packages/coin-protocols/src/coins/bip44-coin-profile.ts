@@ -22,6 +22,8 @@ export class Bip44CoinProfile extends CoinVariant {
   readonly #outputType: string;
   /** The BIP43 purpose of the variant's paths: 44, 49 or 84. */
   readonly purpose: number;
+  /** The coin type of the variant's paths, such as 144 (SLIP-44). */
+  readonly coinType: number;
   readonly branches: Bip44CoinBranches;
   readonly paths: DerivationPathProfile;
 
@@ -29,6 +31,7 @@ export class Bip44CoinProfile extends CoinVariant {
     super(facts);
     this.#outputType = facts.outputType;
     this.purpose = facts.purpose;
+    this.coinType = facts.coinType;
     this.branches = facts.branches;
     this.paths = new DerivationPathProfile(
       ({ account }) => `m/${facts.purpose}'/${facts.coinType}'/${account}'`,

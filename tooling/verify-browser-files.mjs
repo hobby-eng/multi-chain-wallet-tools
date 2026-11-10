@@ -6,7 +6,8 @@ import { relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { execFileSync } from "node:child_process";
 import { EVM_NETWORKS } from "./evm-networks.mjs";
-import { BUILD_PROFILES, getToolBuild, profileToolIds } from "./build-profiles.mjs";
+import { TOOL_MANIFESTS } from "./tool-manifests.mjs";
+import { browserSuiteProfiles, getToolBuild, profileToolIds } from "./build-profiles.mjs";
 import { readReleaseMetadata } from "./project-metadata.mjs";
 import { launchForReport, loadPlaywright } from "./playwright-loader.mjs";
 
@@ -46,6 +47,13 @@ const report = {
   dirty: execFileSync("git", ["status", "--porcelain"], { cwd: root, encoding: "utf8" }).trim(),
   scope:
     "Direct file URLs, Chromium/Firefox, startup, edition selection, basic UI/derivation/clear, mocked address lookup, opaque vault isolation, scrolling and screenshots. No live-provider or real-funds test.",
+  // A filtered run is diagnostic evidence only, so its report says which filters chose it.
+  filters: Object.fromEntries(
+    ["BROWSER_ENGINES", "BROWSER_PROFILE", "BROWSER_TOOLS"].map((name) => [
+      name,
+      process.env[name] ?? null,
+    ]),
+  ),
   runs: [],
 };
 const save = () =>
@@ -163,8 +171,12 @@ for (const browserName of selectedBrowsers) {
   );
   if (browser === undefined) continue;
   try {
-    for (const profile of Object.values(BUILD_PROFILES)) {
+    // BROWSER_PROFILE and BROWSER_TOOLS rerun one profile or some tools alone, as the regression
+    // runner's BROWSER_PROFILE and BROWSER_CASES do.
+    for (const profile of browserSuiteProfiles()) {
       for (const toolId of profileToolIds(profile)) {
+        if (process.env.BROWSER_TOOLS && !process.env.BROWSER_TOOLS.split(",").includes(toolId))
+          continue;
         const tool = getToolBuild(profile, toolId);
         const artifact = resolve(root, "dist", tool.artifactRelativePath);
         const run = {
@@ -250,7 +262,12 @@ for (const browserName of selectedBrowsers) {
             if (profile.id === "multi-chain") {
               await scope.locator("#automatic-candidates").check();
               assert.equal(await scope.locator("#candidate-options").isVisible(), true);
-              assert.equal(await scope.locator("#candidate-coins input").count(), 3);
+              // A box per coin of the Scanner and an "All" box per group (EVM networks, other
+              // networks).
+              assert.equal(
+                await scope.locator("#candidate-coins input").count(),
+                TOOL_MANIFESTS["discovery-scanner"].coins.length + 2,
+              );
               await scope.locator("#candidate-all-coins").check();
               assert.equal(await scope.locator("#custom-path-options").isVisible(), false);
               assert.equal(await scope.locator("#include-used-zero-balance").isVisible(), true);
@@ -698,4 +715,10 @@ for (const browserName of selectedBrowsers) {
 }
 save();
 console.log(`Browser report and screenshots: ${output}`);
-if (report.runs.some((run) => !run.passed)) process.exitCode = 1;
+// A mistyped filter selects nothing; a run that checked nothing fails, as the regression runner's
+// does.
+if (report.runs.length === 0)
+  console.error(
+    `No browser-file run took place (BROWSER_PROFILE=${report.filters.BROWSER_PROFILE ?? "all"}, BROWSER_TOOLS=${report.filters.BROWSER_TOOLS ?? "all"}).`,
+  );
+if (report.runs.length === 0 || report.runs.some((run) => !run.passed)) process.exitCode = 1;

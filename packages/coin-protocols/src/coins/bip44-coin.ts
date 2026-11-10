@@ -2,7 +2,10 @@
 // branch becomes a row with the coin's address, its public key and its private key in the form the
 // coin's wallets import. withAccountBranch checks the request and wipes every key afterwards; this
 // module only adds the coin's encodings, so each coin brings nothing but those.
-import { bytesToHex, encodeWif, secp256k1 } from "@ckd/core/crypto.js";
+import type { HDKey } from "@scure/bip32";
+import { requirePublic, rootFromSeed } from "@ckd/core/bip32.js";
+import { BIP32_BRANCH_SIZE, BIP32_HARDENED_OFFSET } from "@ckd/core/bip32-limits.js";
+import { bytesToHex, encodeWif, secp256k1, wipe } from "@ckd/core/crypto.js";
 import type { Bip32Versions } from "@ckd/core/networks.js";
 import type { Bip32SummaryLabels } from "../bip32-summary.js";
 import {
@@ -15,6 +18,7 @@ import {
 import { withAccountBranch, type BranchChild } from "../account-branch.js";
 import type { Bip44CoinProfile } from "./bip44-coin-profile.js";
 import { variantDerivation, type VariantDerivation } from "./coin-variant.js";
+import type { AddressLayout, CoinAddressScheme, SeedAddresses } from "./address-scheme.js";
 
 /** The address of one public key, as the coin's wallets show it. */
 export interface Bip44CoinAddress {
@@ -128,4 +132,152 @@ export function bip44CoinDerivation(
   return variantDerivation(profiles, id, (profile, options) =>
     deriveBip44Coin(profile, keys(profile), options),
   );
+}
+
+/** The receive branch of a BIP44 account, the one whose addresses the connected tools look up. */
+const RECEIVE_BRANCH = 0;
+
+/** A layout of a BIP44 variant, with where index i of a scan at account a sits: its account and index. */
+interface Bip44Layout {
+  readonly profile: Bip44CoinProfile;
+  at(account: number, index: number): { readonly account: number; readonly index: number };
+}
+
+/**
+ * The layouts of one BIP44 variant: its addresses m/purpose'/coin'/account'/0/i under the scan's
+ * account, and Ledger Live's account form m/purpose'/coin'/i'/0/0, its accounts counted from the
+ * scan's account.
+ */
+function bip44Layouts(profile: Bip44CoinProfile): [AddressLayout, Bip44Layout][] {
+  const head = `m/${profile.purpose}'/${profile.coinType}'`;
+  const pathOf = (at: { account: number; index: number }) =>
+    profile.paths.addressPath(
+      { network: "mainnet", account: at.account, branch: RECEIVE_BRANCH },
+      at.index,
+    );
+  const layout = (
+    id: string,
+    label: string,
+    at: Bip44Layout["at"],
+    maximumCount: AddressLayout["maximumCount"],
+  ): [AddressLayout, Bip44Layout] => [
+    Object.freeze({
+      id,
+      label,
+      path: (account: number, index: number) => pathOf(at(account, index)),
+      maximumCount,
+    }),
+    { profile, at },
+  ];
+  return [
+    layout(
+      profile.adapterId,
+      `${profile.variantLabel} · ${head}/a'/0/i`,
+      (account, index) => ({ account, index }),
+      () => BIP32_BRANCH_SIZE,
+    ),
+    layout(
+      `${profile.adapterId}-accounts`,
+      `Ledger Live accounts · ${head}/i'/0/0`,
+      (account, index) => ({ account: account + index, index: 0 }),
+      (account) => BIP32_BRANCH_SIZE - account,
+    ),
+  ];
+}
+
+/**
+ * The addresses of one seed under a BIP44 coin's layouts. The root, each variant's coin-type node
+ * m/purpose'/coin' and the receive branch of the account in use are derived once and held until
+ * wipe(); every other node, the account's included, is wiped as soon as its child is derived.
+ */
+class Bip44SeedAddresses implements SeedAddresses {
+  readonly #root: HDKey;
+  readonly #keys: Bip44CoinKeys;
+  readonly #layouts: ReadonlyMap<AddressLayout, Bip44Layout>;
+  readonly #coinNodes = new Map<Bip44CoinProfile, HDKey>();
+  #branch: { profile: Bip44CoinProfile; account: number; node: HDKey } | null = null;
+
+  constructor(
+    seed: Uint8Array,
+    keys: Bip44CoinKeys,
+    layouts: ReadonlyMap<AddressLayout, Bip44Layout>,
+  ) {
+    this.#root = rootFromSeed(seed, keys.versions);
+    this.#keys = keys;
+    this.#layouts = layouts;
+  }
+
+  address(layout: AddressLayout, account: number, index: number): string {
+    const own = this.#layouts.get(layout);
+    if (own === undefined) throw new Error(`${layout.id} is not a layout of this coin.`);
+    const at = own.at(account, index);
+    const path = layout.path(account, index);
+    const child = this.#branchOf(own.profile, at.account).deriveChild(at.index);
+    let publicKey: Uint8Array | null = null;
+    try {
+      publicKey = requirePublic(child, path);
+      return this.#keys.address(publicKey).address;
+    } finally {
+      wipe(publicKey);
+      child.wipePrivateData();
+    }
+  }
+
+  /** Erases the root and every node held, as far as the runtime allows. */
+  wipe(): void {
+    this.#branch?.node.wipePrivateData();
+    this.#branch = null;
+    for (const node of this.#coinNodes.values()) node.wipePrivateData();
+    this.#coinNodes.clear();
+    this.#root.wipePrivateData();
+  }
+
+  /** The coin-type node m/purpose'/coin' of `profile`; the purpose node is wiped at once. */
+  #coinNode(profile: Bip44CoinProfile): HDKey {
+    const held = this.#coinNodes.get(profile);
+    if (held !== undefined) return held;
+    const purpose = this.#root.deriveChild(profile.purpose + BIP32_HARDENED_OFFSET);
+    try {
+      const node = purpose.deriveChild(profile.coinType + BIP32_HARDENED_OFFSET);
+      this.#coinNodes.set(profile, node);
+      return node;
+    } finally {
+      purpose.wipePrivateData();
+    }
+  }
+
+  /**
+   * The receive branch of `account` under `profile`, held while that account is scanned; the
+   * branch held before is wiped, and so is the account node.
+   */
+  #branchOf(profile: Bip44CoinProfile, account: number): HDKey {
+    const held = this.#branch;
+    if (held !== null && held.profile === profile && held.account === account) return held.node;
+    held?.node.wipePrivateData();
+    this.#branch = null;
+    const accountNode = this.#coinNode(profile).deriveChild(account + BIP32_HARDENED_OFFSET);
+    try {
+      const node = accountNode.deriveChild(profile.paths.branchIndex(RECEIVE_BRANCH));
+      this.#branch = { profile, account, node };
+      return node;
+    } finally {
+      accountNode.wipePrivateData();
+    }
+  }
+}
+
+/**
+ * The public addresses of a BIP44 coin for the connected tools: each variant's address index and
+ * Ledger Live's account index (bip44Layouts), each address `keys` makes of the child's public key,
+ * as the Deriver's rows show it; only public keys are read, and every private node is wiped.
+ */
+export function bip44CoinAddresses(
+  profiles: readonly Bip44CoinProfile[],
+  keys: Bip44CoinKeys,
+): CoinAddressScheme {
+  const layouts = new Map(profiles.flatMap(bip44Layouts));
+  return Object.freeze({
+    layouts: Object.freeze([...layouts.keys()]),
+    open: (seed: Uint8Array) => new Bip44SeedAddresses(seed, keys, layouts),
+  });
 }

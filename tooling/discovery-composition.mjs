@@ -3,7 +3,16 @@ import {
   DERIVATION_SELF_TESTS,
   LOCAL_SEARCH_SELF_TEST,
 } from "./derivation-self-tests.mjs";
+import {
+  ACCOUNT_SHARED_MARKERS,
+  accountAddressesModule,
+  accountReadersSource,
+  isAccountCoin,
+  selectedAccountCoins,
+  unselectedAccountMarkers,
+} from "./account-coins.mjs";
 import { EVM_SHARED_MARKERS, isEvmCoin, selectedEvmNetworks } from "./evm-networks.mjs";
+import { needsSharedModule, SHARED_MODULES } from "./single-key-coins.mjs";
 import { replaceBalancedElement as replaceHtmlElement } from "./html-elements.mjs";
 import { resolve } from "node:path";
 import { readFileSync } from "node:fs";
@@ -47,10 +56,25 @@ const ETHEREUM_HISTORY = [
   "apps/discovery-scanner/src/coins/ethereum/history.ts",
 ];
 
+/** The seed factory of every account coin; the policy admits account coins with seed discovery only. */
+const ACCOUNT_SEED_FACTORY = [
+  "createAccountSeedRecoveryAdapter",
+  "apps/discovery-scanner/src/coins/account/seed.ts",
+];
+
 function registrySource(root, options) {
   const evm = new Map(selectedEvmNetworks(options).map((row) => [row.id, row]));
+  const accounts = new Map(selectedAccountCoins(options).map((row) => [row.id, row]));
   const imports = new Map();
   const entries = options.coins.map((coin) => {
+    const account = accounts.get(coin);
+    if (account !== undefined) {
+      // Each account coin is its row, inlined, and the Deriver's derivation of the same coin.
+      const addresses = accountAddressesModule(coin);
+      imports.set(...ACCOUNT_SEED_FACTORY);
+      imports.set(addresses.symbol, addresses.file);
+      return `${ACCOUNT_SEED_FACTORY[0]}(${JSON.stringify(account)}, ${addresses.symbol})`;
+    }
     const row = evm.get(coin);
     if (row === undefined) {
       const [symbol, file] = selectedAdapter(coin, options);
@@ -128,6 +152,22 @@ function networkServiceSource(root, options) {
       "ethereumAddressHistory(network, address, signal) { return ethereum.addressHistory(network, address, signal); }",
     );
   }
+  const accounts = selectedAccountCoins(options);
+  if (accounts.length > 0) {
+    // Each account coin is its row, inlined, with its api's provider.
+    const { imports: readerImports, readers } = accountReadersSource(accounts, (file) =>
+      JSON.stringify(resolve(root, file)),
+    );
+    imports.push(
+      `import { AccountStatesService } from ${JSON.stringify(resolve(root, "packages/public-data-providers/src/account-states-service.ts"))};`,
+      ...readerImports,
+    );
+    setup.push(`const accounts = new AccountStatesService(${readers});`);
+    methods.push(
+      "accountStates(coin, network, addresses, signal) { return accounts.states(coin, network, addresses, signal); }",
+      "validateAccountStates(value) { accounts.validatePayload(value); }",
+    );
+  }
   methods.push(
     options.hasCoin("dash")
       ? "ping(signal) { return dash.ping(signal); }"
@@ -189,6 +229,13 @@ export function discoveryNetworkRuntimeSource(root, options) {
     );
     cases.push(
       `case 'evm.accounts': return service.evmAccounts(request.payload.coin, request.payload.network, request.payload.addresses, signal);`,
+    );
+  }
+  if (selectedAccountCoins(options).length > 0) {
+    // The service of the selected rows refuses what it would refuse, before any request.
+    validators.push(`'account.states': (value) => service.validateAccountStates(value)`);
+    cases.push(
+      `case 'account.states': return service.accountStates(request.payload.coin, request.payload.network, request.payload.addresses, signal);`,
     );
   }
   if (historyCoins.length > 0) {
@@ -318,8 +365,10 @@ function watchOnlyProfileSource(root, options) {
   const evmIds = selectedEvmNetworks(options).map(({ id }) => id);
   if (evmIds.length > 0)
     depthCases.push(`if (${JSON.stringify(evmIds)}.includes(adapterId)) return [3, 4, 5];`);
+  // An account coin has no public-key scan: the coins of this profile are the others.
+  const watchCoins = options.coins.filter((coin) => !isAccountCoin(coin));
   return `const prefixCoins = ${JSON.stringify(prefixCoins)};
-export const SELECTED_WATCH_ONLY_PROFILE = { prefixCoins, multiChain: ${options.coins.length > 1}, networklessAdapterIds: ${JSON.stringify(evmIds)}, supportedDepths: (adapterId) => { ${depthCases.join(" ")} throw new Error('Unsupported watch-only adapter.'); }, singleChainCoinId: ${JSON.stringify(options.coins[0])} };`;
+export const SELECTED_WATCH_ONLY_PROFILE = { prefixCoins, multiChain: ${watchCoins.length > 1}, networklessAdapterIds: ${JSON.stringify(evmIds)}, supportedDepths: (adapterId) => { ${depthCases.join(" ")} throw new Error('Unsupported watch-only adapter.'); }, singleChainCoinId: ${JSON.stringify(watchCoins[0])} };`;
 }
 
 function featureRuntimeSource(root, options) {
@@ -500,8 +549,17 @@ export function assertDiscoveryComposition(options, inputs) {
     ethereum: ["/discovery-scanner/src/coins/ethereum/", "/ethereum-service.ts"],
   };
   const evm = selectedEvmNetworks(options).length > 0;
-  // Without any EVM network, Ethereum's derivation and every shared EVM module stay out too.
-  if (!evm) markers.ethereum.push("/coins/ethereum/", ...EVM_SHARED_MARKERS);
+  // Without any EVM network, Ethereum's derivation and every shared EVM module stay out too, but
+  // for the Keccak account that Tron's addresses share (tooling/single-key-coins.mjs).
+  if (!evm)
+    markers.ethereum.push(
+      "/coins/ethereum/",
+      ...EVM_SHARED_MARKERS.filter(
+        (marker) =>
+          marker !== SHARED_MODULES["keccak-account"].marker ||
+          !needsSharedModule(options.hasCoin, "keccak-account"),
+      ),
+    );
   for (const [coin, values] of Object.entries(markers)) {
     if (options.hasCoin(coin)) continue;
     const leaked = normalized.filter((input) => values.some((marker) => input.includes(marker)));
@@ -565,6 +623,23 @@ export function assertDiscoveryComposition(options, inputs) {
     else if (coin === "ethereum")
       requireInput("Ethereum history", "/discovery-scanner/src/coins/ethereum/history.ts");
   }
+  // Each selected account coin's provider, the modules they share, and no unselected coin's modules.
+  const accounts = selectedAccountCoins(options);
+  for (const { api } of accounts) requireInput("account coins", `/account-coins/${api}.ts`);
+  const accountShared = ACCOUNT_SHARED_MARKERS["discovery-scanner"];
+  if (accounts.length > 0)
+    for (const marker of accountShared) requireInput("account coins", marker);
+  const absentAccounts = [
+    ...unselectedAccountMarkers(options),
+    ...(accounts.length > 0 ? [] : accountShared),
+  ];
+  const leakedAccounts = normalized.filter((input) =>
+    absentAccounts.some((marker) => input.includes(marker)),
+  );
+  if (leakedAccounts.length)
+    throw new Error(
+      `Discovery Scanner excluded account coins, but their modules remain:\n${leakedAccounts.join("\n")}`,
+    );
   if (evm)
     for (const marker of EVM_SHARED_MARKERS)
       if (marker !== "/watch-only/evm.ts" || options.has("watch-only-discovery"))

@@ -31,6 +31,7 @@ function api(overrides: Partial<RecoveryNetworkApi>): RecoveryNetworkApi {
     addressHistory: unavailable,
     utxoAddresses: unavailable,
     evmAccounts: unavailable,
+    accountStates: unavailable,
     ...overrides,
   };
 }

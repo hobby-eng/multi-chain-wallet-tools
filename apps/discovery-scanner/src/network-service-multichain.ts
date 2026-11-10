@@ -1,5 +1,6 @@
 import { PublicMultiChainDataService } from "@ckd/public-data-providers/multi-chain-service.js";
 import type {
+  AccountStatesView,
   EvmAccountBatchView,
   RecoveryHistory,
   UtxoAddressView,
@@ -34,5 +35,14 @@ export class MultiChainRecoveryNetworkService extends DirectRecoveryNetworkServi
     signal?: AbortSignal,
   ): Promise<EvmAccountBatchView> {
     return this.#public.evmAccounts(coin, network, addresses, signal);
+  }
+
+  override accountStates(
+    coin: string,
+    network: RecoveryNetwork,
+    addresses: string[],
+    signal?: AbortSignal,
+  ): Promise<AccountStatesView> {
+    return this.#public.accountStates(coin, network, addresses, signal);
   }
 }

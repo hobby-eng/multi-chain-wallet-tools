@@ -2,10 +2,9 @@
 // amounts in its own asset and the BIP32 versions of its extended keys.
 import { BIP32_MAINNET_VERSIONS } from "@ckd/core/networks.js";
 import { isUint256Decimal } from "@ckd/core/numeric-limits.js";
-import { AtomicAmount } from "@ckd/core/atomic-amount.js";
 import {
-  EVM_DECIMALS,
   EVM_NETWORK_ERRORS,
+  evmAmountUnit,
   evmChain,
   type EvmChainFacts,
   type EvmNetworkFacts,
@@ -14,6 +13,7 @@ import type { EvmAccountView } from "@ckd/network-boundary/protocol.js";
 import type { AddressSource } from "../../address-book.js";
 import type { RecoveryNetworkGateway } from "../../network-gateway.js";
 import type { RecoveryNetwork } from "../../types.js";
+import { amountFormatter } from "../../wallet-result.js";
 
 /**
  * BIP32 extended-key version bytes of every EVM network, regardless of the selected network: EVM
@@ -24,8 +24,7 @@ export const EVM_VERSIONS = BIP32_MAINNET_VERSIONS;
 
 /** An amount of the network's native asset in wei, written in whole units with its ticker. */
 export function evmAmountFormatter(facts: Pick<EvmNetworkFacts, "asset">) {
-  return (wei: bigint): string =>
-    `${AtomicAmount.format(wei, EVM_DECIMALS, { whole: (value) => value.toLocaleString("en-US") })} ${facts.asset}`;
+  return amountFormatter(evmAmountUnit(facts));
 }
 
 /**

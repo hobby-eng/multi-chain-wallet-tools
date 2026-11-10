@@ -1,3 +1,4 @@
+import { ADDRESS_DISCOVERY_GAP } from "./address-gap.js";
 import { SCANNER_NETWORK_CONCURRENCY } from "./concurrency-parameters.js";
 import {
   RECOVERY_CORE_ADDRESS_BATCH,
@@ -47,6 +48,16 @@ export function evmScanEstimate(
   options: StandardEstimateOptions,
 ): string {
   return `${label} EOA · 3 standard wallet profiles${options.customPath ? (options.customRange ? " + custom account range" : " + custom path") : ""} · ${estimateInteger(receiveCount, 1).toLocaleString()} minimum derivations per profile + 20-address post-use gaps · ${estimateConcurrency(options.requests)} network requests at once${options.includeUsedZero ? " · used zero-balance accounts enabled" : ""}`;
+}
+
+/** The estimate line of an account coin's seed scan (`label` names the coin). */
+export function accountScanEstimate(
+  label: string,
+  profiles: number,
+  receiveCount: string,
+  options: StandardEstimateOptions,
+): string {
+  return `${label} · ${profiles} wallet path profile${profiles === 1 ? "" : "s"} · ${estimateInteger(receiveCount, 1).toLocaleString()} minimum addresses per profile + ${ADDRESS_DISCOVERY_GAP}-address post-use gaps · ${estimateConcurrency(options.requests)} network requests at once${options.includeUsedZero ? " · used zero-balance accounts enabled" : ""}`;
 }
 
 interface DashScanEstimateInput {

@@ -1,4 +1,4 @@
-import { emptyRecoveryHistory } from "@ckd/network-boundary/recovery-history.js";
+import { balanceOnlyHistory } from "@ckd/network-boundary/recovery-history.js";
 import { normalizeEthereumAddress } from "@ckd/public-data-providers/address-normalization.js";
 import type { EthereumPublicDataService } from "@ckd/public-data-providers/ethereum-service.js";
 import {
@@ -35,15 +35,16 @@ function eip55SelfTest(): readonly string[] {
 }
 
 /** The history of a network whose history the tools do not read: unsupported, never empty. */
-function balanceOnlyHistory(facts: EvmNetworkFacts, network: PublicDataNetwork): RecoveryHistory {
-  const unit = evmAmountUnit(facts);
-  return {
-    ...emptyRecoveryHistory(unit.asset, unit.atomicUnit, unit.decimals),
-    status: "unsupported",
-    source: evmChain(facts, network).rpc,
-    scope: "Current balance and account nonce",
-    note: `${facts.label}: balance and nonce only. Its transaction history is not read, so received and sent totals and dates are unknown.`,
-  };
+function evmBalanceOnlyHistory(
+  facts: EvmNetworkFacts,
+  network: PublicDataNetwork,
+): RecoveryHistory {
+  return balanceOnlyHistory(
+    evmAmountUnit(facts),
+    facts.label,
+    evmChain(facts, network).rpc,
+    "balance and account nonce",
+  );
 }
 
 /**
@@ -64,6 +65,7 @@ export function createEvmActivityAdapter(
     decimals: EVM_DECIMALS,
     networks: evmNetworkNames(facts),
     readsHistory: history !== undefined,
+    nonceLabel: "Account nonce",
     singlePlaceholder: `Paste a ${label} 0x address`,
     batchPlaceholder: `One ${label} 0x address per line`,
     normalize: (value) => normalizeEthereumAddress(value),
@@ -72,7 +74,7 @@ export function createEvmActivityAdapter(
     async query(address, network, signal) {
       const [found, batch] = await Promise.all([
         history === undefined
-          ? balanceOnlyHistory(facts, network)
+          ? evmBalanceOnlyHistory(facts, network)
           : history.addressHistory(network, address, signal),
         accounts.accounts(facts.id, network, [address], signal),
       ]);

@@ -37,6 +37,7 @@ function baseApi(): RecoveryNetworkApi {
     addressHistory: unavailable,
     utxoAddresses: unavailable,
     evmAccounts: unavailable,
+    accountStates: unavailable,
   };
 }
 

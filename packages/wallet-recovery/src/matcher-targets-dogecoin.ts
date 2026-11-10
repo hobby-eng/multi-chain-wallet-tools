@@ -1,5 +1,6 @@
 import { DOGECOIN_ADDRESS } from "@ckd/coins/dogecoin/profiles.js";
-import { base58Hash, singleKeyMatcher } from "./matcher-targets-single-key.js";
+import { base58Hash } from "@ckd/core/crypto.js";
+import { singleKeyMatcher } from "./matcher-targets-single-key.js";
 
 /** Dogecoin's part of the matcher: D… addresses. */
 export const DOGECOIN_MATCHER = singleKeyMatcher(["dogecoin"], (value) =>

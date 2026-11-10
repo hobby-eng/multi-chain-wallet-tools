@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { BUILD_PROFILES, getToolBuild, profileToolIds } from "./build-profiles.mjs";
+import { ACCOUNT_COIN_GROUP, ACCOUNT_COINS, accountProviderHost } from "./account-coins.mjs";
 import { EVM_NETWORKS, evmProviderHosts } from "./evm-networks.mjs";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -42,6 +43,19 @@ const DASH_FORBIDDEN_ARTIFACT_PATTERNS = [
       "u",
     ),
     "EVM endpoint",
+  ],
+  // The account coins of the connected tools: their group, endpoints and Solana's batch request
+  // (the single-key coin pattern above forbids their names).
+  [
+    new RegExp(
+      [
+        `\\b${ACCOUNT_COIN_GROUP}\\b`,
+        ...ACCOUNT_COINS.map(accountProviderHost).map((host) => host.replaceAll(".", "\\.")),
+        "\\bgetMultipleAccounts\\b",
+      ].join("|"),
+      "u",
+    ),
+    "account coin endpoint",
   ],
 ];
 

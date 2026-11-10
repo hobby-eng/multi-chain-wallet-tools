@@ -1,3 +1,4 @@
+import { isAccountCoin } from "./account-coins.mjs";
 import { TOOL_MANIFESTS } from "./tool-manifests.mjs";
 
 class InvalidBuildSelection extends Error {}
@@ -62,6 +63,9 @@ export class ToolBuildPolicy {
 
   defaultFeatures(coins) {
     return this.#definition.features.filter((feature) => {
+      // Public-key scans need a coin that has them; an account coin has none.
+      if (this.#toolId === "discovery-scanner" && feature === "watch-only-discovery")
+        return !coins.every(isAccountCoin);
       if (this.#toolId !== "key-derivation") return true;
       if (feature === "silent-payments")
         return this.#profile.capabilities.bitcoinSilentPayments && coins.includes("bitcoin");
@@ -71,7 +75,40 @@ export class ToolBuildPolicy {
     });
   }
 
+  /**
+   * The coins of `coins` that `features` can scan: a Discovery Scanner without seed-discovery
+   * leaves out the account coins, which it scans from seed phrases only.
+   */
+  scannableCoins(coins, features) {
+    if (this.#toolId !== "discovery-scanner" || features.includes("seed-discovery")) return coins;
+    return coins.filter((coin) => !isAccountCoin(coin));
+  }
+
+  /**
+   * The coins and features of a build's options: coins left to the profile's defaults drop those
+   * the features cannot scan, while named coins are kept, so that a request the features cannot
+   * serve is refused rather than shrunk.
+   */
+  select(includedCoins = [], excludedCoins = [], included = [], excluded = []) {
+    const coins = this.coins(includedCoins, excludedCoins);
+    const features = this.#chosenFeatures(coins, included, excluded);
+    const selected = includedCoins.length > 0 ? coins : this.scannableCoins(coins, features);
+    if (selected.length === 0)
+      throw new InvalidBuildSelection(
+        `No coin left for ${this.#toolId}: ${coins.join(", ")} ${coins.length === 1 ? "is" : "are"} scanned from seed phrases only, which needs the seed-discovery feature.`,
+      );
+    this.admit(selected, features);
+    return { coins: selected, features };
+  }
+
   features(coins, included = [], excluded = []) {
+    const ordered = this.#chosenFeatures(coins, included, excluded);
+    this.admit(coins, ordered);
+    return ordered;
+  }
+
+  /** The features `included` names, else the profile's defaults, without those `excluded` names. */
+  #chosenFeatures(coins, included, excluded) {
     included = this.normalize(included, "--features");
     excluded = this.normalize(excluded, "--exclude");
     const selected = new Set(included.length > 0 ? included : this.defaultFeatures(coins));
@@ -83,9 +120,7 @@ export class ToolBuildPolicy {
       !included.includes("mnemocode-cards")
     )
       selected.delete("mnemocode-cards");
-    const ordered = this.#definition.features.filter((feature) => selected.has(feature));
-    this.admit(coins, ordered);
-    return ordered;
+    return this.#definition.features.filter((feature) => selected.has(feature));
   }
 
   admit(coins, features) {
@@ -123,6 +158,16 @@ export class ToolBuildPolicy {
         refuse("Discovery Scanner requires seed-discovery, watch-only-discovery, or both.");
       if (selected.has("wallet-matcher") && !selected.has("seed-discovery"))
         refuse("Discovery Scanner wallet-matcher requires seed-discovery.");
+      // An account coin is scanned from a phrase only; a single address belongs to the Viewer.
+      const accountCoins = coins.filter(isAccountCoin);
+      if (accountCoins.length > 0 && !selected.has("seed-discovery"))
+        refuse(
+          `Discovery Scanner scans the account coins (${accountCoins.join(", ")}) from seed phrases only: add seed-discovery or leave them out with --exclude-coins.`,
+        );
+      if (accountCoins.length === coins.length && selected.has("watch-only-discovery"))
+        refuse(
+          "Discovery Scanner watch-only-discovery needs a coin with public-key scans; the account coins have none.",
+        );
     }
     if (this.#toolId === "psbt-inspector" && features.length === 0)
       refuse("PSBT Inspector requires at least one workflow feature.");

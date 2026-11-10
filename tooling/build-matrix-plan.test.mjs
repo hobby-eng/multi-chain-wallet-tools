@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
+import { isAccountCoin } from "./account-coins.mjs";
+import { EVM_NETWORKS } from "./evm-networks.mjs";
 import { createBuildMatrixPlan, createBuildMatrixSmokePlan } from "./build-matrix-plan.mjs";
+
+const EVM_COINS = new Set(EVM_NETWORKS.map(({ id }) => id));
 
 describe("exhaustive standalone build matrix", () => {
   const plan = createBuildMatrixPlan();
 
   it("enumerates every reviewed valid composition exactly once", () => {
-    expect(plan).toHaveLength(142841);
+    // The account coins add 5 Viewer coin sets and 20 Scanner builds (240, against 220 before).
+    expect(plan).toHaveLength(142866);
     expect(new Set(plan.map(({ relativePath }) => relativePath)).size).toBe(plan.length);
   });
 
@@ -24,13 +29,24 @@ describe("exhaustive standalone build matrix", () => {
         ).toBe(true);
         if (job.features.includes("wallet-matcher"))
           expect(job.features).toContain("seed-discovery");
+        if (job.coins.some((coin) => isAccountCoin(coin)))
+          expect(job.features).toContain("seed-discovery");
       }
     }
   });
 
   it("can constrain planning without changing composition rules", () => {
     const discovery = createBuildMatrixPlan(["multi-chain"], "discovery-scanner");
-    expect(discovery).toHaveLength(220);
+    // 14 coin sets without an account coin × 10 feature sets; each account coin alone × 4 (seed
+    // discovery, no public-key scans); 8 sets with every table coin × 8 (seed discovery), and the
+    // same 8 sets without the account coins × 2 (watch-only, with or without custom paths).
+    expect(discovery).toHaveLength(240);
+    // Watch-only builds hold several EVM networks again, never an account coin.
+    const watchOnly = discovery.filter(({ features }) => !features.includes("seed-discovery"));
+    expect(
+      watchOnly.some(({ coins }) => coins.filter((coin) => EVM_COINS.has(coin)).length > 1),
+    ).toBe(true);
+    expect(watchOnly.every(({ coins }) => !coins.some((coin) => isAccountCoin(coin)))).toBe(true);
     expect(discovery.every(({ toolId }) => toolId === "discovery-scanner")).toBe(true);
   });
 });
@@ -45,7 +61,8 @@ describe("bounded standalone build smoke matrix", () => {
   );
 
   it("selects a stable unique subset of valid builds", () => {
-    expect(smoke).toHaveLength(100);
+    // Each of the five account coins alone, in the Scanner and in the Viewer.
+    expect(smoke).toHaveLength(110);
     expect(new Set(smoke.map(({ relativePath }) => relativePath)).size).toBe(smoke.length);
     for (const job of smoke) {
       expect(

@@ -155,11 +155,7 @@ function evmSeedScan(facts: EvmNetworkFacts, coin: RecoveryCoinFacts) {
         title: `${label} EOA addresses`,
         description: `Scans three standard EOA profiles${config.scanCustomPath ? " and the selected custom paths" : ""} through independent ${ADDRESS_DISCOVERY_GAP}-address post-use gaps.`,
         state: book.gap.truncated ? "partial" : "complete",
-        metrics: [
-          ...book.metrics(format),
-          { label: "Unique addresses queried", value: String(book.queried) },
-          { label: "Derivation candidates", value: String(scanned) },
-        ],
+        metrics: book.scanMetrics(format, scanned),
         findings: found.list,
         scanned,
         source: chainAccounts.chain.rpc,
@@ -172,12 +168,7 @@ function evmSeedScan(facts: EvmNetworkFacts, coin: RecoveryCoinFacts) {
           .join(" "),
       };
       return walletScan.result({
-        overview: [
-          ...book.overview(format, "Funded accounts"),
-          { label: "Used accounts", value: String(book.used) },
-          { label: "Path profiles", value: String(profiles.length) },
-          { label: "Unique addresses queried", value: String(book.queried) },
-        ],
+        overview: book.accountOverview(format, profiles.length),
         sections: [section],
         warnings: [
           `Only native ${asset} in mnemonic-derived EOAs is scanned; tokens and smart-contract wallets require separate recovery tooling.`,

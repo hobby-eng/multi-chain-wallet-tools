@@ -35,6 +35,7 @@ import {
   parseBuildProfile,
 } from "../../../tooling/build-profiles.mjs";
 import { verifyDashSdkBuild } from "../../../tooling/verify-dash-sdk-build.mjs";
+import { assertSelectedAccountEndpoints } from "../../../tooling/account-coins.mjs";
 import { assertSelectedEvmEndpoints } from "../../../tooling/evm-networks.mjs";
 import { mnemocodeWasmPlugin } from "../../../tooling/mnemocode-wasm-plugin.mjs";
 
@@ -269,6 +270,7 @@ let html = shellTemplate
   .replace("/*__SHELL_JS__*/", () => safeShellJavascript);
 html = withScriptHash(html, "__SHELL_INLINE_SCRIPT_HASH__", "Recovery shell");
 assertSelectedEvmEndpoints(options, html, "Discovery Scanner artifact");
+assertSelectedAccountEndpoints(options, html, "Discovery Scanner artifact");
 const unexpandedMarker = /__[A-Z][A-Z0-9_]+__/u.exec(html)?.[0];
 if (unexpandedMarker !== undefined)
   throw new Error(

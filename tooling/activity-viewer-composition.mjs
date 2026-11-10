@@ -1,3 +1,9 @@
+import {
+  ACCOUNT_SHARED_MARKERS,
+  accountReadersSource,
+  selectedAccountCoins,
+  unselectedAccountMarkers,
+} from "./account-coins.mjs";
 import { isEvmCoin, selectedEvmNetworks } from "./evm-networks.mjs";
 import { TOOL_MANIFESTS } from "./tool-manifests.mjs";
 import { replaceBalancedElement as replaceHtmlElement } from "./html-elements.mjs";
@@ -31,7 +37,10 @@ export function activityViewerEntry(root, options) {
   return lines.join("\n");
 }
 
-/** The selected public-address adapters: Bitcoin's, and one per EVM network with its inlined row. */
+/**
+ * The selected public-address adapters: Bitcoin's, one per EVM network with its inlined row, and one
+ * per account coin with its inlined row and its api's provider.
+ */
 function selectedAdaptersSource(root, options) {
   const module = (file) => JSON.stringify(resolve(root, file));
   const lines = [];
@@ -59,6 +68,20 @@ function selectedAdaptersSource(root, options) {
       adapters.push(
         `createEvmActivityAdapter(evmNetworks[${index}], evmAccounts${id === "ethereum" ? `, new EthereumPublicDataService(evmNetworks[${index}])` : ""})`,
       );
+  }
+  const accounts = selectedAccountCoins(options);
+  if (accounts.length > 0) {
+    const { imports, readers } = accountReadersSource(accounts, module);
+    lines.push(
+      `import { createAccountActivityAdapter } from ${module("apps/activity-viewer/src/activity-account.ts")};`,
+      `import { AccountStatesService } from ${module("packages/public-data-providers/src/account-states-service.ts")};`,
+      ...imports,
+      `const accountReaders = ${readers};`,
+      "const accountStates = new AccountStatesService(accountReaders);",
+    );
+    adapters.push(
+      "...accountReaders.map((reader) => createAccountActivityAdapter(reader, accountStates))",
+    );
   }
   return `${lines.join("\n")}\nexport const SELECTED_EXTERNAL_ACTIVITY_ADAPTERS = [${adapters.join(", ")}];`;
 }
@@ -97,9 +120,10 @@ export function applyActivityCoinTemplate(template, options) {
   rendered = rendered.replace(/<optgroup\b[^>]*>\s*<\/optgroup>/giu, "");
   if (!options.hasCoin("dash")) {
     const evm = selectedEvmNetworks(options);
+    const accounts = selectedAccountCoins(options);
     const labels = [
       ...(options.hasCoin("bitcoin") ? ["Bitcoin"] : []),
-      ...evm.map(({ label }) => label),
+      ...[...evm, ...accounts].map(({ label }) => label),
     ];
     const providerSummary = [
       ...(options.hasCoin("bitcoin") ? ["Bitcoin: Blockstream Esplora"] : []),
@@ -107,6 +131,7 @@ export function applyActivityCoinTemplate(template, options) {
         ? [`${evm.map(({ label }) => label).join(", ")}: PublicNode JSON-RPC`]
         : []),
       ...(options.hasCoin("ethereum") ? ["Ethereum history: Blockscout"] : []),
+      ...accounts.map(({ label, endpoint }) => `${label}: ${new URL(endpoint).host}`),
     ].join(" · ");
     rendered = replaceBalancedElement(
       rendered,
@@ -275,6 +300,19 @@ export function assertActivityViewerComposition(options, inputs) {
   };
   if (options.hasCoin("bitcoin")) requireInput("Bitcoin", "/activity-bitcoin.ts");
   if (options.hasCoin("ethereum")) requireInput("Ethereum history", "/ethereum-service.ts");
+  // Each selected account coin's provider, the modules they share, and no unselected coin's modules.
+  const accounts = selectedAccountCoins(options);
+  for (const { api } of accounts) requireInput("account coins", `/account-coins/${api}.ts`);
+  const shared = ACCOUNT_SHARED_MARKERS["activity-viewer"];
+  if (accounts.length > 0) for (const marker of shared) requireInput("account coins", marker);
+  const absent = [...unselectedAccountMarkers(options), ...(accounts.length > 0 ? [] : shared)];
+  const leakedAccounts = normalized.filter((input) =>
+    absent.some((marker) => input.includes(marker)),
+  );
+  if (leakedAccounts.length > 0)
+    throw new Error(
+      `Activity Viewer excluded account coins, but their modules remain:\n${leakedAccounts.join("\n")}`,
+    );
   if (options.coins.some(isEvmCoin)) {
     requireInput("EVM networks", "/activity-evm.ts");
     requireInput("EVM networks", "/evm-service.ts");

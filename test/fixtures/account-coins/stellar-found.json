@@ -1,0 +1,72 @@
+{
+  "_links": {
+    "self": {
+      "href": "https://horizon.stellar.org/accounts/GC4FH7MFR6ICHN5F3Z4TBM5HQJCTHRI4ETRDQEE66CYASOR5RWGERA77"
+    },
+    "transactions": {
+      "href": "https://horizon.stellar.org/accounts/GC4FH7MFR6ICHN5F3Z4TBM5HQJCTHRI4ETRDQEE66CYASOR5RWGERA77/transactions{?cursor,limit,order}",
+      "templated": true
+    },
+    "operations": {
+      "href": "https://horizon.stellar.org/accounts/GC4FH7MFR6ICHN5F3Z4TBM5HQJCTHRI4ETRDQEE66CYASOR5RWGERA77/operations{?cursor,limit,order}",
+      "templated": true
+    },
+    "payments": {
+      "href": "https://horizon.stellar.org/accounts/GC4FH7MFR6ICHN5F3Z4TBM5HQJCTHRI4ETRDQEE66CYASOR5RWGERA77/payments{?cursor,limit,order}",
+      "templated": true
+    },
+    "effects": {
+      "href": "https://horizon.stellar.org/accounts/GC4FH7MFR6ICHN5F3Z4TBM5HQJCTHRI4ETRDQEE66CYASOR5RWGERA77/effects{?cursor,limit,order}",
+      "templated": true
+    },
+    "offers": {
+      "href": "https://horizon.stellar.org/accounts/GC4FH7MFR6ICHN5F3Z4TBM5HQJCTHRI4ETRDQEE66CYASOR5RWGERA77/offers{?cursor,limit,order}",
+      "templated": true
+    },
+    "trades": {
+      "href": "https://horizon.stellar.org/accounts/GC4FH7MFR6ICHN5F3Z4TBM5HQJCTHRI4ETRDQEE66CYASOR5RWGERA77/trades{?cursor,limit,order}",
+      "templated": true
+    },
+    "data": {
+      "href": "https://horizon.stellar.org/accounts/GC4FH7MFR6ICHN5F3Z4TBM5HQJCTHRI4ETRDQEE66CYASOR5RWGERA77/data/{key}",
+      "templated": true
+    }
+  },
+  "id": "GC4FH7MFR6ICHN5F3Z4TBM5HQJCTHRI4ETRDQEE66CYASOR5RWGERA77",
+  "account_id": "GC4FH7MFR6ICHN5F3Z4TBM5HQJCTHRI4ETRDQEE66CYASOR5RWGERA77",
+  "sequence": "264874520089722880",
+  "subentry_count": 0,
+  "last_modified_ledger": 61670905,
+  "last_modified_time": "2026-03-16T01:08:52Z",
+  "thresholds": {
+    "low_threshold": 0,
+    "med_threshold": 0,
+    "high_threshold": 0
+  },
+  "flags": {
+    "auth_required": false,
+    "auth_revocable": false,
+    "auth_immutable": false,
+    "auth_clawback_enabled": false
+  },
+  "balances": [
+    {
+      "balance": "0.0000000",
+      "buying_liabilities": "0.0000000",
+      "selling_liabilities": "0.0000000",
+      "asset_type": "native"
+    }
+  ],
+  "signers": [
+    {
+      "weight": 1,
+      "key": "GC4FH7MFR6ICHN5F3Z4TBM5HQJCTHRI4ETRDQEE66CYASOR5RWGERA77",
+      "type": "ed25519_public_key"
+    }
+  ],
+  "data": {},
+  "num_sponsoring": 0,
+  "num_sponsored": 2,
+  "sponsor": "GCY6L5VT3GK7QAPLTADXKL7NKQZC4XOA742L2LNNAXLXPXDUUPYWEDVF",
+  "paging_token": "GC4FH7MFR6ICHN5F3Z4TBM5HQJCTHRI4ETRDQEE66CYASOR5RWGERA77"
+}

@@ -1,5 +1,6 @@
 import { basename, isAbsolute, relative, resolve } from "node:path";
 
+import { ACCOUNT_COIN_IDS, accountProviderOrigins } from "./account-coins.mjs";
 import { EVM_NETWORKS, evmProviderOrigins } from "./evm-networks.mjs";
 import { ToolBuildPolicy } from "./tool-build-policy.mjs";
 import { TOOL_MANIFESTS } from "./tool-manifests.mjs";
@@ -41,10 +42,9 @@ export function parseToolFeatureOptions(toolId, profile, args = process.argv.sli
     commaOptionValues(args, "--exclude-coins"),
     "--exclude-coins",
   );
-  const coins = policy.coins(includedCoins, excludedCoins);
   const included = policy.normalize(commaOptionValues(args, "--features"), "--features");
   const excluded = policy.normalize(commaOptionValues(args, "--exclude"), "--exclude");
-  const features = policy.features(coins, included, excluded);
+  const { coins, features } = policy.select(includedCoins, excludedCoins, included, excluded);
   const selectedCoins = new Set(coins);
   const selected = new Set(features);
   const custom =
@@ -67,12 +67,14 @@ const FIXED_PROVIDER_ORIGINS = Object.freeze({
   ],
   // Each EVM network's JSON-RPC and history origins, from the EVM network table.
   ...Object.fromEntries(EVM_NETWORKS.map(({ id }) => [id, evmProviderOrigins(id)])),
+  // Each account coin's provider origin, from the account coin table.
+  ...Object.fromEntries(ACCOUNT_COIN_IDS.map((id) => [id, accountProviderOrigins(id)])),
 });
 
 export function applySelectedNetworkCsp(template, options) {
   // Dash Platform discovers quorum endpoints at runtime, so Dash builds retain
-  // the HTTPS scheme boundary. Fixed-provider Bitcoin and EVM network builds can
-  // pin every permitted origin directly in CSP.
+  // the HTTPS scheme boundary. Fixed-provider Bitcoin, EVM network and account
+  // coin builds can pin every permitted origin directly in CSP.
   if (options.hasCoin("dash")) return template;
   const origins = [...new Set(options.coins.flatMap((coin) => FIXED_PROVIDER_ORIGINS[coin] ?? []))];
   if (origins.length === 0)

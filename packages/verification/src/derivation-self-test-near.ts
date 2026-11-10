@@ -1,5 +1,5 @@
 import { NEAR_COIN_ADAPTERS } from "@ckd/coins/adapters/near.js";
-import { nearDerivation } from "@ckd/coins/near/index.js";
+import { NEAR_ADDRESSES, nearDerivation } from "@ckd/coins/near/index.js";
 import { singleKeyCoinSelfTest } from "./single-key-coin-self-test.js";
 
 // From test/oracles/ed25519_oracle.py, which first reproduces near-seed-phrase's published vector.
@@ -9,6 +9,7 @@ export const runNearDerivationSelfTest = singleKeyCoinSelfTest({
   group: "NEAR",
   adapters: NEAR_COIN_ADAPTERS,
   derivation: nearDerivation,
+  addresses: NEAR_ADDRESSES,
   vectors: [
     {
       adapterId: "near",

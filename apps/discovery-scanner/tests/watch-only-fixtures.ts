@@ -58,6 +58,7 @@ function context(overrides: Partial<RecoveryNetworkApi> = {}): RecoveryScanConte
       addressHistory: unavailable,
       utxoAddresses: unavailable,
       evmAccounts: unavailable,
+      accountStates: unavailable,
       ...overrides,
     },
   };

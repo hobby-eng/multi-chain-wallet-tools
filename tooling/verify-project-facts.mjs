@@ -10,6 +10,7 @@ import { checkMnemoCodeWasm } from "./sync-mnemocode-wasm.mjs";
 import { MnemoCodeSskrSource } from "./sync-mnemocode-sskr.mjs";
 import { MnemoCodeSskrLayout } from "./mnemocode-sskr-layout.mjs";
 import { UNICODE_VERSION as NFKD_UNICODE_VERSION } from "./generate-unicode-nfkd.mjs";
+import { ACCOUNT_COINS, accountProviderHost } from "./account-coins.mjs";
 import { EVM_NETWORKS } from "./evm-networks.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -80,7 +81,8 @@ for (const [index, coinId] of PRODUCT_FACTS.multiChainCoinIds.entries()) {
     `Multi-Chain Activity Viewer coin ${index + 1}`,
   );
 }
-// Every EVM network of the EVM network table, by name and endpoint, where a reader looks for it.
+// Every EVM network of the EVM network table and every account coin of the account coin table, by
+// name and endpoint, where a reader looks for it.
 for (const [path, text] of [
   ["README.md", rootReadme],
   ["apps/discovery-scanner/README.md", read("apps/discovery-scanner/README.md")],
@@ -90,6 +92,11 @@ for (const [path, text] of [
     requireText(text, label, `${path} EVM network`);
     for (const { rpc } of Object.values(networks))
       requireText(text, new URL(rpc).host, `${path} EVM network endpoint`);
+  }
+  // Every account coin of the account coin table, by name and endpoint, likewise.
+  for (const row of ACCOUNT_COINS) {
+    requireText(text, row.label, `${path} account coin`);
+    requireText(text, accountProviderHost(row), `${path} account coin endpoint`);
   }
 }
 for (const tool of PRODUCT_FACTS.tools) requireText(audit, tool, "Security audit tool list");

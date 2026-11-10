@@ -1,5 +1,12 @@
 // The parts every coin's wallet result is made of, so that each adapter states only what is its own.
+import { AtomicAmount } from "@ckd/core/atomic-amount.js";
 import type { RecoveryMetric, RecoveryNetwork, RecoveryWalletResult } from "./types.js";
+
+/** An amount in a native asset's atomic units, written in whole units with its ticker. */
+export function amountFormatter(unit: { readonly asset: string; readonly decimals: number }) {
+  return (atomic: bigint): string =>
+    `${AtomicAmount.format(atomic, unit.decimals, { whole: (value) => value.toLocaleString("en-US") })} ${unit.asset}`;
+}
 
 /** The overview line of the value a scan located. */
 export function locatedValueMetric(

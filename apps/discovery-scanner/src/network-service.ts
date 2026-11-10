@@ -1,4 +1,5 @@
 import type {
+  AccountStatesView,
   DashCoreTransactionView,
   EvmAccountBatchView,
   IdentityLookupView,
@@ -85,6 +86,15 @@ export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
     _addresses: string[],
     _signal?: AbortSignal,
   ): Promise<EvmAccountBatchView> {
+    throw new Error("This build rejected an unsupported network operation.");
+  }
+
+  async accountStates(
+    _coin: string,
+    _network: RecoveryNetwork,
+    _addresses: string[],
+    _signal?: AbortSignal,
+  ): Promise<AccountStatesView> {
     throw new Error("This build rejected an unsupported network operation.");
   }
 

@@ -1,6 +1,7 @@
 import { CASHADDR_P2KH, decodeCashAddr } from "@ckd/core/cashaddr.js";
 import { BITCOIN_CASH_ADDRESS } from "@ckd/coins/bitcoin-cash/profiles.js";
-import { base58Hash, singleKeyMatcher } from "./matcher-targets-single-key.js";
+import { base58Hash } from "@ckd/core/crypto.js";
+import { singleKeyMatcher } from "./matcher-targets-single-key.js";
 
 const ADAPTERS = ["bitcoin-cash", "bitcoin-cash-coin-type-0"];
 

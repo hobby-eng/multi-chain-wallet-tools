@@ -33,3 +33,23 @@ export function emptyRecoveryHistory(asset = "", atomicUnit = "", decimals = 0):
     pendingTransactionCount: null,
   };
 }
+
+/**
+ * The history of an address whose current state alone the tools read (`read`, such as "balance
+ * and account nonce", from `source`): unsupported, never empty, so that its totals and dates stay
+ * unknown rather than zero.
+ */
+export function balanceOnlyHistory(
+  unit: { readonly asset: string; readonly atomicUnit: string; readonly decimals: number },
+  label: string,
+  source: string,
+  read: string,
+): RecoveryHistory {
+  return {
+    ...emptyRecoveryHistory(unit.asset, unit.atomicUnit, unit.decimals),
+    status: "unsupported",
+    source,
+    scope: `Current ${read}`,
+    note: `${label}: ${read} only. Its transaction history is not read, so received and sent totals and dates are unknown.`,
+  };
+}

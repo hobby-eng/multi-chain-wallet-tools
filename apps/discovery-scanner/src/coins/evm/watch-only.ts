@@ -187,11 +187,7 @@ export function evmWatchOnlyScan(facts: EvmNetworkFacts, coin: RecoveryCoinFacts
       title: `${label} watch-only EOA addresses`,
       description: descriptionText,
       state: "complete",
-      metrics: [
-        ...book.metrics(format),
-        { label: "Unique addresses queried", value: String(book.queried) },
-        { label: "Derivation candidates", value: String(scanned) },
-      ],
+      metrics: book.scanMetrics(format, scanned),
       findings,
       scanned,
       source: accounts.chain.rpc,

@@ -1,3 +1,5 @@
+import { ACCOUNT_COIN_READERS } from "@ckd/public-data-providers/account-coins.js";
+import { AccountStatesService } from "@ckd/public-data-providers/account-states-service.js";
 import { validateEvmAccountsPayload } from "@ckd/public-data-providers/evm-network-facts.js";
 import { EVM_NETWORKS } from "@ckd/public-data-providers/evm-networks.js";
 import {
@@ -39,6 +41,9 @@ const addressBatch =
     assertPublicTokenBatch(body.addresses, maximum);
   };
 
+// Every account coin of the table: it refuses a payload as the development service would.
+const ALL_ACCOUNT_STATES = new AccountStatesService(ACCOUNT_COIN_READERS);
+
 const ALL_OPERATION_VALIDATORS: NetworkOperationValidators = {
   ping: (value) => void exactNetworkPayload(value, []),
   "core.status": networkOnly,
@@ -76,6 +81,7 @@ const ALL_OPERATION_VALIDATORS: NetworkOperationValidators = {
       value,
       EVM_NETWORKS.map(({ id }) => id),
     ),
+  "account.states": (value) => ALL_ACCOUNT_STATES.validatePayload(value),
 };
 
 /** Reference validator for the unfiltered development worker; release builds generate a smaller allowlist. */
@@ -138,6 +144,13 @@ export async function executeRecoveryNetworkRequest(
       return service.utxoAddresses(request.payload.network, request.payload.addresses, signal);
     case "evm.accounts":
       return service.evmAccounts(
+        request.payload.coin,
+        request.payload.network,
+        request.payload.addresses,
+        signal,
+      );
+    case "account.states":
+      return service.accountStates(
         request.payload.coin,
         request.payload.network,
         request.payload.addresses,

@@ -15,7 +15,8 @@ import {
 describe("Platform Identity public input boundary", () => {
   it.each([
     "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
-    "xprv9s21ZrQH143K3example",
+    // The BIP32 master key of the public phrase above.
+    "xprv9s21ZrQH143K3GJpoapnV8SFfukcVBSfeCficPSGfubmSFDxo1kuHnLisriDvSnRRuL2Qrg5ggqHKNVpxR86QEC8w35uxmGoggxtQTPvfUu",
     "11".repeat(32),
     JSON.stringify({ privateKey: "secret" }),
     encodeWif(

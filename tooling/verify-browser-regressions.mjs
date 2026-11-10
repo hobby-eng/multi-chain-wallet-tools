@@ -14,6 +14,7 @@ import { CopyFeedbackCase } from "./browser-cases/copy-feedback.mjs";
 import { Bip85ManualStartCase } from "./browser-cases/bip85-manual-start.mjs";
 import { SingleKeyCoinsCase } from "./browser-cases/single-key-coins.mjs";
 import { EvmNetworkCandidatesCase } from "./browser-cases/evm-network-candidates.mjs";
+import { AccountCoinCandidatesCase } from "./browser-cases/account-coin-candidates.mjs";
 import { CoinJoinPartialCase } from "./browser-cases/coinjoin-partial.mjs";
 import { ProtocolNavigationCase } from "./browser-cases/protocol-navigation.mjs";
 import { RecoverySourceRoutingCase } from "./browser-cases/recovery-source-routing.mjs";
@@ -35,7 +36,7 @@ import { MnemoCodePublicReferencesCase } from "./browser-cases/mnemocode-public-
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { launchForReport, loadPlaywright } from "./playwright-loader.mjs";
-import { BUILD_PROFILES, profileToolIds } from "./build-profiles.mjs";
+import { browserSuiteProfiles, profileToolIds } from "./build-profiles.mjs";
 import { BrowserHarness } from "./browser-regressions/host.mjs";
 const { output, open, openWithLinkedPhrase, waitText } = BrowserHarness;
 import { BrowserBoundaryCases } from "./browser-regressions/boundaries.mjs";
@@ -96,8 +97,7 @@ for (const browserName of (process.env.BROWSER_ENGINES ?? "chromium,firefox").sp
   );
   if (browser === undefined) continue;
   try {
-    for (const profile of Object.values(BUILD_PROFILES)) {
-      if (process.env.BROWSER_PROFILE && process.env.BROWSER_PROFILE !== profile.id) continue;
+    for (const profile of browserSuiteProfiles()) {
       const cases = profileToolIds(profile).map((tool) => ({
         name: `${tool}-boundaries`,
         execute: (context, run) => boundaries(context, profile, tool, run),
@@ -167,7 +167,7 @@ for (const browserName of (process.env.BROWSER_ENGINES ?? "chromium,firefox").sp
             run.checks.push(await SingleKeyCoinsCase.run(page));
           },
         });
-      // The EVM networks besides Ethereum are the Multi-Chain Edition's only.
+      // The EVM networks besides Ethereum and the account coins are the Multi-Chain Edition's only.
       if (profile.id === "multi-chain") {
         cases.push({
           name: "evm-network-candidates",
@@ -181,6 +181,20 @@ for (const browserName of (process.env.BROWSER_ENGINES ?? "chromium,firefox").sp
           execute: async (context, run) => {
             const page = await open(context, profile, "activity-viewer", run);
             run.checks.push(await EvmNetworkCandidatesCase.viewer(context, page, run.requests));
+          },
+        });
+        cases.push({
+          name: "account-coin-candidates",
+          execute: async (context, run) => {
+            const page = await open(context, profile, "discovery-scanner", run);
+            run.checks.push(await AccountCoinCandidatesCase.scanner(context, page, run.requests));
+          },
+        });
+        cases.push({
+          name: "account-coin-activity",
+          execute: async (context, run) => {
+            const page = await open(context, profile, "activity-viewer", run);
+            run.checks.push(await AccountCoinCandidatesCase.viewer(context, page, run.requests));
           },
         });
       }

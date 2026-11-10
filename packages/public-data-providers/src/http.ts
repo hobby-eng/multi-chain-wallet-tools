@@ -13,11 +13,14 @@ function readProviderJson(response: Response, signal: AbortSignal): Promise<unkn
 
 export const { record, decimal, unsignedInteger } = providerValues("Public provider");
 
+/** The time one provider request may take, headers and body together. */
+const PROVIDER_TIMEOUT_MS = 30_000;
+
 export function fetchJson(
   url: string,
   signal?: AbortSignal,
   init: RequestInit = {},
-  timeoutMs = 30_000,
+  timeoutMs = PROVIDER_TIMEOUT_MS,
 ): Promise<unknown> {
   return boundedFetch(url, {
     signal,
@@ -25,5 +28,28 @@ export function fetchJson(
     timeoutMs,
     abortError: networkCancelledError,
     read: readProviderJson,
+  });
+}
+
+/**
+ * The JSON answer of a GET of `url` with its HTTP status, where an error status of
+ * `answerStatuses` (such as a provider's 404 for an unknown account) is an answer too; any other
+ * error status fails as fetchJson fails.
+ */
+export function fetchJsonAnswer(
+  url: string,
+  answerStatuses: readonly number[],
+  signal?: AbortSignal,
+): Promise<{ readonly status: number; readonly body: unknown }> {
+  return boundedFetch(url, {
+    signal,
+    init: {},
+    timeoutMs: PROVIDER_TIMEOUT_MS,
+    abortError: networkCancelledError,
+    answerStatuses,
+    read: async (response, requestSignal) => ({
+      status: response.status,
+      body: await readProviderJson(response, requestSignal),
+    }),
   });
 }

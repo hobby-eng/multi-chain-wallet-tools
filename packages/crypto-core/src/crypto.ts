@@ -27,6 +27,19 @@ export function decodeBase58Check(text: string): Uint8Array | null {
   }
 }
 
+/**
+ * The 20-byte hash after `version` of a base58check `value` whose payload is version + hash, or
+ * null when it is not one or its checksum fails.
+ */
+export function base58Hash(value: string, version: readonly number[]): Uint8Array | null {
+  const payload = decodeBase58Check(value);
+  if (payload === null) return null;
+  return payload.length === version.length + ADDRESS_HASH_BYTES &&
+    version.every((byte, at) => payload[at] === byte)
+    ? payload.slice(version.length)
+    : null;
+}
+
 export function encodeP2pkh(hash: Uint8Array, prefix: number): string {
   if (hash.length !== ADDRESS_HASH_BYTES)
     throw new Error(`P2PKH hash must be ${ADDRESS_HASH_BYTES} bytes.`);

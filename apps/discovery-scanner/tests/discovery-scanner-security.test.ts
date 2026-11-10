@@ -76,6 +76,7 @@ function mockNetwork(overrides: Partial<RecoveryNetworkApi> = {}): RecoveryNetwo
     addressHistory: unavailable,
     utxoAddresses: unavailable,
     evmAccounts: unavailable,
+    accountStates: unavailable,
     ...overrides,
   };
 }

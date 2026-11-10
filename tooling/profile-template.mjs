@@ -9,7 +9,8 @@ import { BIP85_HEX_BYTES } from "../packages/crypto-core/src/bip85-values.ts";
 import { BIP39_WORD_COUNTS } from "../packages/crypto-core/src/bip39-word-counts.ts";
 import { MAX_BIP32_INDEX } from "../packages/crypto-core/src/bip32-limits.ts";
 import { EmbeddedDerivation } from "../packages/coin-protocols/src/coins/embedded-derivation.ts";
-import { EVM_NETWORKS } from "./evm-networks.mjs";
+import { ACCOUNT_COIN_GROUP, ACCOUNT_COINS } from "./account-coins.mjs";
+import { EVM_NETWORK_GROUP, EVM_NETWORKS } from "./evm-networks.mjs";
 
 /** The WIF version bytes of each coin and network, as the BIP85 WIF choice offers them. */
 const WIF_VERSIONS = {
@@ -318,7 +319,7 @@ function secondaryToolMarkup(profile, footer) {
   const activityCapabilityCard =
     profile.id === "dash-community"
       ? '<aside class="viewer-capability-card" aria-label="Viewer capabilities"><div class="capability-orbit" aria-hidden="true"><span></span></div><div class="capability-kicker">DASH RESOURCE TYPES</div><h2>Verify with confidence</h2><div class="capability-list"><div><span class="capability-check">✓</span><span>Core address activity</span></div><div><span class="capability-check">✓</span><span>Platform and Identity state</span></div><div><span class="capability-check">✓</span><span>Local Orchard note recovery</span></div><div class="capability-safe"><span>✓</span><span>Read-only by design</span></div></div></aside>'
-      : '<aside class="viewer-capability-card" aria-label="Viewer capabilities"><div class="capability-orbit" aria-hidden="true"><span></span></div><div class="capability-kicker">SUPPORTED PUBLIC WORKFLOWS</div><h2>Inspect with confidence</h2><div class="capability-list"><div><span class="capability-check">✓</span><span>Bitcoin address history</span></div><div><span class="capability-check">✓</span><span>Ethereum and EVM network accounts</span></div><div><span class="capability-check">✓</span><span>Dash Core, Platform, Identity and Orchard</span></div><div class="capability-safe"><span>✓</span><span>Read-only by design</span></div></div></aside>';
+      : '<aside class="viewer-capability-card" aria-label="Viewer capabilities"><div class="capability-orbit" aria-hidden="true"><span></span></div><div class="capability-kicker">SUPPORTED PUBLIC WORKFLOWS</div><h2>Inspect with confidence</h2><div class="capability-list"><div><span class="capability-check">✓</span><span>Bitcoin address history</span></div><div><span class="capability-check">✓</span><span>Ethereum and EVM network accounts</span></div><div><span class="capability-check">✓</span><span>Dash Core, Platform, Identity and Orchard</span></div><div><span class="capability-check">✓</span><span>Account balances on other networks</span></div><div class="capability-safe"><span>✓</span><span>Read-only by design</span></div></div></aside>';
   const activityRuntimeDescription =
     profile.id === "dash-community"
       ? "Dash Core, Platform, Identity and Orchard reads · Orchard processing local · Blob Worker check pending"
@@ -326,7 +327,7 @@ function secondaryToolMarkup(profile, footer) {
   const activityFooterProtocols =
     profile.id === "dash-community"
       ? "Dash Evo SDK 5.0.3 · proof-verified DAPI queries · Dash Orchard dashified-0.14.1 · DashScan Core API · Dash Platform Explorer"
-      : "Bitcoin public history · Ethereum and EVM network account activity · Dash Evo SDK 5.0.3 · Dash Orchard dashified-0.14.1 · DashScan Core API · Dash Platform Explorer";
+      : "Bitcoin public history · Ethereum and EVM network account activity · Dash Evo SDK 5.0.3 · Dash Orchard dashified-0.14.1 · DashScan Core API · Dash Platform Explorer · account balances of other networks";
   const psbtScriptPlaceholder = !profile.capabilities.advancedPsbt
     ? "522102...53ae or sh(sortedmulti(...))#checksum"
     : "522102...53ae or tr(xpub.../0/*,{multi_a(...)})#checksum";
@@ -404,13 +405,14 @@ export class ProfileTemplate {
         ? "<strong>Limited search scope.</strong> Public keys only cover their own account, branch or reachable address formats; other hardened accounts are excluded. For the broadest search across supported Dash wallet schemes, use your seed phrase and original BIP39 passphrase, if any."
         : "<strong>Limited search scope.</strong> Public keys only cover their own account, branch or reachable address formats; other hardened accounts are excluded. For the broadest search across supported wallet schemes, use your seed phrase and original BIP39 passphrase, if any. Trying different formats for one xpub does not search the separate Legacy, SegWit and Taproot accounts.";
     // The EVM networks after Ethereum come from the EVM network table (tooling/evm-networks.mjs).
-    const otherEvmOptions = EVM_NETWORKS.filter(({ id }) => id !== "ethereum")
-      .map(({ id, label }) => `<option value="${id}">${label}</option>`)
-      .join("");
+    // The account coins come from the account coin table (tooling/account-coins.mjs).
+    const options = (rows) =>
+      rows.map(({ id, label }) => `<option value="${id}">${label}</option>`).join("");
+    const otherEvmOptions = options(EVM_NETWORKS.filter(({ id }) => id !== "ethereum"));
     const activityCoinControl =
       profile.id === "dash-community"
         ? ""
-        : `<div class="viewer-coin-field"><label for="viewer-coin">Coin</label><select id="viewer-coin"><option value="bitcoin" selected>Bitcoin</option><optgroup label="EVM networks"><option value="ethereum">Ethereum</option>${otherEvmOptions}</optgroup><option value="dash">Dash</option></select><p class="field-note">Choose the coin before entering a public lookup.</p></div>`;
+        : `<div class="viewer-coin-field"><label for="viewer-coin">Coin</label><select id="viewer-coin"><option value="bitcoin" selected>Bitcoin</option><optgroup label="${EVM_NETWORK_GROUP}"><option value="ethereum">Ethereum</option>${otherEvmOptions}</optgroup><option value="dash">Dash</option><optgroup label="${ACCOUNT_COIN_GROUP}">${options(ACCOUNT_COINS)}</optgroup></select><p class="field-note">Choose the coin before entering a public lookup.</p></div>`;
     const psbtChainOptions =
       profile.id === "dash-community"
         ? '<option value="dash">Dash Core</option>'

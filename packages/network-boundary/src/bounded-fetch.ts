@@ -4,6 +4,8 @@ interface BoundedFetchOptions<T> {
   readonly timeoutMs: number;
   readonly abortError: () => DOMException;
   readonly read: (response: Response, signal: AbortSignal) => Promise<T>;
+  /** HTTP error statuses whose body is an answer too, such as a provider's 404 for an unknown account. */
+  readonly answerStatuses?: readonly number[];
 }
 
 /** Performs one no-store request whose deadline covers both headers and body consumption. */
@@ -23,7 +25,7 @@ export async function boundedFetch<T>(url: string, options: BoundedFetchOptions<
       cache: "no-store",
       signal: requestController.signal,
     });
-    if (!response.ok) {
+    if (!response.ok && !(options.answerStatuses ?? []).includes(response.status)) {
       void response.body?.cancel().catch(() => {});
       throw new Error(`Network request failed with HTTP ${response.status}.`);
     }

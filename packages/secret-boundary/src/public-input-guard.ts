@@ -1,7 +1,7 @@
 import { nonEmptyLines } from "@ckd/core/text-lines.js";
 import { BIP39_WORD_COUNTS, isBip39WordCount } from "@ckd/core/bip39-parameters.js";
 import { PrivateMaterialError } from "./private-material-error.js";
-import { createBase58check } from "@scure/base";
+import { base58, createBase58check } from "@scure/base";
 import { wordlist as czechWordlist } from "@scure/bip39/wordlists/czech.js";
 import { wordlist as englishWordlist } from "@scure/bip39/wordlists/english.js";
 import { wordlist as frenchWordlist } from "@scure/bip39/wordlists/french.js";
@@ -12,15 +12,47 @@ import { wordlist as portugueseWordlist } from "@scure/bip39/wordlists/portugues
 import { wordlist as simplifiedChineseWordlist } from "@scure/bip39/wordlists/simplified-chinese.js";
 import { wordlist as spanishWordlist } from "@scure/bip39/wordlists/spanish.js";
 import { wordlist as traditionalChineseWordlist } from "@scure/bip39/wordlists/traditional-chinese.js";
-import { sha256 } from "@ckd/core/crypto.js";
+import { sha256, wipe } from "@ckd/core/crypto.js";
+import { decodeRippleBase58Check } from "@ckd/core/ripple-base58check.js";
+import { STRKEY_SECRET_SEED, strKeyVersion } from "@ckd/core/strkey.js";
 
 const base58check = createBase58check(sha256);
 const RAW_SECRET_PATTERN = /^(?:0x)?[0-9a-f]{64}$/iu;
+/**
+ * An extended private key, alone or inside text: a private prefix of BIP32 and SLIP-132 in its exact
+ * letter case (xprv, yprv, zprv, tprv, uprv, vprv and the multisig Yprv, Zprv, Uprv, Vprv), then at
+ * least 41 more base58 characters. Addresses may start with the same letters in another case
+ * ("TPRV…", "XprV…"), and a base58 address of the coins the tools look up has at most 44 characters
+ * (Solana's), so 45 or more is never one; a full key has 111. The shorter start of a key holds no
+ * byte of its private key, only the version, depth, fingerprint, child number and chain code.
+ */
 const EXTENDED_PRIVATE_PATTERN =
-  /(?:^|[^a-z0-9])(?:xprv|tprv|yprv|zprv|uprv|vprv)[1-9A-HJ-NP-Za-km-z]+/iu;
+  /(?:^|[^A-Za-z0-9])(?:[xyztuv]prv|[YZUV]prv)[1-9A-HJ-NP-Za-km-z]{41,}/u;
 const PRIVATE_LABEL_PATTERN =
   /(?:^|[{"'\s])(?:private[\s_-]*key|spending[\s_-]*key|mnemonic|seed[\s_-]*phrase|recovery[\s_-]*phrase|xprv)["']?\s*[:=]/iu;
 const WIF_VERSIONS = new Set([0x80, 0xcc, 0xef]);
+/**
+ * An Ed25519 secret key as wallets write it in base58: the 32-byte private key and the 32-byte
+ * public key, 64 bytes, bare (a Solana keypair) or after "ed25519:" (a NEAR secret key), spaces
+ * allowed after the colon. Base58 of 64 bytes is 86 to 88 characters; no public input of the tools
+ * is 64 bytes of base58.
+ */
+const ED25519_KEYPAIR_BYTES = 64;
+const ED25519_KEYPAIR_PATTERN = /^(?:ed25519:\s*)?([1-9A-HJ-NP-Za-km-z]{80,90})$/u;
+/** The same keypair as a JSON array of its 64 byte values, as the Solana CLI saves a keypair file. */
+const KEYPAIR_ARRAY_PATTERN = new RegExp(
+  `^\\[\\s*\\d{1,3}(?:\\s*,\\s*\\d{1,3}){${ED25519_KEYPAIR_BYTES - 1}}\\s*\\]$`,
+  "u",
+);
+const BYTE_MAX = 0xff;
+/**
+ * The XRP Ledger's family seed ("s…"): Base58Check in Ripple's alphabet of a version and 16 seed
+ * bytes. The version is 0x21 for a secp256k1 seed and 01 E1 4B for an Ed25519 seed ("sEd…"). Its
+ * checksum is required, since short base58 words that start with "s" may be names.
+ */
+const FAMILY_SEED_VERSIONS = [[0x21], [0x01, 0xe1, 0x4b]] as const;
+const FAMILY_SEED_BYTES = 16;
+const FAMILY_SEED_PATTERN = /^s[1-9A-HJ-NP-Za-km-z]{24,34}$/u;
 const SHORTEST_PHRASE_WORDS = BIP39_WORD_COUNTS[0];
 const LONGEST_PHRASE_WORDS = BIP39_WORD_COUNTS.at(-1)!;
 /** Every word has at least one letter (the Chinese lists use single characters). */
@@ -128,9 +160,46 @@ function looksLikeUnseparatedPhrase(value: string): boolean {
   );
 }
 
-function looksLikeWif(value: string): boolean {
+function looksLikeEd25519Keypair(value: string): boolean {
+  const body = ED25519_KEYPAIR_PATTERN.exec(value)?.[1];
+  if (body === undefined) return false;
+  let decoded: Uint8Array | undefined;
   try {
-    const payload = base58check.decode(value);
+    decoded = base58.decode(body);
+    return decoded.length === ED25519_KEYPAIR_BYTES;
+  } catch {
+    return false;
+  } finally {
+    wipe(decoded);
+  }
+}
+
+function looksLikeKeypairArray(value: string): boolean {
+  return (
+    KEYPAIR_ARRAY_PATTERN.test(value) &&
+    (value.match(/\d+/gu) ?? []).every((byte) => Number(byte) <= BYTE_MAX)
+  );
+}
+
+function looksLikeFamilySeed(value: string): boolean {
+  if (!FAMILY_SEED_PATTERN.test(value)) return false;
+  const payload = decodeRippleBase58Check(value);
+  if (payload === null) return false;
+  try {
+    return FAMILY_SEED_VERSIONS.some(
+      (version) =>
+        payload.length === version.length + FAMILY_SEED_BYTES &&
+        version.every((byte, at) => payload[at] === byte),
+    );
+  } finally {
+    wipe(payload);
+  }
+}
+
+function looksLikeWif(value: string): boolean {
+  let payload: Uint8Array | undefined;
+  try {
+    payload = base58check.decode(value);
     return (
       (payload.length === 33 || payload.length === 34) &&
       WIF_VERSIONS.has(payload[0] ?? -1) &&
@@ -138,6 +207,8 @@ function looksLikeWif(value: string): boolean {
     );
   } catch {
     return false;
+  } finally {
+    wipe(payload);
   }
 }
 
@@ -153,7 +224,13 @@ export function assertPublicLookupInput(value: string): void {
     looksLikeMnemonic(input) ||
     looksLikeSeparatedPhrase(input) ||
     looksLikeUnseparatedPhrase(input) ||
-    looksLikeWif(input)
+    looksLikeWif(input) ||
+    looksLikeEd25519Keypair(input) ||
+    looksLikeKeypairArray(input) ||
+    looksLikeFamilySeed(input) ||
+    // A StrKey secret seed (S…), as Stellar wallets show it; checked without its checksum, since a
+    // seed with a typo is just as secret.
+    strKeyVersion(input) === STRKEY_SECRET_SEED
   )
     throw new PrivateMaterialError();
 }
