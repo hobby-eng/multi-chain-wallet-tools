@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 // The package's WebAssembly is never compiled here: the tests hand the feature a fake engine.
 vi.mock("@ckd/recovery-mhfe-wasm/runtime/mhfe.wasm", () => ({ default: new Uint8Array() }));
-import { CANCELLED, MhfeError } from "@ckd/recovery-mhfe-wasm/runtime/runtime.js";
+import { MhfeError } from "@ckd/recovery-mhfe-wasm/runtime/runtime.js";
 import { CheckedMnemonicFeature } from "../src/ui/checked-mnemonic-feature.js";
 import type { MhfeEngine } from "../src/ui/recovery-mhfe-engine.js";
 
@@ -18,46 +18,51 @@ class Control extends EventTarget {
 }
 
 // Public test data only: Trezor's all-zero 24-word vector.
-const PHRASE = `${"abandon ".repeat(23)}art`;
+const { PHRASE, draws } = vi.hoisted(() => ({
+  PHRASE: `${"abandon ".repeat(23)}art`,
+  draws: [] as FakeDraw[],
+}));
+
+/** A stand-in for the Deriver's draw on workers: every call is recorded, and it waits to be released. */
+interface FakeDraw {
+  readonly wishes: unknown;
+  readonly passphrase: string;
+  readonly stop: ReturnType<typeof vi.fn>;
+  release(phrase?: string): void;
+  fail(cause: Error): void;
+}
+
+vi.mock("../src/ui/wallet-check-draw.js", () => ({
+  WalletCheckDraw: class {
+    #settle: (phrase: string | undefined) => void = () => undefined;
+    #reject: (cause: Error) => void = () => undefined;
+    readonly stop = vi.fn(() => this.#settle(undefined));
+    run(wishes: unknown, passphrase: string, onDraws: (draws: number) => void) {
+      onDraws(64);
+      draws.push({
+        wishes,
+        passphrase,
+        stop: this.stop,
+        release: (phrase = PHRASE) => this.#settle(phrase),
+        fail: (cause) => this.#reject(cause),
+      });
+      return new Promise<string | undefined>((resolve, reject) => {
+        this.#settle = resolve;
+        this.#reject = reject;
+      });
+    }
+  },
+}));
+
 const wishes = {
   wordCount: 24 as const,
   chosen: [{ word: "zoo", position: 24 }],
   neverUse: ["abandon"],
 };
 
-/** A stand-in for MHFE's wallet module: every call is recorded, and a draw waits to be released. */
+/** A stand-in for MHFE's wallet module, which checks the phrase drawn once more. */
 function fakeWallet() {
-  let release: (phrase: string) => void = () => undefined;
-  let stop: () => void = () => undefined;
-  let fail: (cause: Error) => void = () => undefined;
-  return {
-    release: (phrase = PHRASE) => release(phrase),
-    fail: (cause: Error) => fail(cause),
-    // As MhfeWallet.cancel does: the draw resolves to CANCELLED.
-    stop: () => stop(),
-    describeDraw: vi.fn(async () => ({
-      randomBits: 229,
-      randomness: "notRecommended" as const,
-      expectedDraws: 65_536,
-      recognisable: true,
-    })),
-    drawPhrase: vi.fn(
-      (options: { onProgress?: (progress: { stage: "draw"; draws: number }) => void }) =>
-        new Promise((resolve, reject) => {
-          options.onProgress?.({ stage: "draw", draws: 64 });
-          release = (phrase) =>
-            resolve({
-              phrase,
-              words: 24,
-              walletCheck: true,
-              fingerprintWithPassphrase: "",
-            });
-          stop = () => resolve(CANCELLED);
-          fail = reject;
-        }),
-    ),
-    walletCheck: vi.fn(async () => true),
-  };
+  return { walletCheck: vi.fn(async () => true) };
 }
 
 function setup({ passed = true } = {}) {
@@ -82,16 +87,12 @@ function setup({ passed = true } = {}) {
     tier: "startup",
     version: "0.6.0",
     buildId: "test",
-    components: passed
-      ? []
-      : [{ id: "word-wishes", label: "Chosen word of a new phrase", outcome: "failed" }],
+    components: passed ? [] : [{ id: "wallet-check", label: "Wallet check", outcome: "failed" }],
   };
   const engine = {
     wallet: async () => wallet,
-    walletParameters: async () => ({ recommendedRandomBits: 240 }),
     startupChecks: vi.fn(async () => [{ name: "Wallet", report }]),
     passed: vi.fn(),
-    cancelDraw: vi.fn(() => wallet.stop()),
   };
   const changed = vi.fn();
   const feature = new CheckedMnemonicFeature(page, changed, engine as unknown as MhfeEngine);
@@ -107,6 +108,7 @@ function tick(elements: Record<string, Control>): void {
 describe("checked mnemonic page lifecycle", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    draws.length = 0;
   });
 
   it("gates generation and restricts the mode to 24 words", async () => {
@@ -126,50 +128,48 @@ describe("checked mnemonic page lifecycle", () => {
     await expect(feature.generate(12, "TREZOR", wishes, () => undefined)).rejects.toThrow(
       /24-word/u,
     );
-    expect(wallet.drawPhrase).not.toHaveBeenCalled();
+    // The check needs the wallet's passphrase, before any draw.
+    await expect(feature.generate(24, "", wishes, () => undefined)).rejects.toThrow(
+      /needs a BIP39 passphrase/u,
+    );
+    expect(draws).toHaveLength(0);
+    expect(wallet.walletCheck).not.toHaveBeenCalled();
   });
 
-  it("states what the wishes keep, as MHFE rates them with the check", async () => {
-    const { feature, elements, wallet } = setup();
+  it("states what the wishes keep with the check, as MHFE rated them", () => {
+    const { feature, elements } = setup();
     feature.setEnabled(true);
     tick(elements);
-    feature.showWishes(() => wishes);
-    await vi.waitFor(() =>
-      expect(elements["wallet-check-outlook"]!.textContent).toMatch(/^Not recommended: .* 229 /u),
+    expect(elements["wallet-check-outlook"]!.textContent).toBe(
+      "The phrase keeps about 240 of its 256 random bits: still far more than enough.",
     );
-    expect(wallet.describeDraw).toHaveBeenLastCalledWith({
-      chosen: wishes.chosen,
-      neverUse: wishes.neverUse,
-      walletCheck: true,
-    });
+    feature.showWishes(() => wishes);
+    expect(elements["wallet-check-outlook"]!.textContent).toMatch(
+      /^Not recommended: the phrase keeps about 228 of its 256 random bits, fewer than 240\. A word anywhere/u,
+    );
+    feature.clear();
+    expect(elements["wallet-check-outlook"]!.hidden).toBe(true);
   });
 
-  it("draws through MHFE with the page's one passphrase field and reads the phrase back", async () => {
+  it("draws on the Deriver's workers with the page's one passphrase field, and MHFE checks it", async () => {
     const { feature, elements, wallet } = setup();
     feature.setEnabled(true);
     tick(elements);
     const lines: string[] = [];
     const result = feature.generate(24, "TREZOR", wishes, (line) => lines.push(line));
-    await vi.waitFor(() => expect(wallet.drawPhrase).toHaveBeenCalled());
+    await vi.waitFor(() => expect(draws).toHaveLength(1));
     expect(elements["wallet-check-cancel"]!.hidden).toBe(false);
-    expect(wallet.drawPhrase).toHaveBeenCalledWith(
-      expect.objectContaining({
-        passphrase: "TREZOR",
-        passphraseRepeat: "TREZOR",
-        walletCheck: true,
-        chosen: wishes.chosen,
-        neverUse: wishes.neverUse,
-      }),
-    );
-    wallet.release();
+    expect(draws[0]).toMatchObject({ wishes, passphrase: "TREZOR" });
+    draws[0]!.release();
     expect(await result).toBe(PHRASE);
     expect(wallet.walletCheck).toHaveBeenCalledWith({ phrase: PHRASE, passphrase: "TREZOR" });
     expect(lines[0]).toBe("Drawing a phrase that passes the check, about 65,536 draws.");
-    // The average time at the speed so far, for the 65,536 draws MHFE expects.
+    // The average time at the speed so far, for the 65,536 draws a passing phrase takes.
     expect(lines[1]).toMatch(
       /^Drawing a phrase that passes the check · 64 tried · .* elapsed · about .* on average at this speed$/u,
     );
     expect(elements["wallet-check-cancel"]!.hidden).toBe(true);
+    expect(draws[0]!.stop).toHaveBeenCalled();
   });
 
   it("refuses a phrase that MHFE's own check does not pass again", async () => {
@@ -178,8 +178,8 @@ describe("checked mnemonic page lifecycle", () => {
     tick(elements);
     wallet.walletCheck.mockResolvedValueOnce(false);
     const result = feature.generate(24, "TREZOR", wishes, () => undefined);
-    await vi.waitFor(() => expect(wallet.drawPhrase).toHaveBeenCalled());
-    wallet.release();
+    await vi.waitFor(() => expect(draws).toHaveLength(1));
+    draws[0]!.release();
     await expect(result).rejects.toThrow(/failed its MHFE wallet check/u);
   });
 
@@ -187,26 +187,30 @@ describe("checked mnemonic page lifecycle", () => {
     const { feature, elements, wallet } = setup();
     feature.setEnabled(true);
     tick(elements);
+    wallet.walletCheck.mockRejectedValueOnce(
+      new MhfeError("WALLET_CHECK_NEEDS_PASSPHRASE", "The wallet check needs a passphrase"),
+    );
     const result = feature.generate(24, "TREZOR", wishes, () => undefined);
-    await vi.waitFor(() => expect(wallet.drawPhrase).toHaveBeenCalled());
-    wallet.fail(new MhfeError("PASSPHRASES_DIFFER", "The passphrase and its repetition differ"));
-    await expect(result).rejects.toThrow("The passphrase and its repetition differ.");
+    await vi.waitFor(() => expect(draws).toHaveLength(1));
+    draws[0]!.release();
+    await expect(result).rejects.toThrow(/^The wallet check needs a passphrase\./u);
   });
 
   it("stops a draw when the passphrase changes, on Clear and on a cancel", async () => {
     for (const stop of ["passphrase", "clear", "cancel"] as const) {
-      const { feature, elements, wallet, engine } = setup();
+      const { feature, elements } = setup();
       feature.setEnabled(true);
       tick(elements);
       const result = feature.generate(24, "TREZOR", wishes, () => undefined);
       const failure = expect(result).rejects.toMatchObject({ name: "AbortError" });
-      await vi.waitFor(() => expect(wallet.drawPhrase).toHaveBeenCalled());
+      await vi.waitFor(() => expect(draws).toHaveLength(1));
       if (stop === "passphrase") {
         elements["passphrase"]!.dispatchEvent(new Event("input"));
       } else if (stop === "clear") feature.clear();
       else feature.cancel();
       await failure;
-      expect(engine.cancelDraw).toHaveBeenCalledOnce();
+      expect(draws[0]!.stop).toHaveBeenCalled();
+      draws.length = 0;
     }
   });
 
@@ -217,11 +221,12 @@ describe("checked mnemonic page lifecycle", () => {
     const result = feature.generate(24, "TREZOR", wishes, () => undefined);
     feature.cancel();
     await expect(result).rejects.toMatchObject({ name: "AbortError" });
-    expect(wallet.drawPhrase).not.toHaveBeenCalled();
+    expect(draws).toHaveLength(0);
+    expect(wallet.walletCheck).not.toHaveBeenCalled();
   });
 
   it("offers another quick check after WORKER_FAILED instead of closing the mode (AUD-026-API002)", async () => {
-    const { feature, elements, wallet, engine } = setup();
+    const { feature, elements, engine } = setup();
     engine.startupChecks.mockRejectedValueOnce(new MhfeError("WORKER_FAILED", "Worker stopped"));
     feature.setEnabled(true);
     tick(elements);
@@ -231,9 +236,9 @@ describe("checked mnemonic page lifecycle", () => {
     await vi.waitFor(() =>
       expect(elements["wallet-check-status"]!.textContent).not.toContain("Worker stopped"),
     );
-    const result = feature.generate(24, "", wishes, () => undefined);
-    await vi.waitFor(() => expect(wallet.drawPhrase).toHaveBeenCalled());
-    wallet.release();
+    const result = feature.generate(24, "TREZOR", wishes, () => undefined);
+    await vi.waitFor(() => expect(draws).toHaveLength(1));
+    draws[0]!.release();
     expect(await result).toBe(PHRASE);
     expect(engine.startupChecks).toHaveBeenCalledTimes(2);
   });
@@ -248,6 +253,7 @@ describe("checked mnemonic page lifecycle", () => {
     await expect(feature.generate(24, "TREZOR", wishes, () => undefined)).rejects.toThrow(
       /self-check/u,
     );
-    expect(wallet.drawPhrase).not.toHaveBeenCalled();
+    expect(draws).toHaveLength(0);
+    expect(wallet.walletCheck).not.toHaveBeenCalled();
   });
 });

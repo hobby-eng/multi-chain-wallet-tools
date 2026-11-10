@@ -103,6 +103,10 @@ const recoveryWorkers = new RecoveryWorkerBundle(root, features, [mnemocodeWasm]
 const mnemocodeSearchWorker = features.has("mnemocode")
   ? await recoveryWorkers.bundle("mnemocode-search-worker.ts")
   : { inputs: [], source: "" };
+// The Deriver's wallet-check draw runs on a few workers at once; every one is this script.
+const walletCheckDrawWorker = features.has("mhfe")
+  ? await recoveryWorkers.bundle("wallet-check-draw-worker.ts")
+  : { inputs: [], source: "" };
 const slip39Worker = features.has("slip39")
   ? await recoveryWorkers.bundle("slip39-worker.ts")
   : { inputs: [], source: "" };
@@ -222,6 +226,7 @@ export const installMessageSigningFeature = createMessageSigningInstaller(${poli
     __MHFE_WORKER_SOURCE__: JSON.stringify(mhfeSources.worker),
     __MNEMOCODE_SEARCH_WORKER_SOURCE__: JSON.stringify(mnemocodeSearchWorker.source),
     __SLIP39_WORKER_SOURCE__: JSON.stringify(slip39Worker.source),
+    __WALLET_CHECK_DRAW_WORKER_SOURCE__: JSON.stringify(walletCheckDrawWorker.source),
     __MHFE_ARGON2_THREADED_SOURCE__: JSON.stringify(mhfeSources.argon2Threaded),
     __MHFE_ARGON2_SINGLE_THREADED_SOURCE__: JSON.stringify(mhfeSources.argon2SingleThreaded),
     __DASH_COMMUNITY__: profile.id === "dash-community" ? "true" : "false",
@@ -230,6 +235,7 @@ export const installMessageSigningFeature = createMessageSigningInstaller(${poli
 assertKeyDerivationComposition(features, [
   ...Object.keys(workerBuild.metafile.inputs),
   ...mnemocodeSearchWorker.inputs,
+  ...walletCheckDrawWorker.inputs,
   ...slip39Worker.inputs,
   ...Object.keys(bundled.metafile.inputs),
 ]);
@@ -239,6 +245,7 @@ if (profile.id === "dash-community") {
     [
       ...Object.keys(workerBuild.metafile.inputs),
       ...mnemocodeSearchWorker.inputs,
+      ...walletCheckDrawWorker.inputs,
       ...slip39Worker.inputs,
       ...Object.keys(bundled.metafile.inputs),
     ],

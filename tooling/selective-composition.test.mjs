@@ -183,19 +183,21 @@ describe("selective bundle graph guards", () => {
     );
     for (const file of [
       "apps/key-derivation/src/ui/checked-mnemonic-feature.ts",
-      "apps/key-derivation/src/ui/recovery-mhfe-draw-outlook.ts",
+      "apps/key-derivation/src/ui/wallet-check-draw.ts",
+      "apps/key-derivation/src/workers/wallet-check-draw-worker.ts",
     ])
       expect(() => assertKeyDerivationComposition(options(["dash"], []), [file])).toThrow(
         /excluded/u,
       );
-    // MHFE draws in its own package: the page's worker wordlist is MnemoCode's.
+    // The page's worker wordlist goes to MnemoCode's worker and to the wallet-check draw's.
     const workerHelpers = ["apps/key-derivation/src/workers/page-wordlist.ts"];
-    expect(() =>
-      assertKeyDerivationComposition(options(["dash"], ["mnemocode"]), workerHelpers),
-    ).not.toThrow();
-    expect(() =>
-      assertKeyDerivationComposition(options(["dash"], ["mhfe"]), workerHelpers),
-    ).toThrow();
+    for (const feature of ["mnemocode", "mhfe"])
+      expect(() =>
+        assertKeyDerivationComposition(options(["dash"], [feature]), workerHelpers),
+      ).not.toThrow();
+    expect(() => assertKeyDerivationComposition(options(["dash"], []), workerHelpers)).toThrow(
+      /excluded/u,
+    );
   });
   it("pins fixed provider origins in connected builds without Dash", () => {
     const rendered = applySelectedNetworkCsp(

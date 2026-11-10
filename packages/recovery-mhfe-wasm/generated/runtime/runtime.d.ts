@@ -131,11 +131,7 @@ export type MhfeErrorCode =
    * surrogate.
    */
   | "INVALID_PASSWORD_TEXT"
-  /** A new phrase's passphrase and its repetition differ. */
-  | "PASSPHRASES_DIFFER"
-  /** A chosen word or a word never to use that cannot be used, or more than one of either. */
-  | "INVALID_WORD_WISH"
-  /** Another long operation runs, a phrase is being drawn, or a hidden wallet is being opened. */
+  /** Another long operation runs, or a hidden wallet is being opened. */
   | "BUSY"
   /** A session of hidden wallets was used after it closed. */
   | "SESSION_CLOSED"

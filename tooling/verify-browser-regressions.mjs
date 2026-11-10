@@ -47,8 +47,6 @@ const { mnemonic } = BrowserFixtures;
 import { MhfeBrowserCases } from "./browser-regressions/mhfe.mjs";
 const {
   checkedMnemonic,
-  mhfeChosenWord,
-  mhfeNewWalletRevision,
   mhfeMissingWords,
   mhfeCustomPath,
   mhfeMadePassword,
@@ -197,10 +195,6 @@ for (const browserName of (process.env.BROWSER_ENGINES ?? "chromium,firefox").sp
         execute: (context, run) => checkedMnemonic(context, profile, run),
       });
       cases.push({
-        name: "mhfe-chosen-word",
-        execute: (context, run) => mhfeChosenWord(context, profile, run),
-      });
-      cases.push({
         name: "mhfe-input-lifecycle",
         execute: (context, run) => mhfeInputLifecycle(context, profile, run),
       });
@@ -222,10 +216,6 @@ for (const browserName of (process.env.BROWSER_ENGINES ?? "chromium,firefox").sp
       cases.push({
         name: "mhfe-container-previews",
         execute: (context, run) => mhfeContainerPreviews(context, profile, run),
-      });
-      cases.push({
-        name: "mhfe-new-wallet-revision",
-        execute: (context, run) => mhfeNewWalletRevision(context, profile, run),
       });
       cases.push({
         name: "self-tests",

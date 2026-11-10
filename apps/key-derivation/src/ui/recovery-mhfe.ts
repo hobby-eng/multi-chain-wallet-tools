@@ -1,12 +1,12 @@
-// MHFE panel: every operation of the MHFE 0.7.0 browser package, one class per tab over one shared
-// engine: encrypt and recover a BIP39 phrase, rehearse a recovery, draw a new wallet, change the
-// password, open hidden wallets, repair a container phrase, make a password, and the self-test on request.
+// MHFE panel: every operation of the MHFE 0.8.0 browser package, one class per tab over one shared
+// engine: encrypt and recover a BIP39 phrase, rehearse a recovery, change the password, open hidden
+// wallets, repair a container phrase, make a password, and the self-test on request. A new phrase,
+// with or without the MHFE wallet check, is drawn in Generate & Derive, the Deriver's one generator.
 import { PHRASE_ONLY_NOTE, type RecoveryFeature } from "./recovery-feature.js";
 import { MhfeCheckTab } from "./recovery-mhfe-check.js";
 import { MhfeDecodeTab } from "./recovery-mhfe-decode.js";
 import { MhfeEncodeTab } from "./recovery-mhfe-encode.js";
 import { FAST_MODE_THREADS, MhfeEngine } from "./recovery-mhfe-engine.js";
-import { MhfeNewWalletTab } from "./recovery-mhfe-new-wallet.js";
 import { MhfePasswordTab } from "./recovery-mhfe-password.js";
 import { MhfePanelParameters } from "./recovery-mhfe-parameters.js";
 import { MhfeRekeyTab } from "./recovery-mhfe-rekey.js";
@@ -67,7 +67,6 @@ function installMhfe(context: RecoveryFeatureContext): void {
   new MhfeEncodeTab(context, engine);
   new MhfeDecodeTab(context, engine);
   new MhfeCheckTab(context, engine);
-  new MhfeNewWalletTab(context, engine);
   new MhfeRekeyTab(context, engine);
   new MhfeWalletsTab(context, engine);
   new MhfeRepairTab(context, engine);

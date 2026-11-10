@@ -11,7 +11,7 @@ import { resolve } from "node:path";
 const DIRECTORY = "packages/recovery-mhfe-wasm/generated";
 const MANIFEST = "modules.json";
 export const MHFE_MANIFEST_SHA256 =
-  "3ac0f5a3c5390ee5c0e41f7d44e273096a0ceceb10fb9640810ca0d37ebefeca";
+  "897d0e5b11efbb1e3a817acb2a51da6e85d0a5187b4b62c9c3d899aefaa6f69e";
 /** Source identity accompanies the package without adding undeclared runtime files. */
 export const MHFE_SOURCE_MANIFEST = "packages/recovery-mhfe-wasm/source.json";
 const SHA256 = /^[0-9a-f]{64}$/u;

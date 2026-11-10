@@ -500,9 +500,9 @@ export class MhfeClient {
        */
       repairWordCount?: RepairWordCount;
       /**
-       * Whether the wallet has a BIP39 passphrase, only where the page knows it, such as after
-       * drawPhrase(): true adds it to what to keep, since MHFE encrypts only the phrase, and false
-       * leaves it out. Left out or null, `keep` names any passphrase of the wallet
+       * Whether the wallet has a BIP39 passphrase, only where the page knows it, such as for a
+       * phrase it drew itself: true adds it to what to keep, since MHFE encrypts only the phrase,
+       * and false leaves it out. Left out or null, `keep` names any passphrase of the wallet
        * ("passphraseIfAny") instead.
        */
       walletHasPassphrase?: boolean | null;

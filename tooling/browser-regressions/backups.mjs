@@ -154,14 +154,14 @@ class BrowserActionError extends Error {
 async function recoveryHelp(page) {
   await clickStep(page.locator("#recovery-backup-mode"), "Open Recover & Back Up");
   // One help per recovery panel plus the option helps. MHFE adds the container length, the repair
-  // words of Encode, New wallet, Change password and Repair, the wallet check, the password kinds
-  // and the custom PIM of each of its seven forms. MnemoCode adds the option helps of Encode,
+  // words of Encode, Change password and Repair, the wallet check, the password kinds and the
+  // custom PIM of each of its six forms. MnemoCode adds the option helps of Encode,
   // Re-encode and Decode, the split, the restore, the forgotten words, the share repair, and each
   // wallet question, including the share repair's own question and Decode's for codes marked ?.
   // Codex32 adds the unsplit secret. The Multisig wallet has its panel's help only.
   // Generate & Derive has option helps of its own (the wallet check); count only this workspace's.
   const recoveryHelp = "#recovery-workspace .recovery-help";
-  assert.equal(await page.locator(recoveryHelp).count(), 39);
+  assert.equal(await page.locator(recoveryHelp).count(), 36);
   const firstHelp = page.locator(recoveryHelp).first();
   await firstHelp.locator("summary").hover();
   await page.waitForFunction(
@@ -181,8 +181,8 @@ async function recoveryHelp(page) {
 async function mhfeWorkerCycle(page) {
   await clickStep(page.locator('[data-recovery-tab][aria-controls="mhfe-panel"]'), "Open MHFE");
   await waitPanelReady(page, "mhfe-panel");
-  // Every operation of the mhfe program has a tab of its own.
-  assert.equal(await page.locator("#mhfe-panel [data-operation-tab]").count(), 9);
+  // Each mhfe operation has a tab; new phrases are drawn in Generate & Derive.
+  assert.equal(await page.locator("#mhfe-panel [data-operation-tab]").count(), 8);
   await page.locator("#mhfe-source").fill(mnemonic);
   await page.locator("#mhfe-encrypt-password").fill("public browser test password");
   await page.locator("#mhfe-encrypt-password-confirm").fill("public browser test password");

@@ -170,39 +170,21 @@ group("MHFE panel texts", () => {
     expect(drawStartLine(false, 1)).toBe("Drawing a new phrase.");
   });
 
-  it("states what a new phrase keeps as MHFE rates it, in the words of mhfe new", () => {
-    // The values of MhfeWallet.parameters() that the statements name.
-    const parameters = {
-      maxInputTextBytes: 8192,
-      version: "0.6.0",
-      coins: [],
-      walletCheckBits: 16,
-      drawReportInterval: 64,
-      maxChosenWords: 1,
-      maxNeverUseWords: 1,
-      recommendedRandomBits: 240,
-    };
+  it("states what a new phrase keeps with the check, in the words of mhfe new", () => {
     const odds = (
       randomBits: number,
-      randomness: "full" | "ample" | "notRecommended",
+      randomness: "ample" | "notRecommended",
       fixedPosition = true,
-    ) => ({
-      randomBits,
-      randomness,
-      expectedDraws: 1,
-      recognisable: false,
-      fixedPosition,
-    });
-    expect(drawOutlook(odds(256, "full"), parameters)).toBeNull();
-    expect(drawOutlook(odds(240, "ample"), parameters)).toBe(
+    ) => ({ randomBits, randomness, fixedPosition });
+    expect(drawOutlook(odds(240, "ample"))).toBe(
       "The phrase keeps about 240 of its 256 random bits: still far more than enough.",
     );
-    expect(drawOutlook(odds(228.98, "notRecommended"), parameters)).toBe(
+    expect(drawOutlook(odds(228.98, "notRecommended"))).toBe(
       "Not recommended: the phrase keeps about 228 of its 256 random bits, fewer than 240. A word " +
         "anywhere in the phrase keeps more than one at a fixed position.",
     );
     // A word asked for anywhere already keeps more: no such advice.
-    expect(drawOutlook(odds(228.98, "notRecommended", false), parameters)).toBe(
+    expect(drawOutlook(odds(228.98, "notRecommended", false))).toBe(
       "Not recommended: the phrase keeps about 228 of its 256 random bits, fewer than 240.",
     );
   });

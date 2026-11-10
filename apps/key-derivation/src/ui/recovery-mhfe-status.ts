@@ -11,12 +11,12 @@ import type {
 } from "@ckd/recovery-mhfe-wasm/core/client.js";
 import type { MhfePasswordReview } from "@ckd/recovery-mhfe-wasm/passwords/passwords.js";
 import { MhfeError, type MhfePasswordRepair } from "@ckd/recovery-mhfe-wasm/runtime/runtime.js";
-import type {
-  MhfeDrawOdds,
-  MhfeNewPhrase,
-  MhfeWalletParameters,
-} from "@ckd/recovery-mhfe-wasm/wallet/wallet.js";
 import { bip39EntropyBits } from "@ckd/core/bip39-parameters.js";
+import {
+  RECOMMENDED_RANDOM_BITS,
+  WALLET_CHECK_WORDS,
+  type WalletCheckOdds,
+} from "@ckd/core/bip39-wallet-check.js";
 import { englishList } from "@ckd/core/listing.js";
 import { MhfeRunStopped, type MhfeRun } from "./recovery-mhfe-run.js";
 import { formatDuration, JobClock } from "./recovery-progress.js";
@@ -80,8 +80,8 @@ export class StageProgress {
   }
 }
 
-/** The length of every new phrase MHFE draws (MhfeNewPhrase.words). */
-export const MHFE_PHRASE_WORDS: MhfeNewPhrase["words"] = 24;
+/** The length of every phrase drawn with the MHFE wallet check. */
+export const MHFE_PHRASE_WORDS = WALLET_CHECK_WORDS;
 /** The random bits of a new phrase without wishes, which MHFE's statements count from. */
 const MHFE_PHRASE_BITS = bip39EntropyBits(MHFE_PHRASE_WORDS);
 
@@ -90,7 +90,7 @@ function drawGoal(walletCheck: boolean): string {
   return walletCheck ? "passes the check" : "meets your words";
 }
 
-/** The status line as a new phrase starts to be drawn, with the draws MHFE expects (describeDraw). */
+/** The status line as a new phrase starts to be drawn, with the draws it takes on average. */
 export function drawStartLine(walletCheck: boolean, expectedDraws: number): string {
   // A phrase without the check and without chosen words is the first one drawn.
   if (!walletCheck && expectedDraws < 2) return "Drawing a new phrase.";
@@ -99,8 +99,8 @@ export function drawStartLine(walletCheck: boolean, expectedDraws: number): stri
 }
 
 /**
- * The status line while a new phrase is drawn; how long it takes varies. Given the draws MHFE
- * expects (describeDraw), it also says how long they take on average at the speed so far, an
+ * The status line while a new phrase is drawn; how long it takes varies. Given the draws a phrase
+ * takes on average, it also says how long they take on average at the speed so far, an
  * estimate rather than a countdown: a draw may finish much sooner or later.
  */
 export function drawLine(
@@ -118,25 +118,23 @@ export function drawLine(
 }
 
 /**
- * What a new phrase keeps of its randomness with the wishes given, as MHFE rates it before the draw
- * (MhfeWallet.describeDraw), in the words of mhfe new (src/bin/mhfe/chosen_words.rs, tell): a
- * warning for anything but all its random bits, or null. The warning of a chosen word itself is
- * the fields' own (chosen-word-fields.ts).
+ * What a new phrase keeps of its randomness with the wallet check and the wishes given, in the
+ * words of mhfe new before 0.8.0 (src/bin/mhfe/chosen_words.rs, tell): a warning for anything but
+ * all its random bits, or null. The warning of a chosen word itself is the fields' own
+ * (chosen-word-fields.ts).
  */
-export function drawOutlook(odds: MhfeDrawOdds, parameters: MhfeWalletParameters): string | null {
-  const bits = Math.floor(odds.randomBits);
+export function drawOutlook(odds: WalletCheckOdds): string | null {
+  const bits = Math.floor(odds.randomBits + 1e-9);
   if (odds.randomness === "ample")
     return `The phrase keeps about ${bits} of its ${MHFE_PHRASE_BITS} random bits: still far more than enough.`;
-  if (odds.randomness === "notRecommended")
-    return (
-      `Not recommended: the phrase keeps about ${bits} of its ${MHFE_PHRASE_BITS} random bits, fewer ` +
-      `than ${parameters.recommendedRandomBits}.` +
-      // The advice fits only a word asked for at a fixed position (the package's fixedPosition).
-      (odds.fixedPosition
-        ? " A word anywhere in the phrase keeps more than one at a fixed position."
-        : "")
-    );
-  return null;
+  return (
+    `Not recommended: the phrase keeps about ${bits} of its ${MHFE_PHRASE_BITS} random bits, fewer ` +
+    `than ${RECOMMENDED_RANDOM_BITS}.` +
+    // The advice fits only a word asked for at a fixed position.
+    (odds.fixedPosition
+      ? " A word anywhere in the phrase keeps more than one at a fixed position."
+      : "")
+  );
 }
 
 /** "1 to 2 minutes": one readable unit, as mhfe's time_range (src/bin/mhfe/settings.rs). */
@@ -214,7 +212,6 @@ export function otherLengthsPass(lengths: readonly number[]): string {
  */
 const NEXT_STEPS: Partial<Record<MhfeError["code"], string>> = {
   PASSWORDS_DIFFER: "Please type them again.",
-  PASSPHRASES_DIFFER: "Please type them again.",
   PASSWORD_REPAIR_NOT_OFFERED: "Press the button again.",
   NEW_PASSWORD_SAME_AS_OLD: "Choose another password.",
   RANDOM_FAILED: "Nothing was made: use another browser or computer.",

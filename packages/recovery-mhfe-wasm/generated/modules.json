@@ -1,21 +1,21 @@
 {
-  "version": "0.7.0",
-  "buildId": "7da6a9c673903bea",
+  "version": "0.8.0",
+  "buildId": "19de50ce492d1e35",
   "runtime": {
     "files": {
-      "mhfe.wasm": "3cc6a8465c7c71e98c8eeaab06b9ea9b8016245f67e13933b40f7557a9c59b13",
-      "runtime.d.ts": "597649b1393cc67ed26a3682a5e0e36a5d531fa8107f43bf08fb189d777678c3",
-      "runtime.js": "bf24d5f781ed9a87857500fa4188ba943c88e5fbb00c641e3652c726afa16a0a",
-      "worker.js": "2e4bcb1d2e1d08cc5f6241ee387f4920bd6155a24bce48d91d7f42ab5c82ea0d"
+      "mhfe.wasm": "54364408a5a414622bd51ac986a2c7a478b061578deb7e0e77caf2230bcf17d7",
+      "runtime.d.ts": "f6308e82e986bceaa19c09714096e9c0a045cda5fd8ed33607581d83eedffe82",
+      "runtime.js": "5912159e88449295a65b40399af283b5d981a278ec80f71f02351c57cf8b9330",
+      "worker.js": "87c85f3667d59333c5a1c57085d64a80cf679b247b26f9f8c385537e25202296"
     }
   },
   "modules": {
     "core": {
       "files": {
-        "argon2-mt.js": "66a51d847a7cc03c195911c70dfd1969a67317363f97a0a05bef50c6b2fb527c",
-        "argon2-st.js": "500754399223cf6bdf26ea3d4e1796e77fdf44cdbd8f94ae21451eecdbbe4238",
-        "client.d.ts": "5075a7928d01307b202d4a56782d2a6c31e4fa4ce25920df3bb28ed71eea2c5d",
-        "client.js": "d141e074f5504e7e5f0dad9204670404c731c42b9a865c0b3903e39e0734ff26",
+        "argon2-mt.js": "d3da1c2e948df402e4ef29c25b43291db16217d534c1799ac22138d874355127",
+        "argon2-st.js": "5113e0e978501ef7ea7d91fb422f56ab2f0a141c84f2cdef41ab5778406da3f0",
+        "client.d.ts": "cb89829ba5c56721caa266431db9404a33ffc7060acf24a952922aedc64316be",
+        "client.js": "6c034f00f76c645d914008ac1d80e05e5d1fad49bd12eab5ef222bcbd9e48398",
         "mhfe-fast-mode.py": "fc3aed384dd277f47ae61f6f18d5bed06753fc7c3efdb0afb88c9cdb46183151"
       },
       "requires": [
@@ -25,7 +25,7 @@
     "passwords": {
       "files": {
         "passwords.d.ts": "aea840384f2564ffefc956f40321c4bb54393efeec67658e9971ba33983c3360",
-        "passwords.js": "fae3b98510b1372195d9c4e43e51997fee800bc850fffd6212fecc8bf9d97c08"
+        "passwords.js": "47a9d6c70ac7ee53d39b35db34a6bb21d78e72ceb5c3094c919faa38c73db597"
       },
       "requires": [
         "runtime"
@@ -34,7 +34,7 @@
     "repair": {
       "files": {
         "repair.d.ts": "b6e72947711806cff42a00fd60296f1eb9f4fab716a9d1e856e545a8473b54a6",
-        "repair.js": "fa06670c33a62eb3bbc2fe8bd03ea74e7a14a37b25397baf31eb8329b0b84f05"
+        "repair.js": "12b0d639a5e04269372ebb83a2ebe6f64e0dee17bac4114848665f2e02e53133"
       },
       "requires": [
         "runtime"
@@ -42,8 +42,8 @@
     },
     "wallet": {
       "files": {
-        "wallet.d.ts": "c1e42efeb9f322ea0db85b34bc348f87ff4a57456dbe9e2837a8d7b369bf369a",
-        "wallet.js": "8948036e0b4e6e35d3b9a792326418f15c30a3a7b16d2a374f756f62ff28c8cb"
+        "wallet.d.ts": "4ad5d6bb3083f4a22498dd97db3f3f662d89fc4940d4a72c4e706c52a711497f",
+        "wallet.js": "ffffa29071f064a1320d9f4bd616b0e738cc9b9ff51e917debdbfd8ddca077e2"
       },
       "requires": [
         "runtime"

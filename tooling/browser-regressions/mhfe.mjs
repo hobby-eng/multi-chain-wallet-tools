@@ -14,7 +14,6 @@ async function mhfeMadePassword(context, profile, run) {
   const { page, before } = await openBackupPanel(context, profile, run, "mhfe-panel");
   for (const [prefix, legend] of [
     ["encrypt", "The container password: type your own, or let MHFE make one?"],
-    ["new", "The container password: type your own, or let MHFE make one?"],
     ["rekey-new", "The new container password: yours, or made?"],
   ])
     assert.equal(await page.locator(`#mhfe-${prefix}-password-kind legend`).textContent(), legend);
@@ -62,7 +61,7 @@ async function mhfeMadePassword(context, profile, run) {
   assert.deepEqual(await storageSnapshot(page), before);
   assert.equal(run.requests.length, 0);
   run.checks.push(
-    "MHFE made password: offered in Encode, New wallet and Change password; five dice words shown once, a wrong copy refused and shown again, an exact copy used; storage/no HTTP",
+    "MHFE made password: offered in Encode and Change password; five dice words shown once, a wrong copy refused and shown again, an exact copy used; storage/no HTTP",
   );
 }
 
@@ -302,11 +301,11 @@ async function mhfeCustomPath(context, profile, run) {
   );
 }
 
-async function installMhfeDrawFixture(context) {
-  // MHFE's workers take their randomness from the page's source only when this test sets one:
-  // public profile-vector entropy (a counter in the last eight bytes, after two different probes,
-  // as MHFE's source check asks), or a stuck source that MHFE must refuse. Every other part of the
-  // draw, its check and its read-back is MHFE's own.
+async function installWalletCheckDrawFixture(context) {
+  // The Deriver's wallet-check draw workers take their randomness from the page's source only when
+  // this test sets one: public profile-vector entropy (a counter in the last eight bytes, after two
+  // different probes, as the draw's source check asks), or a stuck source that the draw must
+  // refuse. Every other part of the draw, and MHFE's check of its phrase, is the page's own.
   await context.addInitScript(() => {
     const NativeBlob = window.Blob;
     const NativeWorker = window.Worker;
@@ -326,13 +325,12 @@ async function installMhfeDrawFixture(context) {
     };
     window.mhfeRandom = null;
     window.mhfeDrawDelay = 0;
-    window.mhfeForbidEncrypt = false;
-    window.mhfeEncryptStarted = false;
     window.Worker = class extends NativeWorker {
       constructor(url, options) {
         let fixtureUrl;
         const random = window.mhfeRandom;
-        if (options?.name === "mhfe" && random !== null && urls.has(url)) {
+        // The draw's worker is the one script that hashes the profile's domain tag.
+        if (random !== null && urls.get(url)?.includes("MHFE-WALLET-CHECK-SEED-1")) {
           const prefix =
             random === "stuck"
               ? `Object.defineProperty(crypto, "getRandomValues", { value: (bytes) => bytes.fill(0) });\n`
@@ -357,21 +355,12 @@ async function installMhfeDrawFixture(context) {
         }
         super(fixtureUrl ?? url, options);
       }
-
-      postMessage(message, ...arguments_) {
-        // Refuse before Argon2 if a stale draw incorrectly reaches encryption in the edit test.
-        if (window.mhfeForbidEncrypt && message?.operation === "encrypt") {
-          window.mhfeEncryptStarted = true;
-          throw new Error("The edit regression must not start encryption.");
-        }
-        return super.postMessage(message, ...arguments_);
-      }
     };
   });
 }
 
 async function checkedMnemonic(context, profile, run) {
-  await installMhfeDrawFixture(context);
+  await installWalletCheckDrawFixture(context);
   const page = await open(context, profile, "key-derivation", run);
   const before = await storageSnapshot(page);
   assert.equal(await page.locator("#wallet-check-enabled").isChecked(), false);
@@ -402,14 +391,14 @@ async function checkedMnemonic(context, profile, run) {
   await page.locator("#passphrase-in-use").waitFor();
   await page.locator("#clear-all").click();
   assert.equal(await page.locator("#passphrase").inputValue(), "");
-  // The page's zero source was for the vectors above; MHFE's workers keep their own source.
+  // The page's zero source was for the vectors above; the draw's workers keep their own source.
   await page.locator("#wallet-check-enabled").check();
   await waitText(page, "#passphrase-need", /required for MHFE generation/u);
   for (const count of [12, 15, 18, 21])
     assert.equal(await page.locator(`#generate-${count}`).isDisabled(), true);
-  // The check alone, as MHFE rates it: 16 of the 256 bits.
+  // The check alone, as MHFE rated it: 16 of the 256 bits.
   await waitText(page, "#wallet-check-outlook", /keeps about 240 of its 256 random bits/u);
-  // MHFE refuses the check without a passphrase.
+  // The check needs a passphrase.
   await page.locator("#generate-24").click();
   await waitText(page, "#error", /needs a BIP39 passphrase/u);
   assert.equal(await page.locator("#mnemonic").inputValue(), "");
@@ -451,7 +440,8 @@ async function checkedMnemonic(context, profile, run) {
     new DataView(entropy.buffer).setBigUint64(24, BigInt(counter), false);
     return entropyToMnemonic(entropy, wordlist);
   };
-  // The profile vector that passes with "TREZOR": MHFE takes the first draw, which meets the wishes.
+  // The profile vector that passes with "TREZOR": the first draw, which meets the wishes, is taken,
+  // and MHFE's own check of it passes.
   await page.evaluate(() => {
     window.mhfeRandom = 76562;
   });
@@ -464,8 +454,7 @@ async function checkedMnemonic(context, profile, run) {
   assert.equal(hasProfile(drawn, "TREZOR"), true);
   assert.equal(await page.locator("#passphrase").inputValue(), "TREZOR");
   // The same wishes with the passphrase "trezor": the vector does not pass, and Stop drops the
-  // draw while the phrase shown before stays. The fixture repeats the vector, which MHFE refuses as
-  // a source that cannot be random on its next draw, so the first draw is held until Stop.
+  // draw while the phrase shown before stays. The fixture's first draw is held until Stop.
   await page.evaluate(() => {
     window.mhfeDrawDelay = 5000;
   });
@@ -486,7 +475,7 @@ async function checkedMnemonic(context, profile, run) {
   await page.locator("#clear-all").click();
   assert.equal(await page.locator("#mnemonic").inputValue(), "");
   assert.equal(await page.locator("#wallet-check-enabled").isChecked(), false);
-  // A stuck random source is refused by MHFE before any draw; nothing is shown.
+  // A stuck random source is refused before any draw; nothing is shown.
   await page.evaluate(() => {
     window.mhfeRandom = "stuck";
   });
@@ -498,107 +487,7 @@ async function checkedMnemonic(context, profile, run) {
   assert.deepEqual(await storageSnapshot(page), before);
   assert.equal(run.requests.length, 0);
   run.checks.push(
-    "MHFE draws the checked phrase: passphrase required, its warning and Show, the published profile vector with chosen and excluded words, MHFE's rating shown, cancel and Clear drop the draw, a stuck random source refused; no storage or HTTP",
-  );
-}
-
-async function mhfeNewWalletRevision(context, profile, run) {
-  await installMhfeDrawFixture(context);
-  const delayMs = 4000;
-  for (const edit of ["word-mode", "passphrase"]) {
-    const { page, before } = await openBackupPanel(context, profile, run, "mhfe-panel");
-    await page.locator('#mhfe-panel [data-operation-tab][aria-controls="mhfe-new-panel"]').click();
-    await page.locator("#mhfe-new-words-chosen").check();
-    await page.locator("#toggle-mhfe-new-chosen-words").click();
-    await page.locator("#mhfe-new-chosen-word-1-position").selectOption("1");
-    await page.locator("#mhfe-new-chosen-word-1").fill("abandon");
-    await page.locator("#mhfe-new-passphrase").fill("TREZOR");
-    await page.locator("#mhfe-new-passphrase-confirm").fill("TREZOR");
-    await page.locator("#mhfe-new-check-wallet").check();
-    await page.locator("#mhfe-new-password-kind-own").check();
-    const password = "public audit probe password correct horse battery";
-    await page.locator("#mhfe-new-password").fill(password);
-    await page.locator("#mhfe-new-password-confirm").fill(password);
-    await page.evaluate((delay) => {
-      window.mhfeRandom = 76562;
-      window.mhfeDrawDelay = delay;
-      window.mhfeForbidEncrypt = true;
-    }, delayMs);
-    await page.locator("#mhfe-new").click();
-    await page.locator("#mhfe-new-stop").waitFor({ state: "visible" });
-    await waitText(page, "#mhfe-new-status", /draw/iu);
-    if (edit === "word-mode") await page.locator("#mhfe-new-words-random").check();
-    else await page.locator("#mhfe-new-passphrase").fill("trezor");
-    await page.locator("#mhfe-new-stop").waitFor({ state: "hidden" });
-    // Observe past the fixture's return time: a late result must also remain unpublished.
-    await page.waitForTimeout(delayMs + 500);
-    assert.equal(await page.locator("#mhfe-new-phrase > *").count(), 0);
-    assert.equal(await page.locator("#mhfe-new-result > *").count(), 0);
-    assert.equal(await page.evaluate(() => window.mhfeEncryptStarted), false);
-    assert.deepEqual(await storageSnapshot(page), before);
-    assert.equal(run.requests.length, 0);
-    await page.close();
-  }
-  run.checks.push(
-    "New wallet drops pending and late draws after input or word-mode edits, never publishes the old phrase or starts encryption; no storage or HTTP",
-  );
-}
-
-async function mhfeChosenWord(context, profile, run) {
-  const { page, before } = await openBackupPanel(context, profile, run, "mhfe-panel");
-  await page.locator('#mhfe-panel [data-operation-tab][aria-controls="mhfe-new-panel"]').click();
-  assert.equal(await page.locator("#mhfe-new-wishes").isVisible(), false);
-  await page.locator("#mhfe-new-words-chosen").check();
-  await waitText(page, "#mhfe-new-words-chosen-text", /^Choose one word$/u);
-  await page.locator("#toggle-mhfe-new-chosen-words").click();
-  await page.locator("#mhfe-new-chosen-word-1-position").selectOption("last");
-  await page.locator("#mhfe-new-chosen-word-1").fill("zoo");
-  await waitText(page, "#mhfe-new-wishes", /rule out almost every wrong password/u);
-  await waitText(
-    page,
-    "#mhfe-new-outlook",
-    /^The phrase keeps about 245 of its 256 random bits: still far more than enough\.$/u,
-  );
-  await page.locator("#mhfe-new-passphrase").fill("TREZOR");
-  await page.locator("#mhfe-new-check-wallet").check();
-  await waitText(
-    page,
-    "#mhfe-new-outlook",
-    /^Not recommended: the phrase keeps about 229 of its 256/u,
-  );
-  await page.locator("#mhfe-new-chosen-word-1").fill("qqqq");
-  await waitText(page, "#mhfe-new-outlook", /cannot be used/u);
-  assert.equal(await page.locator("#mhfe-new-chosen-word-2").count(), 0);
-  assert.equal(
-    await page.locator("#mhfe-new-chosen-words-never").getAttribute("placeholder"),
-    "for example: zoo",
-  );
-  // MHFE's word hints: none for a concealed field, words from two letters, Tab completes.
-  const hint = "#mhfe-new-wishes .word-hint";
-  await page.locator("#mhfe-new-chosen-word-1").fill("q");
-  await waitText(page, hint, /^8 BIP39 words begin with this letter$/u);
-  await page.locator("#mhfe-new-chosen-word-1").fill("qx");
-  await waitText(page, hint, /^No BIP39 word begins like this\.$/u);
-  await page.locator("#mhfe-new-chosen-word-1").fill("abando");
-  await waitText(page, hint, /^abandon$/u);
-  await page.locator("#mhfe-new-chosen-word-1").press("Tab");
-  assert.equal(await page.locator("#mhfe-new-chosen-word-1").inputValue(), "abandon ");
-  await page.locator("#toggle-mhfe-new-chosen-words").click();
-  await page.locator("#mhfe-new-chosen-word-1").fill("ab");
-  await page.waitForTimeout(400);
-  assert.equal(await page.locator(hint).first().isVisible(), false);
-  // A password shown as typed gets hints from the EFF list, and none when it is no word.
-  await page.locator("#toggle-mhfe-new-password").click();
-  await page.locator("#mhfe-new-password").fill("abacu");
-  await waitText(page, "#mhfe-new-password + .word-hint", /^abacus$/u);
-  await page.locator("#mhfe-new-password").fill("xq");
-  await page.waitForTimeout(400);
-  assert.equal(await page.locator("#mhfe-new-password + .word-hint").isVisible(), false);
-  await page.locator("#mhfe-new-password").fill("");
-  assert.deepEqual(await storageSnapshot(page), before);
-  assert.equal(run.requests.length, 0);
-  run.checks.push(
-    "MHFE New wallet: one chosen word and one never-use word, MHFE's warning and rating with and without the check, an unknown word refused by MHFE, MHFE's word hints with Tab completion, none while concealed; no storage or HTTP",
+    "The Deriver draws the checked phrase on its own workers and MHFE checks it: passphrase required, its warning and Show, the published profile vector with chosen and excluded words, the rating shown, cancel and Clear drop the draw, a stuck random source refused; no storage or HTTP",
   );
 }
 
@@ -653,10 +542,6 @@ export class MhfeBrowserCases {
   };
   /** Shared checkedMnemonic boundary for the native browser cases. */
   static checkedMnemonic = checkedMnemonic;
-  /** Shared mhfeChosenWord boundary for the native browser cases. */
-  static mhfeChosenWord = mhfeChosenWord;
-  /** Shared mhfeNewWalletRevision boundary for the native browser cases. */
-  static mhfeNewWalletRevision = mhfeNewWalletRevision;
   /** Shared mhfeMissingWords boundary for the native browser cases. */
   static mhfeMissingWords = mhfeMissingWords;
   /** Shared mhfeCustomPath boundary for the native browser cases. */

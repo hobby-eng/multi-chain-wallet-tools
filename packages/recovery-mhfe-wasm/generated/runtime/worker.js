@@ -608,52 +608,6 @@ let mhfe = (function(exports) {
     exports.describeContainer = describeContainer;
 
     /**
-     * What a new phrase drawn with these wishes keeps, before it is drawn, as JSON `{ randomBits,
-     * randomness, expectedDraws, recognisable, fixedPosition }`: the random bits it keeps, about, with
-     * the wallet check's 16 taken when `wallet_check`; "full" for all 256, "ample" from 240,
-     * "notRecommended" below, rated without a word never to use; the draws it is expected to take;
-     * whether a chosen word lets someone who learns or guesses it rule out almost every wrong password
-     * and tell the wallet from a decoy; and whether that word has a fixed position. Wishes that cannot
-     * be used are refused (INVALID_WORD_WISH). The chosen words are wiped afterwards.
-     * @param {Uint8Array} chosen_words_utf8
-     * @param {Uint32Array} places
-     * @param {string} never_use
-     * @param {boolean} wallet_check
-     * @returns {string}
-     */
-    function describeDraw(chosen_words_utf8, places, never_use, wallet_check) {
-        let deferred5_0;
-        let deferred5_1;
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            const ptr0 = passArray8ToWasm0(chosen_words_utf8, wasm.__wbindgen_export);
-            const len0 = WASM_VECTOR_LEN;
-            const ptr1 = passArray32ToWasm0(places, wasm.__wbindgen_export);
-            const len1 = WASM_VECTOR_LEN;
-            const ptr2 = passStringToWasm0(never_use, wasm.__wbindgen_export, wasm.__wbindgen_export2);
-            const len2 = WASM_VECTOR_LEN;
-            wasm.describeDraw(retptr, ptr0, len0, ptr1, len1, ptr2, len2, wallet_check);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
-            var ptr4 = r0;
-            var len4 = r1;
-            if (r3) {
-                ptr4 = 0; len4 = 0;
-                throw takeObject(r2);
-            }
-            deferred5_0 = ptr4;
-            deferred5_1 = len4;
-            return getStringFromWasm0(ptr4, len4);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export4(deferred5_0, deferred5_1, 1);
-        }
-    }
-    exports.describeDraw = describeDraw;
-
-    /**
      * Reads an original phrase, its UTF-8 bytes as the person may have typed it, and returns JSON
      * `{ phrase, words, otherLengths, containers: [{ sameLength, words, wrongWordPassesOneIn,
      * otherLengths }] }`, the phrase with every word written out, for showing back, and the
@@ -680,53 +634,6 @@ let mhfe = (function(exports) {
         }
     }
     exports.describePhrase = describePhrase;
-
-    /**
-     * Draws a new 24-word phrase from `random`, which the draw probes first and refuses when it cannot
-     * be random (RANDOM_FAILED). A passphrase is typed twice: `passphrase_repeat_utf8` must be the
-     * same text (PASSPHRASES_DIFFER). With `wallet_check`, it draws until the phrase passes
-     * the wallet check with the passphrase, which must not be empty; that takes about 65,536 BIP39
-     * seeds, and `on_draws(draws)` hears the count every 1,024 draws, a throw there stopping it
-     * (INTERNAL_ERROR); the class cancels a draw by ending its worker. The phrase meets the wishes
-     * given as for [`describe_draw`], refused as it says.
-     * Returns JSON `{ phrase, words, walletCheck, fingerprintWithPassphrase }`.
-     * @param {Uint8Array} passphrase_utf8
-     * @param {Uint8Array} passphrase_repeat_utf8
-     * @param {Uint8Array} chosen_words_utf8
-     * @param {Uint32Array} places
-     * @param {string} never_use
-     * @param {boolean} wallet_check
-     * @param {any} random
-     * @param {Function} on_draws
-     * @returns {string}
-     */
-    function drawPhrase(passphrase_utf8, passphrase_repeat_utf8, chosen_words_utf8, places, never_use, wallet_check, random, on_draws) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            const ptr0 = passArray8ToWasm0(passphrase_utf8, wasm.__wbindgen_export);
-            const len0 = WASM_VECTOR_LEN;
-            const ptr1 = passArray8ToWasm0(passphrase_repeat_utf8, wasm.__wbindgen_export);
-            const len1 = WASM_VECTOR_LEN;
-            const ptr2 = passArray8ToWasm0(chosen_words_utf8, wasm.__wbindgen_export);
-            const len2 = WASM_VECTOR_LEN;
-            const ptr3 = passArray32ToWasm0(places, wasm.__wbindgen_export);
-            const len3 = WASM_VECTOR_LEN;
-            const ptr4 = passStringToWasm0(never_use, wasm.__wbindgen_export, wasm.__wbindgen_export2);
-            const len4 = WASM_VECTOR_LEN;
-            wasm.drawPhrase(retptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, ptr4, len4, wallet_check, addHeapObject(random), addBorrowedObject(on_draws));
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return takeObject(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            heap[stack_pointer++] = undefined;
-        }
-    }
-    exports.drawPhrase = drawPhrase;
 
     /**
      * Encrypts the phrase, its UTF-8 bytes `phrase_utf8`, and returns JSON `{ container, suiteId,
@@ -1196,7 +1103,7 @@ let mhfe = (function(exports) {
      * with the password at the settings given, a full recovery each, and compared with an address
      * or a fingerprint, or with the original seed phrase's own checks: "builtInCheck" (empty
      * reference), the built-in check of a 12- to 21-word one, and "walletCheck", which adds with its
-     * BIP39 passphrase the phrase + passphrase check of a 24-word one made by `mhfe new`.
+     * BIP39 passphrase the phrase + passphrase check of a 24-word one drawn to pass it.
      * `on_candidates(candidate, count)` hears of each candidate as it starts, `on_round` of its
      * rounds. Returns JSON as [`search_decoy`].
      * @param {string} written
@@ -1441,19 +1348,16 @@ let mhfe = (function(exports) {
     /**
      * The self-check of the wallet module at `tier`, "startup" or "full": the BIP39 word list, the
      * wallet hashes, seeds, keys and address encodings, what an address check searches (the
-     * statement of [`describe_address`]), the wallet check and the random source, each with a case it
-     * must refuse. The startup tier tries the source checks on scripted sources only;
-     * the full tier also tries `random`, the page's `crypto.getRandomValues`. `skip_ids` leaves out
-     * parts that another module of the page has passed already. Returns JSON as described at
-     * [`run_self_check`]; no part names a coin.
+     * statement of [`describe_address`]), the wallet check and the word hints, each with a case it
+     * must refuse. `skip_ids` leaves out parts that another module of the page has passed already.
+     * Returns JSON as described at [`run_self_check`]; no part names a coin.
      * @param {string} tier
      * @param {string[]} skip_ids
-     * @param {any} random
      * @param {Function} on_start
      * @param {Function} on_result
      * @returns {string}
      */
-    function selfCheckWallet(tier, skip_ids, random, on_start, on_result) {
+    function selfCheckWallet(tier, skip_ids, on_start, on_result) {
         let deferred4_0;
         let deferred4_1;
         try {
@@ -1462,7 +1366,7 @@ let mhfe = (function(exports) {
             const len0 = WASM_VECTOR_LEN;
             const ptr1 = passArrayJsValueToWasm0(skip_ids, wasm.__wbindgen_export);
             const len1 = WASM_VECTOR_LEN;
-            wasm.selfCheckWallet(retptr, ptr0, len0, ptr1, len1, addHeapObject(random), addBorrowedObject(on_start), addBorrowedObject(on_result));
+            wasm.selfCheckWallet(retptr, ptr0, len0, ptr1, len1, addBorrowedObject(on_start), addBorrowedObject(on_result));
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
@@ -1724,10 +1628,10 @@ let mhfe = (function(exports) {
                 const ret = getObject(arg0).call(getObject(arg1), getObject(arg2));
                 return addHeapObject(ret);
             }, arguments); },
-            __wbg_derive_89b32c905102ba9c: function() { return handleError(function (arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) {
+            __wbg_derive_bcebc70ac91dee7d: function() { return handleError(function (arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) {
                 getObject(arg0).derive(getArrayU8FromWasm0(arg1, arg2), getArrayU8FromWasm0(arg3, arg4), arg5 >>> 0, arg6 >>> 0, getArrayU8FromWasm0(arg7, arg8));
             }, arguments); },
-            __wbg_fill_0f8e2aa37674d2ab: function() { return handleError(function (arg0, arg1, arg2) {
+            __wbg_fill_f4004afed6a0757d: function() { return handleError(function (arg0, arg1, arg2) {
                 getObject(arg0).fill(getArrayU8FromWasm0(arg1, arg2));
             }, arguments); },
             __wbg_get_31af05bd4842a84f: function() { return handleError(function (arg0, arg1) {
@@ -1742,7 +1646,7 @@ let mhfe = (function(exports) {
                 const ret = getObject(arg0).push(getObject(arg1));
                 return ret;
             },
-            __wbg_reserve_2e0639c2f56fc054: function() { return handleError(function (arg0, arg1) {
+            __wbg_reserve_e440b36444e8d4ea: function() { return handleError(function (arg0, arg1) {
                 getObject(arg0).reserve(arg1 >>> 0);
             }, arguments); },
             __wbindgen_generic_0000000000000001: function(arg0) {
@@ -1817,14 +1721,6 @@ let mhfe = (function(exports) {
         return decodeText(ptr >>> 0, len);
     }
 
-    let cachedUint32ArrayMemory0 = null;
-    function getUint32ArrayMemory0() {
-        if (cachedUint32ArrayMemory0 === null || cachedUint32ArrayMemory0.byteLength === 0) {
-            cachedUint32ArrayMemory0 = new Uint32Array(wasm.memory.buffer);
-        }
-        return cachedUint32ArrayMemory0;
-    }
-
     let cachedUint8ArrayMemory0 = null;
     function getUint8ArrayMemory0() {
         if (cachedUint8ArrayMemory0 === null || cachedUint8ArrayMemory0.byteLength === 0) {
@@ -1850,13 +1746,6 @@ let mhfe = (function(exports) {
 
     function isLikeNone(x) {
         return x === undefined || x === null;
-    }
-
-    function passArray32ToWasm0(arg, malloc) {
-        const ptr = malloc(arg.length * 4, 4) >>> 0;
-        getUint32ArrayMemory0().set(arg, ptr / 4);
-        WASM_VECTOR_LEN = arg.length;
-        return ptr;
     }
 
     function passArray8ToWasm0(arg, malloc) {
@@ -1948,7 +1837,6 @@ let mhfe = (function(exports) {
         wasm = instance.exports;
         wasmModule = module;
         cachedDataViewMemory0 = null;
-        cachedUint32ArrayMemory0 = null;
         cachedUint8ArrayMemory0 = null;
         return wasm;
     }
@@ -2076,7 +1964,7 @@ function wipeAndFree(module, heap, pointer, length) {
  * The build of this worker script, which `cargo xtask wasm stamp-build-id` writes here and into
  * runtime/mhfe.wasm, runtime/runtime.js and each class; "development" before the build stamps it.
  */
-const WORKER_BUILD_ID = "7da6a9c673903bea";
+const WORKER_BUILD_ID = "19de50ce492d1e35";
 /**
  * The custom section of runtime/mhfe.wasm that names its build (`cargo xtask wasm stamp-build-id`).
  */
@@ -2094,8 +1982,6 @@ const SECRET_FIELDS = [
   "password",
   "passwordRepeat",
   "passphrase",
-  "passphraseRepeat",
-  "chosenWords",
   "newPassword",
   "newPasswordRepeat",
   "mainPassphrase",
@@ -2715,15 +2601,14 @@ const PASSWORD_OPERATIONS = {
     JSON.parse(mhfe.makePassword(request.kind, request.count, request.rolls, host.random)),
   wordHints: (request) => JSON.parse(mhfe.wordHints("eff", request.typed)),
 };
-// The wallet module's operations in the package's worker, with its self-check, whose full tier
-// tries the worker's crypto.getRandomValues too.
+// The wallet module's operations in the package's worker, with its self-check.
 "use strict";
 
 const WALLET_OPERATIONS = {
   parameters: () => JSON.parse(mhfe.walletParameters()),
   selfCheck: (request, host) =>
     host.selfCheck(request.tier, (onStart, onResult) =>
-      mhfe.selfCheckWallet(request.tier, request.skip, host.random, onStart, onResult),
+      mhfe.selfCheckWallet(request.tier, request.skip, onStart, onResult),
     ),
   walletCheck: (request) => mhfe.walletCheck(request.phrase, request.passphrase),
   fingerprint: (request) => mhfe.walletFingerprint(request.phrase, request.passphrase),
@@ -2732,28 +2617,6 @@ const WALLET_OPERATIONS = {
       mhfe.describeAddress(request.address, request.coin, request.path, request.scanGap ?? 0),
     ),
   wordHints: (request) => JSON.parse(mhfe.wordHints("bip39", request.typed)),
-  describeDraw: (request) =>
-    JSON.parse(
-      mhfe.describeDraw(
-        request.chosenWords,
-        Uint32Array.from(request.places),
-        request.neverUse,
-        request.walletCheck,
-      ),
-    ),
-  drawPhrase: (request, host) =>
-    JSON.parse(
-      mhfe.drawPhrase(
-        request.passphrase,
-        request.passphraseRepeat,
-        request.chosenWords,
-        Uint32Array.from(request.places),
-        request.neverUse,
-        request.walletCheck,
-        host.random,
-        (draws) => host.post("draws", draws),
-      ),
-    ),
 };
 // The end of the package's worker: it serves the operations of every module, by module and name.
 "use strict";

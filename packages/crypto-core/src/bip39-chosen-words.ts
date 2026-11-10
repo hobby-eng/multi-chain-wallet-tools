@@ -40,11 +40,9 @@ export interface ChosenWordsRequest {
 
 /*
  * The most chosen words and words never to use a new phrase takes, at every length: one each
- * (owner's decisions, 2026-10-08). Deliberate copies of mhfe's limits (word_wishes, its browser
- * package's parameters().maxChosenWords and maxNeverUseWords): this generator also runs in builds
- * without MHFE, so it cannot read them there. tooling/verify-mhfe-vector.mjs keeps them in step.
- * With them a 12-word phrase keeps at least about 117 random bits and needs at most about 256
- * draws on average, so no wish needs a floor of bits or of draws.
+ * (owner's decisions, 2026-10-08). From MHFE 0.8.0 the Deriver is the one generator of phrases, so
+ * these limits are its own. With them a 12-word phrase keeps at least about 117 random bits and
+ * needs at most about 256 draws on average, so no wish needs a floor of bits or of draws.
  */
 export const MOST_CHOSEN_WORDS = 1;
 export const MOST_NEVER_USE_WORDS = 1;
