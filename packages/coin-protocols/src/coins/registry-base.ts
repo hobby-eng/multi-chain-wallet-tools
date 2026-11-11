@@ -253,11 +253,18 @@ export class CoinFamilyCatalog {
   }
 }
 
-/** Compatibility factory; metadata and lookup rules are owned by the shared family catalog. */
-export function createCoinRegistry(coinAdapters: readonly CoinAdapter[]): CoinRegistry {
-  const coinFamilies: readonly CoinFamily[] = [
+/**
+ * Compatibility factory; metadata and lookup rules are owned by the shared family catalog.
+ * `orderFamilies` puts the families' names in the Coin menu's order: a build of several coins
+ * passes the rule of coin-order.ts, and a build of one coin, which has no order to keep, none.
+ */
+export function createCoinRegistry(
+  coinAdapters: readonly CoinAdapter[],
+  orderFamilies: (labels: string[]) => readonly string[] = (labels) => labels,
+): CoinRegistry {
+  const coinFamilies: readonly CoinFamily[] = orderFamilies([
     ...new Set(coinAdapters.map(({ group }) => group)),
-  ].map((label) => ({
+  ]).map((label) => ({
     id: familyId(label),
     label,
     adapters: coinAdapters.filter(({ group }) => group === label),

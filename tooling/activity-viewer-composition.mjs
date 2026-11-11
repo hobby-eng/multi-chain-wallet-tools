@@ -1,3 +1,4 @@
+import { orderCoins } from "../packages/coin-protocols/src/coins/coin-order.ts";
 import {
   ACCOUNT_SHARED_MARKERS,
   accountReadersSource,
@@ -117,20 +118,19 @@ const replaceBalancedElement = (source, openingPattern, replacement = "") =>
 
 /**
  * The provider line of a Viewer build without Dash: Bitcoin's provider, the EVM networks grouped by
- * the operator of their JSON-RPC (in table order) and those with a history by Blockscout, and each
- * account coin's host.
+ * the operator of their JSON-RPC (operators in table order) and those with a history by Blockscout,
+ * and each account coin's host; the coins of each part, and the account coins, in the coin lists'
+ * order (coin-order.ts).
  */
 export function activityProviderSummary(options) {
-  const evm = selectedEvmNetworks(options);
-  const operators = Map.groupBy(evm, ({ rpcOperator }) => rpcOperator);
-  const histories = selectedEvmHistoryNetworks(options).map(({ label }) => label);
+  const names = (rows) => orderCoins(rows, ({ label }) => label).map(({ label }) => label);
+  const operators = Map.groupBy(selectedEvmNetworks(options), ({ rpcOperator }) => rpcOperator);
+  const histories = names(selectedEvmHistoryNetworks(options));
   return [
     ...(options.hasCoin("bitcoin") ? ["Bitcoin: Blockstream Esplora"] : []),
-    ...[...operators].map(
-      ([operator, rows]) => `${rows.map(({ label }) => label).join(", ")}: ${operator} JSON-RPC`,
-    ),
+    ...[...operators].map(([operator, rows]) => `${names(rows).join(", ")}: ${operator} JSON-RPC`),
     ...(histories.length > 0 ? [`${histories.join(", ")} history: Blockscout`] : []),
-    ...selectedAccountCoins(options).map(
+    ...orderCoins(selectedAccountCoins(options), ({ label }) => label).map(
       ({ label, endpoint }) => `${label}: ${new URL(endpoint).host}`,
     ),
   ].join(" · ");
@@ -150,10 +150,14 @@ export function applyActivityCoinTemplate(template, options) {
   if (!options.hasCoin("dash")) {
     const evm = selectedEvmNetworks(options);
     const accounts = selectedAccountCoins(options);
-    const labels = [
-      ...(options.hasCoin("bitcoin") ? ["Bitcoin"] : []),
-      ...[...evm, ...accounts].map(({ label }) => label),
-    ];
+    // The build's coins in the coin lists' order (coin-order.ts).
+    const labels = orderCoins(
+      [
+        ...(options.hasCoin("bitcoin") ? ["Bitcoin"] : []),
+        ...[...evm, ...accounts].map(({ label }) => label),
+      ],
+      (label) => label,
+    );
     const providerSummary = activityProviderSummary(options);
     rendered = replaceBalancedElement(
       rendered,

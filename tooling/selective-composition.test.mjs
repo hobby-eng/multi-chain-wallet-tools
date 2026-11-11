@@ -292,6 +292,17 @@ describe("selective bundle graph guards", () => {
     );
   });
 
+  it("orders coins by edition: Dash Community never takes the coin-order rule", () => {
+    // The Deriver's coin order follows the edition, not the coin count: every Multi-Chain build
+    // orders its lists (Bitcoin first), and only Dash Community, whose gate forbids that rule's
+    // words, keeps the no-op comparator.
+    const parse = (id, args = []) =>
+      parseKeyDerivationFeatures(BUILD_PROFILES[id], args).dashCommunity;
+    expect(parse("dash-community")).toBe(true);
+    expect(parse("multi-chain")).toBe(false);
+    expect(parse("multi-chain", ["--coins", "dash"])).toBe(false);
+  });
+
   it("rejects empty selective option values and missing output paths", () => {
     const profile = { id: "multi-chain", capabilities: { bitcoinSilentPayments: true } };
     expect(() => parseToolFeatureOptions("discovery-scanner", profile, ["--features="])).toThrow(
@@ -716,7 +727,7 @@ describe("selective bundle graph guards", () => {
       "Base, Gnosis: PublicNode JSON-RPC · Ethereum Classic: HebeBlock JSON-RPC · Ethereum Classic history: Blockscout",
     );
     expect(activityProviderSummary(options(["ethereum", "bnb-chain"]))).toBe(
-      "Ethereum, BNB Chain: PublicNode JSON-RPC · Ethereum history: Blockscout",
+      "BNB Chain, Ethereum: PublicNode JSON-RPC · Ethereum history: Blockscout",
     );
     const source = composedSource(
       createActivityViewerCompositionPlugin(

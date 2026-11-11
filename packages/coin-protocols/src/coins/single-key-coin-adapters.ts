@@ -16,7 +16,10 @@ import { XRP_COIN_ADAPTERS } from "./adapters/xrp.js";
 import { ZCASH_COIN_ADAPTERS } from "./adapters/zcash.js";
 import type { CoinAdapter } from "./registry-base.js";
 
-/** The single-key coins in the order the Coin menu offers them, after Bitcoin, Ethereum and Dash. */
+/**
+ * The single-key coins, registered after Bitcoin, Ethereum and Dash; the Coin menu orders every coin
+ * by its name instead (coin-order.ts).
+ */
 export const SINGLE_KEY_COIN_ADAPTERS: readonly CoinAdapter[] = [
   ...LITECOIN_COIN_ADAPTERS,
   ...DOGECOIN_COIN_ADAPTERS,

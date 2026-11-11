@@ -25,6 +25,7 @@ import {
 import { mnemocode, whenMnemoCodeLoaded } from "@ckd/recovery-backup/mnemocode-engine.js";
 import { LiteralSecretField } from "@ckd/ui/literal-secret-field.js";
 import { installTextFileImport } from "@ckd/ui/text-file-import.js";
+import { inCoinMenuOrder } from "./coin-menu-order.js";
 import { installSecretToggle, PHRASE_FILE_IMPORT, required } from "./recovery-workspace-shared.js";
 
 /** The network named with a master fingerprint, which is the same on every network. */
@@ -222,11 +223,14 @@ export class WalletEvidenceField {
   }
 
   /** The words of the address row for the coins of this edition. */
-  #offerCoins(coins: readonly OfferedCoin[]): void {
-    if (this.#address === null || coins.length === 0) return;
+  #offerCoins(offered: readonly OfferedCoin[]): void {
+    if (this.#address === null || offered.length === 0) return;
+    // Named in the Coin menu's order, not in MnemoCode's.
+    const coins = inCoinMenuOrder(offered, ({ name }) => name);
     const label = required<HTMLElement>(`#${this.#prefix}-wallet-address-label`);
     const note = required<HTMLElement>(`#${this.#prefix}-wallet-address-note`);
-    // One coin, as in the Dash Community Edition, is named itself; several as MnemoCode's menu does.
+    // One coin, as in the Dash Community Edition, is named itself; several as MnemoCode's menu names
+    // them, in the coin lists' order.
     if (coins.length === 1) {
       label.textContent = `${coins[0]!.name} address`;
       note.textContent = coins[0]!.addressForms;
@@ -245,7 +249,8 @@ export class WalletEvidenceField {
     const address = this.#address?.value.trim() ?? "";
     let names: readonly string[] = [];
     try {
-      if (address !== "") names = addressCoinNames(mnemocode(), address);
+      if (address !== "")
+        names = inCoinMenuOrder(addressCoinNames(mnemocode(), address), (name) => name);
     } catch {
       // Before MnemoCode is loaded nothing is named; the check refuses the address in its words.
     }

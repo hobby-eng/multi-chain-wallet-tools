@@ -12,6 +12,7 @@ import { MnemoCodeSskrLayout } from "./mnemocode-sskr-layout.mjs";
 import { UNICODE_VERSION as NFKD_UNICODE_VERSION } from "./generate-unicode-nfkd.mjs";
 import { ACCOUNT_COINS, accountProviderHost } from "./account-coins.mjs";
 import { EVM_NETWORKS } from "./evm-networks.mjs";
+import { ACTIVITY_VIEWER_COINS } from "./profile-template.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // Formatting a producer's licence would break its reviewed byte identity. Verify those bytes first.
@@ -56,7 +57,6 @@ const scannerRegistry = read("apps/discovery-scanner/src/coins/index.ts");
 const multiChainDerivationRegistry = read(
   "packages/coin-protocols/src/coins/multi-chain-registry-profile.ts",
 );
-const buildProfiles = `${read("tooling/build-profiles.mjs")}\n${read("tooling/profile-template.mjs")}`;
 const reproducibleBuildWrapper = read("tooling/build-reproducible.sh");
 
 requireText(
@@ -75,11 +75,10 @@ for (const [index, coinId] of PRODUCT_FACTS.multiChainCoinIds.entries()) {
     `${coinId.toUpperCase()}_COIN_ADAPTERS`,
     `Multi-Chain derivation registry coin ${index + 1}`,
   );
-  requireText(
-    buildProfiles,
-    `<option value="${coinId}"`,
-    `Multi-Chain Activity Viewer coin ${index + 1}`,
-  );
+  if (!ACTIVITY_VIEWER_COINS.some(({ id }) => id === coinId))
+    throw new Error(
+      `Multi-Chain Activity Viewer coin ${index + 1} is out of sync; expected: ${coinId}`,
+    );
 }
 // Every EVM network of the EVM network table and every account coin of the account coin table, by
 // name and endpoint, where a reader looks for it.

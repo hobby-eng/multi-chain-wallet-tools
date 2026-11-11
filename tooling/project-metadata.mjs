@@ -39,8 +39,9 @@ export class ProjectMetadata {
 }
 
 export const PRODUCT_FACTS = Object.freeze({
-  multiChainCoins: Object.freeze(["Bitcoin", "Ethereum", "Dash"]),
-  multiChainCoinIds: Object.freeze(["bitcoin", "ethereum", "dash"]),
+  // In the order of the coin lists: Bitcoin first, then alphabetical (coin-order.ts).
+  multiChainCoins: Object.freeze(["Bitcoin", "Dash", "Ethereum"]),
+  multiChainCoinIds: Object.freeze(["bitcoin", "dash", "ethereum"]),
   dashCommunityCapabilities: Object.freeze([
     "Dash Core",
     "Dash Platform payments",

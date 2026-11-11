@@ -283,6 +283,11 @@
   gap: 14px;
   margin-bottom: 18px;
 }
+/* The note on the number of keys belongs to the keys above it: a field note's 7px, not the 18px
+   that part the grid from what follows. */
+.builder-grid:has(+ #builder-cardinality-note) {
+  margin-bottom: 0;
+}
 .psbt-selector-grid {
   grid-template-columns: 1fr 1fr;
 }

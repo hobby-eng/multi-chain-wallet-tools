@@ -6,6 +6,7 @@
 import type { MhfeCoin, MhfeReference } from "@ckd/recovery-mhfe-wasm/core/client.js";
 import type { MhfeWallet } from "@ckd/recovery-mhfe-wasm/wallet/wallet.js";
 import type { MhfeEngine } from "./recovery-mhfe-engine.js";
+import { inCoinMenuOrder } from "./coin-menu-order.js";
 import { describe } from "./recovery-mhfe-status.js";
 import { PasswordField, offerAnswer } from "./recovery-mhfe-fields.js";
 import type { WalletPassphraseQuestion } from "./recovery-mhfe-wallet-passphrase.js";
@@ -77,7 +78,12 @@ export class AddressCoinChoice {
     names: ReadonlyMap<string, string>,
     detected: boolean,
   ): string {
-    const coins = orList(search.coins.map((id) => names.get(id) ?? id));
+    const coins = orList(
+      inCoinMenuOrder(
+        search.coins.map((id) => names.get(id) ?? id),
+        (name) => name,
+      ),
+    );
     const coin = coins === "" ? "" : `Coin: ${coins}${detected ? " (from the address)" : ""} · `;
     const type = search.type === null ? "" : `Type: ${search.type} · `;
     const scope = search.onlyPath
@@ -108,7 +114,11 @@ export class AddressCoinChoice {
 
   async #fill(): Promise<void> {
     const { coins } = await this.#engine.walletParameters();
-    const offered = __DASH_COMMUNITY__ ? coins.filter((coin) => coin.id === "dash") : coins;
+    // In the Coin menu's order, not in MHFE's.
+    const offered = inCoinMenuOrder(
+      __DASH_COMMUNITY__ ? coins.filter((coin) => coin.id === "dash") : coins,
+      ({ name }) => name,
+    );
     const option = (value: string, text: string): HTMLOptionElement => {
       const item = document.createElement("option");
       item.value = value;

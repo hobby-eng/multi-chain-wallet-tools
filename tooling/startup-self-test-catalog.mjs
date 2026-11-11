@@ -73,7 +73,8 @@ const ETHEREUM = Object.freeze([
   "Ethereum / EIP55",
   "Ethereum master/account extended-key integrity",
 ]);
-// The single-key coins (packages/verification/src/single-key-coin-self-test.ts), in the Coin menu's order.
+// The single-key coins (packages/verification/src/single-key-coin-self-test.ts), in the order the
+// self-test runs them, not the Coin menu's (coin-order.ts).
 const LITECOIN = Object.freeze([
   "litecoin-legacy mainnet path metadata",
   "litecoin-legacy path boundary refusal",

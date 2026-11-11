@@ -481,6 +481,10 @@ label > :is(input:not([type="checkbox"], [type="radio"], [type="file"]), select,
   font-weight: 500;
   margin-left: 5px;
 }
+/* A word that must not break at its hyphen on a narrow screen, such as "case-sensitive". */
+.nowrap {
+  white-space: nowrap;
+}
 textarea,
 input,
 select {
@@ -552,9 +556,6 @@ textarea.concealed {
   margin: 0 0 12px;
 }
 /* Generate with chosen words, under the Generate buttons of Generate & Derive. */
-.chosen-words-toggle {
-  margin: 0 0 10px;
-}
 .chosen-words-panel {
   display: grid;
   gap: 10px;
@@ -2295,9 +2296,74 @@ footer p {
   z-index: 13;
 }
 
-/* The generation options stand apart, each with its description (owner, 2026-10-23). */
-.generation-option + .generation-option {
-  margin-top: 12px;
+/* The generation options stand apart, each with its description (owner, 2026-10-23), in two columns
+   where the panel is wide enough (owner, 2026-11-11): the Generate buttons' 12px between rows, the form
+   grid's 1rem between columns, and the chosen-words panel's 14px before the next framed box. A build
+   without MHFE or TON has fewer options; they keep the same columns. */
+.generation-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 12px 1rem;
+  margin: 0 0 14px;
+}
+
+@media (max-width: 760px) {
+  .generation-options {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* A checkbox option with a "?": the "?" follows the title on its line and the description sits below
+   the title (owner, 2026-11-11). The "?" stays out of the label, so that a click on it does not tick
+   the box, and the description is the box's aria-describedby. The look is that of a checkbox label. */
+.option-heading {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 2px 8px;
+}
+
+.option-heading > input[type="checkbox"] {
+  grid-row: 1 / span 2;
+  width: auto;
+  /* Centres the 13px box on the first 17.5px line of the title, as in a checkbox label. */
+  margin: 2px 0 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* The title and its "?" flow as one line of text, so that the "?" follows the title's last word
+   when the title wraps in a narrow column. */
+.option-heading > .field-heading-row {
+  display: block;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.option-heading > .field-heading-row label {
+  display: inline;
+  cursor: pointer;
+}
+
+/* The title's last word, a second label of the same box, and the "?" share a span that does not
+   break, so that the "?" never stands alone on a line; the popover inside wraps as usual. */
+.option-title-end {
+  white-space: nowrap;
+}
+
+.option-heading .option-help {
+  display: inline-block;
+  margin-left: 0.35rem;
+  white-space: normal;
+  vertical-align: text-top;
+}
+
+.option-heading > small {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .recovery-help-popover h3 {
@@ -2564,6 +2630,20 @@ footer p {
   margin-top: 1rem;
 }
 
+/* Closed sections that follow one another in a form read as one list: each title keeps its summary's
+   13px above and below, without the grid gap and the section margin in between. The list goes on
+   across one hidden section; the first section shown, and one after an open section, keep their
+   margin. */
+:is(.backup-operation, .operation-block)
+  > .mnemocode-cards:not([open], [hidden])
+  + .mnemocode-cards,
+:is(.backup-operation, .operation-block)
+  > .mnemocode-cards:not([open], [hidden])
+  + .mnemocode-cards[hidden]
+  + .mnemocode-cards {
+  margin-top: -1rem;
+}
+
 /* MnemoCode's self-test report: one row per check. */
 .self-test-table {
   width: 100%;
@@ -2692,6 +2772,11 @@ footer p {
 #mhfe-panel .mhfe-password-field {
   display: grid;
   gap: 0.35rem;
+}
+
+/* A password's heading row keeps a label's 8px to its field, in place of this small gap. */
+#mhfe-panel .mhfe-password-field > .field-heading-row:has(+ input) {
+  margin-bottom: -0.35rem;
 }
 
 #mhfe-panel .mhfe-password-field input {
@@ -2970,13 +3055,37 @@ footer p {
   align-self: flex-start;
 }
 
+/* A row with a Show button is as tall as the button: there the "?" stays on the title's line,
+   centred as the title is (owner, 2026-11-11). */
+.field-heading-row:has(> button) > .option-help {
+  align-self: center;
+}
+
 .field-heading-row label {
   margin: 0;
 }
 
-/* Without a button the row is only as tall as its label, so its control keeps a label's 8px. */
-.field-heading-row:not(:has(> button)) + :is(input, select, textarea, .protocol-tabs) {
+/* A note about the field, such as "optional", follows the title and its "?" at the label's size;
+   on a narrow screen the note wraps, not the title. */
+.field-heading-row > .optional {
+  min-width: 0;
+  margin-left: 0;
+  font-size: 13px;
+}
+
+.field-heading-row:has(> .optional) > label {
+  flex: none;
+}
+
+/* A heading row's control keeps a label's 8px below it, below a Show button too (owner, 2026-11-11). */
+.field-heading-row + :is(input, select, textarea, .protocol-tabs) {
   margin-top: 8px;
+}
+
+/* In a form grid the row belongs to its control, as a label does: the 8px replace the grid gap. */
+:is(.backup-operation, .operation-block)
+  > .field-heading-row:has(+ :is(input, select, textarea, .protocol-tabs)) {
+  margin-bottom: -1rem;
 }
 
 .matcher-secret-toggle {

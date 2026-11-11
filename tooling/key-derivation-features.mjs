@@ -63,6 +63,8 @@ export function parseKeyDerivationFeatures(profile, args = process.argv.slice(2)
     excluded: Object.freeze(profileDefaults.filter((feature) => !selected.has(feature))),
     has: (feature) => selected.has(feature),
     hasRecovery: RECOVERY_FEATURES.some((feature) => selected.has(feature)),
+    // The Dash Community Edition names no other coin, not even as the first of a list.
+    dashCommunity: profile.id === "dash-community",
   });
 }
 

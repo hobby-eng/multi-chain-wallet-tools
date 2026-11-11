@@ -9,6 +9,7 @@ import { BIP85_HEX_BYTES } from "../packages/crypto-core/src/bip85-values.ts";
 import { BIP39_WORD_COUNTS } from "../packages/crypto-core/src/bip39-word-counts.ts";
 import { MAX_BIP32_INDEX } from "../packages/crypto-core/src/bip32-limits.ts";
 import { EmbeddedDerivation } from "../packages/coin-protocols/src/coins/embedded-derivation.ts";
+import { orderCoins } from "../packages/coin-protocols/src/coins/coin-order.ts";
 import { ACCOUNT_COIN_GROUP, ACCOUNT_COINS } from "./account-coins.mjs";
 import { EVM_NETWORK_GROUP, EVM_NETWORKS } from "./evm-networks.mjs";
 
@@ -35,6 +36,44 @@ import { ToolProtocolFooter, selectedCoins } from "./tool-protocol-footer.mjs";
 /** ID prefix of every control in the derived (BIP85 child) wallet workspace. */
 const CHILD_WALLET_ID_PREFIX = "bip85-wallet-";
 
+/** The texts of `parts`, each about the coin or coin group `name`, in the coin lists' order. */
+function inCoinListOrder(parts) {
+  return orderCoins(parts, ({ name }) => name).map(({ text }) => text);
+}
+
+/**
+ * The coins of the Multi-Chain Activity Viewer's coin menu, each EVM network and account coin in its
+ * table's group; a selective build removes the options of the coins it leaves out.
+ */
+export const ACTIVITY_VIEWER_COINS = Object.freeze([
+  { id: "bitcoin", label: "Bitcoin" },
+  ...EVM_NETWORKS.map(({ id, label }) => ({ id, label, group: EVM_NETWORK_GROUP })),
+  { id: "dash", label: "Dash" },
+  ...ACCOUNT_COINS.map(({ id, label }) => ({ id, label, group: ACCOUNT_COIN_GROUP })),
+]);
+
+/**
+ * The options of a coin menu in the order of the coin lists (coin-order.ts): each coin with a
+ * `group` under that group's <optgroup>, and `selected` the default whatever its place.
+ */
+function coinMenuOptions(coins, selected) {
+  let markup = "";
+  let open;
+  for (const { id, label, group } of orderCoins(
+    coins,
+    (coin) => coin.label,
+    (coin) => coin.group,
+  )) {
+    if (group !== open) {
+      if (open !== undefined) markup += "</optgroup>";
+      if (group !== undefined) markup += `<optgroup label="${group}">`;
+      open = group;
+    }
+    markup += `<option value="${id}"${id === selected ? " selected" : ""}>${label}</option>`;
+  }
+  return open === undefined ? markup : `${markup}</optgroup>`;
+}
+
 /** A "?" beside a hard option (owner, 2026-10-27: only where the meaning is not plain at once). */
 function optionHelp(name, title, paragraphs) {
   return `<details class="recovery-help option-help"><summary class="help-mark" aria-label="${name}">?</summary><div class="recovery-help-popover"><h3>${title}</h3>${paragraphs.map((text) => `<p>${text}</p>`).join("")}</div></details>`;
@@ -50,45 +89,78 @@ const BIP85_HELP = optionHelp("What child seeds are", "Child seeds · BIP85", [
   "A child does not reveal its parent, but anyone with the parent phrase and its passphrase can make every child. Back up the parent: a child alone does not restore it.",
 ]);
 
-/** What each coin's derivation tabs are, named as the tabs name them. */
+/** What each coin's derivation tabs are, by the coin's name in the Coin menu. */
 const DERIVATION_TYPE_COPY = {
-  bitcoin:
-    "<strong>Bitcoin:</strong> each tab is an address type, with its own path and its own addresses from the same phrase: Legacy BIP44, Nested SegWit BIP49, Native SegWit BIP84 and Taproot BIP86, whose mainnet addresses begin with 1, 3, bc1q and bc1p. Choose the type of your wallet's addresses.",
-  ethereum:
-    "<strong>Ethereum:</strong> EOA · BIP44 gives the ordinary accounts that Ethereum wallets derive from a recovery phrase. The same 0x address is yours on every EVM network: BNB Chain, Polygon, Arbitrum, Optimism, Base, Avalanche C-Chain, Gnosis and Hyperliquid's HyperEVM among them.",
-  litecoin:
-    "<strong>Litecoin:</strong> Legacy BIP44, Nested SegWit BIP49 and Native SegWit BIP84, whose addresses begin with L, M and ltc1q, at Litecoin's coin type 2.",
-  dogecoin: "<strong>Dogecoin:</strong> BIP44 gives the D… addresses of Dogecoin wallets.",
-  "bitcoin-cash":
-    "<strong>Bitcoin Cash:</strong> BIP44 at its own coin type 145, or at Bitcoin's coin type 0, which wallets made around the 2017 fork kept; addresses in CashAddr form.",
-  zcash:
-    "<strong>Zcash:</strong> Transparent BIP44 gives the public t1… addresses; shielded addresses are not derived here.",
-  xrp: "<strong>XRP:</strong> BIP44 at coin type 144 gives XRP Ledger r… accounts; Ledger Live counts accounts with the Account field.",
-  tron: "<strong>Tron:</strong> BIP44 at coin type 195 gives the T… accounts of Tron wallets.",
-  "ethereum-classic":
-    "<strong>Ethereum Classic:</strong> BIP44 at coin type 61; wallets that keep it at Ethereum's coin type 60 show the Ethereum addresses.",
-  cosmos:
-    "<strong>Cosmos:</strong> BIP44 at coin type 118 gives the cosmos1… accounts of the Cosmos Hub.",
-  injective:
-    "<strong>Injective:</strong> BIP44 at Ethereum's coin type 60 gives inj1… accounts; the same key controls the 0x address.",
-  solana:
-    "<strong>Solana:</strong> Phantom and Solflare derive account i at m/44'/501'/i'/0', Ledger at m/44'/501'/i'; every level is hardened (SLIP-10 Ed25519).",
-  stellar:
-    "<strong>Stellar:</strong> SEP-0005 accounts at m/44'/148'/i', with their G… account ID and S… secret seed.",
-  near: "<strong>NEAR:</strong> keys at m/44'/397'/i'; the address is the key's implicit account.",
-  hedera:
-    "<strong>Hedera:</strong> the Ed25519 and ECDSA keys of the Hedera SDK; the network numbers an account (0.0.N) when it is created.",
-  ton: "<strong>TON:</strong> Telegram wallet reads a TON phrase, whose one key the Telegram wallet and TON's own wallets keep; Trust Wallet (m/44'/607'/i') and Ledger (m/44'/607'/0'/0'/i'/0') derive TON keys from any BIP39 phrase. Each key has an address for each wallet contract: W5, v4R2 and v3R2.",
-  dash: "<strong>Dash:</strong> Core BIP44 holds the ordinary addresses of Dash Core and the Dash mobile wallets. The two Multisig tabs give one cosigner's account xpub for a shared P2SH wallet: Purpose48 for wallets that use that path, Core pkh signer for a Dash Core signer wallet. Platform DIP17 / DIP18 gives Dash Platform payment addresses, Identity DIP13 the keys of a Platform identity, Identity funding DIP13 the Dash Core addresses whose asset locks fund an identity, its top-ups, invitations and Platform address or shielded top-ups, DashPay DIP15 the addresses on which one DashPay contact pays you, from your and the contact's identity IDs, Masternode DIP9 a masternode's owner, voting, BLS operator and Evonode Platform node keys, and Shielded Orchard / ZIP-32 private Orchard addresses.",
+  bitcoin: {
+    name: "Bitcoin",
+    text: "each tab is an address type, with its own path and its own addresses from the same phrase: Legacy BIP44, Nested SegWit BIP49, Native SegWit BIP84 and Taproot BIP86, whose mainnet addresses begin with 1, 3, bc1q and bc1p. Choose the type of your wallet's addresses.",
+  },
+  ethereum: {
+    name: "Ethereum",
+    text: "EOA · BIP44 gives the ordinary accounts that Ethereum wallets derive from a recovery phrase. The same 0x address is yours on every EVM network: Arbitrum, Avalanche C-Chain, Base, BNB Chain, Gnosis, Hyperliquid's HyperEVM, Optimism and Polygon among them.",
+  },
+  litecoin: {
+    name: "Litecoin",
+    text: "Legacy BIP44, Nested SegWit BIP49 and Native SegWit BIP84, whose addresses begin with L, M and ltc1q, at Litecoin's coin type 2.",
+  },
+  dogecoin: { name: "Dogecoin", text: "BIP44 gives the D… addresses of Dogecoin wallets." },
+  "bitcoin-cash": {
+    name: "Bitcoin Cash",
+    text: "BIP44 at its own coin type 145, or at Bitcoin's coin type 0, which wallets made around the 2017 fork kept; addresses in CashAddr form.",
+  },
+  zcash: {
+    name: "Zcash",
+    text: "Transparent BIP44 gives the public t1… addresses; shielded addresses are not derived here.",
+  },
+  xrp: {
+    name: "XRP",
+    text: "BIP44 at coin type 144 gives XRP Ledger r… accounts; Ledger Live counts accounts with the Account field.",
+  },
+  tron: { name: "Tron", text: "BIP44 at coin type 195 gives the T… accounts of Tron wallets." },
+  "ethereum-classic": {
+    name: "Ethereum Classic",
+    text: "BIP44 at coin type 61; wallets that keep it at Ethereum's coin type 60 show the Ethereum addresses.",
+  },
+  cosmos: {
+    name: "Cosmos",
+    text: "BIP44 at coin type 118 gives the cosmos1… accounts of the Cosmos Hub.",
+  },
+  injective: {
+    name: "Injective",
+    text: "BIP44 at Ethereum's coin type 60 gives inj1… accounts; the same key controls the 0x address.",
+  },
+  solana: {
+    name: "Solana",
+    text: "Phantom and Solflare derive account i at m/44'/501'/i'/0', Ledger at m/44'/501'/i'; every level is hardened (SLIP-10 Ed25519).",
+  },
+  stellar: {
+    name: "Stellar",
+    text: "SEP-0005 accounts at m/44'/148'/i', with their G… account ID and S… secret seed.",
+  },
+  near: { name: "NEAR", text: "keys at m/44'/397'/i'; the address is the key's implicit account." },
+  hedera: {
+    name: "Hedera",
+    text: "the Ed25519 and ECDSA keys of the Hedera SDK; the network numbers an account (0.0.N) when it is created.",
+  },
+  ton: {
+    name: "TON",
+    text: "Telegram wallet reads a TON phrase, whose one key the Telegram wallet and TON's own wallets keep; Trust Wallet (m/44'/607'/i') and Ledger (m/44'/607'/0'/0'/i'/0') derive TON keys from any BIP39 phrase. Each key has an address for each wallet contract: W5, v4R2 and v3R2.",
+  },
+  dash: {
+    name: "Dash",
+    text: "Core BIP44 holds the ordinary addresses of Dash Core and the Dash mobile wallets. The two Multisig tabs give one cosigner's account xpub for a shared P2SH wallet: Purpose48 for wallets that use that path, Core pkh signer for a Dash Core signer wallet. Platform DIP17 / DIP18 gives Dash Platform payment addresses, Identity DIP13 the keys of a Platform identity, Identity funding DIP13 the Dash Core addresses whose asset locks fund an identity, its top-ups, invitations and Platform address or shielded top-ups, DashPay DIP15 the addresses on which one DashPay contact pays you, from your and the contact's identity IDs, Masternode DIP9 a masternode's owner, voting, BLS operator and Evonode Platform node keys, and Shielded Orchard / ZIP-32 private Orchard addresses.",
+  },
 };
 
 /** The "?" of the derivation tabs, for the coins of this build only. */
 function derivationTypeHelp(coins) {
   return optionHelp("What the derivation types are", "Derivation type", [
     "Each tab is one way in which wallets derive keys and addresses from the phrase; the path below shows the one chosen.",
-    ...Object.entries(DERIVATION_TYPE_COPY)
-      .filter(([coin]) => coins.has(coin))
-      .map(([, text]) => text),
+    // The coins in the Coin menu's order (coin-order.ts).
+    ...orderCoins(
+      Object.entries(DERIVATION_TYPE_COPY).filter(([coin]) => coins.has(coin)),
+      ([, { name }]) => name,
+    ).map(([, { name, text }]) => `<strong>${name}:</strong> ${text}`),
   ]);
 }
 
@@ -209,7 +281,7 @@ function bip85Markup(profile, derivationHelp) {
             <div class="supplemental-heading"><span class="step">↳</span><h3>Derived wallet workspace</h3></div>
             <p class="feature-intro">Uses the child mnemonic above without replacing the original recovery phrase. All derivation stays in memory in this tab.</p>
             <div class="child-wallet-passphrase">
-              <label for="bip85-child-passphrase">Child-wallet BIP39 passphrase <span class="optional">optional, case-sensitive</span></label>
+              <label for="bip85-child-passphrase">Child-wallet BIP39 passphrase <span class="optional">optional, <span class="nowrap">case-sensitive</span></span></label>
               <div class="secret-input-wrap"><input id="bip85-child-passphrase" type="password" autocomplete="off" placeholder="Leave blank unless this child wallet uses one"><button id="toggle-bip85-child-passphrase" class="secondary compact" type="button" aria-pressed="false">Show</button></div>
               <p class="field-note">Second level: applied after the BIP85 child mnemonic is created. It does not change those words; it changes the child seed, addresses, and keys derived below.</p>
             </div>
@@ -341,10 +413,19 @@ function secondaryToolMarkup(profile, footer) {
     profile.id === "dash-community"
       ? "<span>Proof-verified Platform DAPI</span><span>Local Orchard note recovery</span><span>Public Dash L1 history</span>"
       : "<span>Validated public inputs</span><span>Bounded provider requests</span><span>Local sensitive-key processing</span>";
+  // The Multi-Chain Viewer's workflows, a coin group by the name of its group in the coin menu.
+  const viewerWorkflowItems = inCoinListOrder([
+    { name: "Bitcoin", text: "Bitcoin address history" },
+    { name: "Dash", text: "Dash Core, Platform, Identity and Orchard" },
+    { name: EVM_NETWORK_GROUP, text: "Ethereum and EVM network accounts" },
+    { name: ACCOUNT_COIN_GROUP, text: "Account balances on other networks" },
+  ])
+    .map((text) => `<div><span class="capability-check">✓</span><span>${text}</span></div>`)
+    .join("");
   const activityCapabilityCard =
     profile.id === "dash-community"
       ? '<aside class="viewer-capability-card" aria-label="Viewer capabilities"><div class="capability-orbit" aria-hidden="true"><span></span></div><div class="capability-kicker">DASH RESOURCE TYPES</div><h2>Verify with confidence</h2><div class="capability-list"><div><span class="capability-check">✓</span><span>Core address activity</span></div><div><span class="capability-check">✓</span><span>Platform and Identity state</span></div><div><span class="capability-check">✓</span><span>Local Orchard note recovery</span></div><div class="capability-safe"><span>✓</span><span>Read-only by design</span></div></div></aside>'
-      : '<aside class="viewer-capability-card" aria-label="Viewer capabilities"><div class="capability-orbit" aria-hidden="true"><span></span></div><div class="capability-kicker">SUPPORTED PUBLIC WORKFLOWS</div><h2>Inspect with confidence</h2><div class="capability-list"><div><span class="capability-check">✓</span><span>Bitcoin address history</span></div><div><span class="capability-check">✓</span><span>Ethereum and EVM network accounts</span></div><div><span class="capability-check">✓</span><span>Dash Core, Platform, Identity and Orchard</span></div><div><span class="capability-check">✓</span><span>Account balances on other networks</span></div><div class="capability-safe"><span>✓</span><span>Read-only by design</span></div></div></aside>';
+      : `<aside class="viewer-capability-card" aria-label="Viewer capabilities"><div class="capability-orbit" aria-hidden="true"><span></span></div><div class="capability-kicker">SUPPORTED PUBLIC WORKFLOWS</div><h2>Inspect with confidence</h2><div class="capability-list">${viewerWorkflowItems}<div class="capability-safe"><span>✓</span><span>Read-only by design</span></div></div></aside>`;
   const activityRuntimeDescription =
     profile.id === "dash-community"
       ? "Dash Core, Platform, Identity and Orchard reads · Orchard processing local · Blob Worker check pending"
@@ -352,7 +433,15 @@ function secondaryToolMarkup(profile, footer) {
   const activityFooterProtocols =
     profile.id === "dash-community"
       ? "Dash Evo SDK 5.0.3 · proof-verified DAPI queries · Dash Orchard dashified-0.14.1 · DashScan Core API · Dash Platform Explorer"
-      : "Bitcoin public history · Ethereum and EVM network account activity · Dash Evo SDK 5.0.3 · Dash Orchard dashified-0.14.1 · DashScan Core API · Dash Platform Explorer · account balances of other networks";
+      : inCoinListOrder([
+          { name: "Bitcoin", text: "Bitcoin public history" },
+          {
+            name: "Dash",
+            text: "Dash Evo SDK 5.0.3 · Dash Orchard dashified-0.14.1 · DashScan Core API · Dash Platform Explorer",
+          },
+          { name: EVM_NETWORK_GROUP, text: "Ethereum and EVM network account activity" },
+          { name: ACCOUNT_COIN_GROUP, text: "account balances of other networks" },
+        ]).join(" · ");
   const psbtScriptPlaceholder = !profile.capabilities.advancedPsbt
     ? "522102...53ae or sh(sortedmulti(...))#checksum"
     : "522102...53ae or tr(xpub.../0/*,{multi_a(...)})#checksum";
@@ -429,15 +518,12 @@ export class ProfileTemplate {
       profile.id === "dash-community"
         ? "<strong>Limited search scope.</strong> Public keys only cover their own account, branch or reachable address formats; other hardened accounts are excluded. For the broadest search across supported Dash wallet schemes, use your seed phrase and original BIP39 passphrase, if any."
         : "<strong>Limited search scope.</strong> Public keys only cover their own account, branch or reachable address formats; other hardened accounts are excluded. For the broadest search across supported wallet schemes, use your seed phrase and original BIP39 passphrase, if any. Trying different formats for one xpub does not search the separate Legacy, SegWit and Taproot accounts.";
-    // The EVM networks after Ethereum come from the EVM network table (tooling/evm-networks.mjs).
-    // The account coins come from the account coin table (tooling/account-coins.mjs).
-    const options = (rows) =>
-      rows.map(({ id, label }) => `<option value="${id}">${label}</option>`).join("");
-    const otherEvmOptions = options(EVM_NETWORKS.filter(({ id }) => id !== "ethereum"));
+    // The EVM networks come from the EVM network table (tooling/evm-networks.mjs), the account
+    // coins from the account coin table (tooling/account-coins.mjs).
     const activityCoinControl =
       profile.id === "dash-community"
         ? ""
-        : `<div class="viewer-coin-field"><label for="viewer-coin">Coin</label><select id="viewer-coin"><option value="bitcoin" selected>Bitcoin</option><optgroup label="${EVM_NETWORK_GROUP}"><option value="ethereum">Ethereum</option>${otherEvmOptions}</optgroup><option value="dash">Dash</option><optgroup label="${ACCOUNT_COIN_GROUP}">${options(ACCOUNT_COINS)}</optgroup></select><p class="field-note">Choose the coin before entering a public lookup.</p></div>`;
+        : `<div class="viewer-coin-field"><label for="viewer-coin">Coin</label><select id="viewer-coin">${coinMenuOptions(ACTIVITY_VIEWER_COINS, "bitcoin")}</select><p class="field-note">Choose the coin before entering a public lookup.</p></div>`;
     const psbtChainOptions =
       profile.id === "dash-community"
         ? '<option value="dash">Dash Core</option>'
