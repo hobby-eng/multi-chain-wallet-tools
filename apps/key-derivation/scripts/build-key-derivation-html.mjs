@@ -99,6 +99,7 @@ if (
 // and the restores and repairs of Shamir shares. The worker is given the page's compiled MnemoCode,
 // whose bytes the page embeds once; its glue is that of the page's own file.
 const mnemocodeShares = features.has("mnemocode") && features.has("sskr");
+const hiddenSeedQr = features.has("seedqr") && features.has("mnemocode");
 const mnemocodeWasm = mnemocodeWasmPlugin(root, profile.id, "key-derivation");
 const recoveryWorkers = new RecoveryWorkerBundle(root, features, [mnemocodeWasm]);
 const mnemocodeSearchWorker = features.has("mnemocode")
@@ -177,6 +178,19 @@ export const installMessageSigningFeature = createMessageSigningInstaller(${poli
             contents: `${exports}\n${bip38}\n${signing}`,
           };
         });
+        // The SeedQR tab's hidden form keeps its record with MnemoCode's hidden QR: only a build
+        // with MnemoCode has it.
+        buildContext.onResolve({ filter: /recovery-seedqr-hidden-selection\.js$/ }, () => ({
+          path: "seedqr-hidden-selection",
+          namespace: "ckd-seedqr-hidden-selection",
+        }));
+        buildContext.onLoad({ filter: /.*/, namespace: "ckd-seedqr-hidden-selection" }, () => ({
+          loader: "ts",
+          resolveDir: root,
+          contents: hiddenSeedQr
+            ? `export { hiddenSeedQr } from ${JSON.stringify(resolve(root, "apps/key-derivation/src/ui/recovery-seedqr-hidden.ts"))};`
+            : "export const hiddenSeedQr = undefined;",
+        }));
         buildContext.onResolve({ filter: /recovery-feature-selection\.js$/ }, () => ({
           path: "selection",
           namespace: "ckd-recovery-selection",

@@ -137,6 +137,8 @@ export function detectSelectedMatcherTargets(input, network, forceAllProfiles) {
 function selectedRecoverySelfTestSource(root, features) {
   const definitions = [
     ["seedqr", "runSeedQrSelfTest", "self-test-seedqr.ts"],
+    // The decoy texts of a SeedQR hidden in a decoy QR, which needs MnemoCode's hidden QR.
+    ["seedqr+mnemocode", "runDecoyQrTextSelfTest", "self-test-decoy-qr-text.ts"],
     ["mnemocode", "runMnemoCodeSelfTest", "self-test-mnemocode.ts"],
     ["mnemocode-cards", "runMnemoCodeCardsSelfTest", "self-test-mnemocode-cards.ts"],
     ["slip39", "runSlip39SelfTest", "self-test-slip39.ts"],
@@ -514,6 +516,16 @@ const featureSourceMarkers = {
   ],
 };
 
+/** The SeedQR tab's hidden form and its library, which only seedqr with mnemocode builds. */
+const HIDDEN_SEEDQR_MARKERS = [
+  "/recovery-seedqr-hidden.ts",
+  "/recovery-seedqr-decoy-fields.ts",
+  "/recovery-backup/src/hidden-seedqr.ts",
+  "/recovery-backup/src/hidden-seedqr-self-test.ts",
+  "/recovery-backup/src/decoy-qr-text.ts",
+  "/recovery-backup/src/self-test-decoy-qr-text.ts",
+];
+
 /** Sources that a pair of features needs: absent unless both are built. */
 const sharedSourceMarkers = [
   {
@@ -553,6 +565,12 @@ const sharedSourceMarkers = [
     label: "MnemoCode shares (mnemocode with sskr)",
     needed: (features) => features.has("mnemocode") && features.has("sskr"),
     markers: ["/recovery-mnemocode-shares.ts", "/recovery-mnemocode-repair-times.ts"],
+  },
+  {
+    // A Standard SeedQR kept as the hidden record of MnemoCode's hidden QR behind a decoy.
+    label: "Hidden SeedQR (seedqr with mnemocode)",
+    needed: (features) => features.has("seedqr") && features.has("mnemocode"),
+    markers: HIDDEN_SEEDQR_MARKERS,
   },
 ];
 
@@ -618,4 +636,7 @@ export function assertKeyDerivationComposition(features, inputPaths) {
       requireInput("Wallet Matcher startup self-test", marker);
   if (features.has("mnemocode") && features.has("sskr"))
     requireInput("MnemoCode shares (mnemocode with sskr)", "/recovery-mnemocode-shares.ts");
+  if (features.has("seedqr") && features.has("mnemocode"))
+    for (const marker of HIDDEN_SEEDQR_MARKERS)
+      requireInput("Hidden SeedQR (seedqr with mnemocode)", marker);
 }

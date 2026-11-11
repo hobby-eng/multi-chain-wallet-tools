@@ -6,6 +6,7 @@ import {
   decodeStandardSeedQr,
   encodeCompactSeedQr,
   encodeStandardSeedQr,
+  isStandardSeedQr,
 } from "../src/seedqr.js";
 
 const VECTORS = [
@@ -102,5 +103,21 @@ describe("SeedSigner SeedQR vectors", () => {
     expect(() => encodeStandardSeedQr(VECTOR.mnemonic.replace("forum", "abandon"))).toThrow(
       /checksum/u,
     );
+  });
+
+  it("tells the form of a Standard SeedQR: four digits a word, for a BIP39 length", () => {
+    for (const words of [12, 15, 18, 21, 24])
+      expect(isStandardSeedQr("0".repeat(words * 4))).toBe(true);
+    // The form only: word 9999 and a wrong checksum are refused by decoding.
+    expect(isStandardSeedQr(`9999${"0000".repeat(11)}`)).toBe(true);
+    for (const payload of [
+      "",
+      "0".repeat(44),
+      "0".repeat(52),
+      ` ${VECTOR.standard}`,
+      "١".repeat(48),
+    ])
+      expect(isStandardSeedQr(payload)).toBe(false);
+    expect(isStandardSeedQr(`${VECTOR.standard.slice(1)}x`)).toBe(false);
   });
 });

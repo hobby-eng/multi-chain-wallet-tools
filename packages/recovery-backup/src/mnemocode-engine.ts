@@ -77,6 +77,15 @@ export function whenMnemoCodeLoaded(use: (binding: MnemoCodeBinding) => void): v
   else use(binding);
 }
 
+/**
+ * Where MnemoCode is in this realm: still loading, ready to answer, or stopped by an internal
+ * error until the page is loaded again.
+ */
+export function mnemocodeState(): "loading" | "ready" | "stopped" {
+  if (trapped !== undefined) return "stopped";
+  return binding === undefined ? "loading" : "ready";
+}
+
 /** MnemoCode, once the startup checks loaded it; every feature that uses it runs after them. */
 export function mnemocode(): MnemoCodeBinding {
   refuseIfTrapped();

@@ -3,6 +3,7 @@ import { installTextFileImport } from "../src/text-file-import.js";
 import { installQrImageImport } from "../src/qr-image-import.js";
 import { PassiveQrPage } from "../../../test/support/qr-page.js";
 import { QrImageBoundary } from "../../../test/support/qr-image-boundary.js";
+import { syntheticQrPng } from "../../../test/support/synthetic-png.mjs";
 import { edit, settlePromises } from "../../../apps/key-derivation/tests/fake-recovery-page.js";
 
 const OLD = "existing public input";
@@ -210,4 +211,95 @@ it("reads the hidden record a PNG keeps before its visible QR, and only then the
   expect(target.value).toBe("public hidden record");
   // No bitmap was decoded: the hidden record was the answer.
   expect(pending).toHaveLength(0);
+});
+
+it("says why a hidden record went unread beside a refusal of the image's ordinary reading", async () => {
+  const page = new PassiveQrPage();
+  const target = page.add("qr-input", "textarea");
+  target.value = OLD;
+  target.after = (...nodes) => page.body.append(...nodes);
+  const { pending } = new QrImageBoundary(page);
+  const reason = "A public reason the record went unread.";
+  const seen: (string | undefined)[] = [];
+  const errors = vi.fn();
+  installQrImageImport(page.asDocument(), target as unknown as HTMLTextAreaElement, {
+    readHidden: (_png, unread) => {
+      unread(reason);
+      return undefined;
+    },
+    onDecoded: (decoded) => {
+      seen.push(decoded.hiddenUnread);
+      if (decoded.text === "public decoy text") throw new Error("No payload of this field.");
+      return decoded.text;
+    },
+    onError: errors,
+  });
+  const chooser = page.body
+    .querySelectorAll("input")
+    .find((input) => String(Reflect.get(input, "accept")).startsWith("image/"));
+  if (chooser === undefined) throw new Error("The actual FileChoice input is missing.");
+  /** Chooses a public PNG and waits for its ordinary reading, the `count`th, to begin. */
+  const choose = async (count: number): Promise<void> => {
+    Object.defineProperty(chooser, "files", {
+      configurable: true,
+      value: [
+        new File([syntheticQrPng("public", 165, 165, 5)], "public.png", {
+          type: "image/png",
+        }),
+      ],
+    });
+    chooser.dispatchEvent(new Event("change"));
+    await vi.waitFor(() => expect(pending).toHaveLength(count));
+  };
+
+  // The field's refusal of what the image gives, and a failed ordinary reading, both name it.
+  await choose(1);
+  pending[0]!.release("public decoy text");
+  await vi.waitFor(() => expect(errors).toHaveBeenCalledTimes(1));
+  expect(errors).toHaveBeenLastCalledWith(`No payload of this field. ${reason}`);
+  await choose(2);
+  pending[1]!.reject();
+  await vi.waitFor(() => expect(errors).toHaveBeenCalledTimes(2));
+  // The page's PNG admission says the image could not be decoded, as for any PNG.
+  expect(errors).toHaveBeenLastCalledWith(`The PNG image could not be decoded. ${reason}`);
+  expect(target.value).toBe(OLD);
+  // A payload the field takes goes in as ever, and a note under the field says why: a decoy that
+  // looks like a payload is never taken silently.
+  const note = page.body.querySelector("p.qr-import-note");
+  if (note === null) throw new Error("The import's note is missing.");
+  expect(note.hidden).toBe(true);
+  await choose(3);
+  pending[2]!.release("public payload");
+  await vi.waitFor(() => expect(target.value).toBe("public payload"));
+  expect(seen).toEqual([reason, reason]);
+  expect(errors).toHaveBeenCalledTimes(2);
+  expect(note.hidden).toBe(false);
+  expect(note.textContent).toBe(`Read as an ordinary QR code. ${reason}`);
+  // The field's next edit takes the note away with the text it spoke of.
+  edit(target, "public edit");
+  expect(note.hidden).toBe(true);
+  expect(note.textContent).toBe("");
+});
+
+it("leaves the note away after an image whose hidden reader looked", async () => {
+  const page = new PassiveQrPage();
+  const target = page.add("qr-input", "textarea");
+  target.after = (...nodes) => page.body.append(...nodes);
+  const { pending } = new QrImageBoundary(page);
+  installQrImageImport(page.asDocument(), target as unknown as HTMLTextAreaElement, {
+    readHidden: () => undefined,
+  });
+  const chooser = page.body
+    .querySelectorAll("input")
+    .find((input) => String(Reflect.get(input, "accept")).startsWith("image/"));
+  if (chooser === undefined) throw new Error("The actual FileChoice input is missing.");
+  Object.defineProperty(chooser, "files", {
+    configurable: true,
+    value: [new File([syntheticQrPng("public", 165, 165, 5)], "public.png", { type: "image/png" })],
+  });
+  chooser.dispatchEvent(new Event("change"));
+  await vi.waitFor(() => expect(pending).toHaveLength(1));
+  pending[0]!.release("public payload");
+  await vi.waitFor(() => expect(target.value).toBe("public payload"));
+  expect(page.body.querySelector("p.qr-import-note")?.hidden).toBe(true);
 });

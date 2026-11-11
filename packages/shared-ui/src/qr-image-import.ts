@@ -17,6 +17,11 @@ export interface DecodedQrImage {
   readonly utf8: boolean;
   /** Present when the QR contains one byte-mode segment, including embedded NUL/CR/LF bytes. */
   readonly binaryData?: Uint8Array;
+  /**
+   * Why a hidden record could not be looked for in this PNG (HiddenQrReader): the import says it
+   * beside a refusal of what the image gives, and in a note under the field when it imports it.
+   */
+  readonly hiddenUnread?: string;
 }
 
 export function decodeQrPixels(
@@ -51,9 +56,34 @@ export function decodeQrPixels(
 
 /**
  * Reads a record a QR's PNG keeps beyond what ordinary scanners show, such as MnemoCode's hidden
- * QR record; undefined where the image keeps none, and the image is then read as any QR code.
+ * QR record; undefined where the image keeps none, and the image is then read as any QR code. A
+ * reader that could not look, such as one with a smaller pixel limit than the page's, says why
+ * through `unread` before it returns undefined.
  */
-export type HiddenQrReader = (png: Uint8Array) => string | undefined;
+export type HiddenQrReader = (
+  png: Uint8Array,
+  unread: (reason: string) => void,
+) => string | undefined;
+
+/** `cause` with `reason` after its message, for a refusal of what an image gave. */
+function withUnreadReason(cause: unknown, reason: string): Error {
+  const message = cause instanceof Error ? cause.message : "The QR image could not be decoded.";
+  return new Error(`${message} ${reason}`, { cause });
+}
+
+/** The ordinary reading of a PNG whose hidden record went unread, with that reason kept. */
+async function readWithoutHidden(
+  decoding: Promise<DecodedQrImage | undefined>,
+  reason: string,
+): Promise<DecodedQrImage | undefined> {
+  let decoded: DecodedQrImage | undefined;
+  try {
+    decoded = await decoding;
+  } catch (cause) {
+    throw withUnreadReason(cause, reason);
+  }
+  return decoded === undefined ? undefined : { ...decoded, hiddenUnread: reason };
+}
 
 async function decodeQrImage(
   file: File,
@@ -74,12 +104,15 @@ async function decodeQrImage(
   try {
     if (!current()) return undefined;
     if (file.type === PNG_MIME_TYPE || BrowserPngAdmission.hasSignature(bytes)) {
-      const hidden = readHidden?.(bytes);
+      const unread: string[] = [];
+      const hidden = readHidden?.(bytes, (reason) => void unread.push(reason));
       if (hidden !== undefined) return { text: hidden, utf8: true };
       // decode() owns its snapshot synchronously, so the file-read buffer can be wiped now.
-      return PNG_ADMISSION.decode(bytes, (owned) =>
+      const decoding = PNG_ADMISSION.decode(bytes, (owned) =>
         decodeQrBlob(new Blob([owned], { type: PNG_MIME_TYPE }), current),
       );
+      const [reason] = unread;
+      return reason === undefined ? decoding : readWithoutHidden(decoding, reason);
     }
   } finally {
     bytes.fill(0);
@@ -132,11 +165,49 @@ export interface QrImageImportOptions {
   onError?(message: string): void;
 }
 
+/** What the note under a field says first, before why an image's hidden record went unread. */
+const READ_AS_ORDINARY = "Read as an ordinary QR code.";
+
+/**
+ * The note under a field after an import of an image whose hidden record went unread, so that a
+ * decoy taken for a payload is never taken silently. It goes with the field's next edit, the next
+ * import and Clear all.
+ */
+class UnreadHiddenRecordNote {
+  readonly #element: HTMLParagraphElement;
+
+  /** A note placed by its import, which watches `target` for the edits that end it. */
+  constructor(document: Document, target: HTMLTextAreaElement) {
+    this.#element = document.createElement("p");
+    this.#element.className = "field-note qr-import-note";
+    this.#element.setAttribute("role", "status");
+    this.#element.hidden = true;
+    for (const type of ["input", "change"]) target.addEventListener(type, () => this.clear());
+    document.querySelector("#clear-all")?.addEventListener("click", () => this.clear());
+  }
+
+  get element(): HTMLParagraphElement {
+    return this.#element;
+  }
+
+  show(reason: string): void {
+    this.#element.textContent = `${READ_AS_ORDINARY} ${reason}`;
+    this.#element.hidden = false;
+  }
+
+  clear(): void {
+    this.#element.textContent = "";
+    this.#element.hidden = true;
+  }
+}
+
 /** Owns one field's chooser and publication revisions through asynchronous image decoding. */
 export class QrImageImport {
   readonly #target: HTMLTextAreaElement;
   readonly #options: QrImageImportOptions;
   readonly #inputs: FieldImportRevision;
+  /** Only an import with a hidden reader has one: no other import leaves a record unread. */
+  readonly #note: UnreadHiddenRecordNote | undefined;
 
   /** Installs local-only import; no callback or value publishes after the field lifetime changes. */
   constructor(document: Document, target: HTMLTextAreaElement, options: QrImageImportOptions = {}) {
@@ -147,8 +218,12 @@ export class QrImageImport {
       accept: "image/png,image/jpeg,image/webp,image/gif,image/bmp",
       multiple: options.multiple === true,
     });
-    target.after(...choice.elements);
+    this.#note =
+      options.readHidden === undefined ? undefined : new UnreadHiddenRecordNote(document, target);
+    // The chooser right after its field, and the note under the button that imported.
+    target.after(...choice.elements, ...(this.#note === undefined ? [] : [this.#note.element]));
     choice.onChoose(() => {
+      this.#note?.clear();
       this.#inputs.revise();
       const files = choice.files;
       choice.clear();
@@ -160,6 +235,7 @@ export class QrImageImport {
   async #read(files: readonly File[], capture: FieldImportCapture): Promise<void> {
     using current = capture;
     const values: SecretValue<readonly string[]>[] = [];
+    let unread: string | undefined;
     try {
       for (const file of files) {
         if (!current.current()) return;
@@ -171,10 +247,11 @@ export class QrImageImport {
         if (decoded === undefined) return;
         try {
           if (!current.current()) return;
-          const value = this.#options.onDecoded?.(decoded) ?? qrText(decoded);
+          const value = this.#value(decoded);
           // A callback can synchronously edit the field or revoke the page lifetime.
           if (!current.current()) return;
           values.push(SecretValue.utf16Texts([value]));
+          unread ??= decoded.hiddenUnread;
         } finally {
           decoded.binaryData?.fill(0);
         }
@@ -186,6 +263,8 @@ export class QrImageImport {
         .join("\n");
       this.#target.value = current.importedText(incoming, this.#options.multiple === true);
       this.#target.dispatchEvent(new Event("input", { bubbles: true }));
+      // After the input event, whose listeners clear the note of the field's earlier text.
+      if (unread !== undefined) this.#note?.show(unread);
     } catch (cause) {
       if (current.current())
         this.#options.onError?.(
@@ -193,6 +272,16 @@ export class QrImageImport {
         );
     } finally {
       for (const value of values) value.wipe();
+    }
+  }
+
+  /** The field's text of one image; a refusal of it names a hidden record that went unread. */
+  #value(decoded: DecodedQrImage): string {
+    try {
+      return this.#options.onDecoded?.(decoded) ?? qrText(decoded);
+    } catch (cause) {
+      if (decoded.hiddenUnread === undefined) throw cause;
+      throw withUnreadReason(cause, decoded.hiddenUnread);
     }
   }
 }

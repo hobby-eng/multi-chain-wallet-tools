@@ -19,6 +19,14 @@ export function isCompactSeedQr(bytes: Uint8Array): boolean {
   return BIP39_ENTROPY_BYTES.includes(bytes.length);
 }
 
+/**
+ * Whether `payload` has the form of a Standard SeedQR: only decimal digits, four for each word of
+ * a BIP39 length. It says nothing of the words' checksum, which decoding checks.
+ */
+export function isStandardSeedQr(payload: string): boolean {
+  return /^\d+$/u.test(payload) && STANDARD_PAYLOAD_LENGTHS.includes(payload.length);
+}
+
 /** SeedQR encodes every BIP39 phrase, so a valid one is all it needs. */
 function assertSeedQrMnemonic(value: string): string {
   return assertValidMnemonic(value);
@@ -37,7 +45,7 @@ export function encodeStandardSeedQr(value: string): string {
 
 export function decodeStandardSeedQr(value: string): string {
   const payload = value.trim();
-  if (!/^\d+$/u.test(payload) || !STANDARD_PAYLOAD_LENGTHS.includes(payload.length)) {
+  if (!isStandardSeedQr(payload)) {
     throw new Error(
       `Standard SeedQR must contain exactly ${orList(STANDARD_PAYLOAD_LENGTHS)} decimal digits.`,
     );

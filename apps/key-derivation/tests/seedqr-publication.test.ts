@@ -9,6 +9,10 @@ import { RecoveryJobGate } from "../src/ui/recovery-job-gate.js";
 import type { RecoveryFeatureContext } from "../src/ui/recovery-workspace-shared.js";
 import { settlePromises } from "./fake-recovery-page.js";
 
+// The SeedQR tab of a build without MnemoCode: the build's selection gives it no hidden form
+// (build-key-derivation-html.mjs). The hidden form has its browser case, seedqr-hidden.
+vi.mock("../src/ui/recovery-seedqr-hidden-selection.js", () => ({ hiddenSeedQr: undefined }));
+
 const PHRASE = `${"abandon ".repeat(11)}about`;
 
 afterEach(() => {

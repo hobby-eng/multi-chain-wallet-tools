@@ -30,6 +30,7 @@ describe("embedded recovery startup self-test", () => {
     expect(report.passed).toBe(true);
     expect(report.checks).toEqual([
       "SeedQR encode/decode",
+      "Decoy QR texts: vCard and Wi-Fi escaping",
       expect.stringMatching(
         /^MnemoCode v\d+\.\d+\.\d+ WebAssembly: phrase, wallet, QR, candidate, share, recovery, cross-stitch and steganography known answers$/u,
       ),
