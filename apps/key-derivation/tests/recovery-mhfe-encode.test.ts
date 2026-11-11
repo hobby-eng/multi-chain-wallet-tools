@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 // never compiled; the import only needs a value.
 vi.mock("@ckd/recovery-mhfe-wasm/runtime/mhfe.wasm", () => ({ default: new Uint8Array() }));
 
-import { RecoveryJobGate } from "../src/ui/recovery-job-gate.js";
+import { RecoveryJobGate, bindJobGate } from "../src/ui/recovery-job-gate.js";
 import { MhfeEncodeTab } from "../src/ui/recovery-mhfe-encode.js";
 import { MhfeEngine } from "../src/ui/recovery-mhfe-engine.js";
 import { type FakeElement, installPage, settle, withPackageValues } from "./fake-mhfe-page.js";
@@ -17,6 +17,9 @@ import { type FakeElement, installPage, settle, withPackageValues } from "./fake
 // The public BIP39 test phrase.
 const PHRASE =
   "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+
+/** A synthetic container password, typed twice. */
+const PASSWORD = "synthetic password";
 
 /** What the package seals without an answer about the passphrase (mhfe web/client.d.ts). */
 const SEALED = {
@@ -50,6 +53,9 @@ function setup(
 ) {
   const element = installPage();
   const gate = new RecoveryJobGate();
+  // The page binds the gate to Encrypt before the panels install, as installRecoveryWorkspace does.
+  element("#mhfe-encrypt").dataset.heavyJob = "";
+  bindJobGate(gate, [element("#mhfe-encrypt") as never], element("#recovery-busy") as never);
   gate.setReady(true);
   const engine = new MhfeEngine();
   withPackageValues(engine);
@@ -80,14 +86,40 @@ function setup(
     }),
     strength: async () => ({ weak: false }),
   })) as never;
-  new MhfeEncodeTab(
-    { jobs: gate, writeClipboard: async () => undefined, readMnemonic: () => PHRASE } as never,
-    engine,
-  );
-  element("#mhfe-encrypt-password").value = "synthetic password";
-  element("#mhfe-encrypt-password-confirm").value = "synthetic password";
+  const copied: string[] = [];
+  const writeClipboard = async (text: string) => {
+    copied.push(text);
+  };
+  const readMnemonic = vi.fn(() => PHRASE);
+  new MhfeEncodeTab({ jobs: gate, writeClipboard, readMnemonic } as never, engine);
+  element("#mhfe-encrypt-password").value = PASSWORD;
+  element("#mhfe-encrypt-password-confirm").value = PASSWORD;
   element('input[name="mhfe-repair-count"]:checked').value = "0";
-  return { element, requests, engine, gate };
+  return { element, requests, engine, gate, copied, readMnemonic };
+}
+
+/** The command line shown: its parts, an option with its value each, joined by spaces. */
+function commandShown(element: ReturnType<typeof installPage>): string {
+  return element("#mhfe-encrypt-command-text")
+    .children.map((part) => (typeof part === "string" ? part : part.textContent))
+    .join("");
+}
+
+/** Sets the memory level and the PIM as a person does, and lets the form react. */
+function choose(
+  element: ReturnType<typeof installPage>,
+  settings: { level?: number; pim?: string; sameLength?: boolean },
+): void {
+  if (settings.level !== undefined) {
+    element("#mhfe-encrypt-memory-level").value = String(settings.level);
+    element("#mhfe-encrypt-memory-level").dispatchEvent(new Event("change"));
+  }
+  if (settings.pim !== undefined) {
+    element("#mhfe-encrypt-use-pim").checked = true;
+    element("#mhfe-encrypt-pim").value = settings.pim;
+  }
+  if (settings.sameLength !== undefined) element("#mhfe-length-same").checked = settings.sameLength;
+  element("#mhfe-create-panel").dispatchEvent(new Event("change"));
 }
 
 describe("MHFE Encode's note on the word count, from the container chosen", () => {
@@ -158,5 +190,131 @@ describe("MHFE Encode without a question about the BIP39 passphrase", () => {
       // Even a retained worker callback cannot put the old container back.
       (tab.requests[0]!.onUnverified as (value: typeof SEALED) => void)(SEALED);
       expect(tab.element("#mhfe-encrypt-result").childElementCount).toBe(0);
+    });
+});
+
+describe("MHFE Encode's memory level and the mhfe command for settings the page does not run", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /** The tab once MHFE has passed its panel check and its parameters are read. */
+  async function opened() {
+    const tab = setup();
+    tab.engine.passed();
+    await settle();
+    return tab;
+  }
+
+  it("offers every level the package takes, level 0 chosen, and no command at the defaults", async () => {
+    const tab = await opened();
+    const select = tab.element("#mhfe-encrypt-memory-level");
+    expect(select.children.map((option) => (option as typeof select).textContent)).toEqual(
+      expect.arrayContaining(["0 · 2 GiB (default)", "1 · 3 GiB", "21 · 3 TiB"]),
+    );
+    expect(select.childElementCount).toBe(22);
+    expect(select.value).toBe("0");
+    expect(tab.element("#mhfe-encrypt-command").hidden).toBe(true);
+    expect(tab.element("#mhfe-encrypt").disabled).toBe(false);
+  });
+
+  it("closes Encrypt above level 0, also after the job gate changes, and opens it at level 0", async () => {
+    const tab = await opened();
+    choose(tab.element, { level: 2 });
+    expect(tab.element("#mhfe-encrypt").disabled).toBe(true);
+    tab.gate.setReady(true);
+    expect(tab.element("#mhfe-encrypt").disabled).toBe(true);
+    choose(tab.element, { level: 0 });
+    expect(tab.element("#mhfe-encrypt").disabled).toBe(false);
+    expect(tab.element("#mhfe-encrypt-command").hidden).toBe(true);
+  });
+
+  it("encrypts with a custom PIM at level 0 and shows the command beside it", async () => {
+    const tab = await opened();
+    choose(tab.element, { pim: "3" });
+    expect(tab.element("#mhfe-encrypt").disabled).toBe(false);
+    expect(tab.element("#mhfe-encrypt-command").hidden).toBe(false);
+    expect(commandShown(tab.element)).toBe(
+      "mhfe encrypt --pim 3 --mem 0 --new-password own --repair-words 0",
+    );
+    expect(tab.element("#mhfe-encrypt-command-length").hidden).toBe(false);
+    tab.element("#mhfe-encrypt").click();
+    await settle();
+    expect(tab.requests).toHaveLength(1);
+    expect(tab.requests[0]).toMatchObject({ pim: 3, memoryLevel: 0, repairWordCount: 0 });
+  });
+
+  it("copies exactly the command shown, and nothing while a setting is refused", async () => {
+    const tab = await opened();
+    choose(tab.element, { level: 2, pim: "3", sameLength: true });
+    const line = "mhfe encrypt --pim 3 --mem 2 --same-length --new-password own --repair-words 0";
+    expect(commandShown(tab.element)).toBe(line);
+    expect(tab.element("#mhfe-encrypt-command-length").hidden).toBe(true);
+    tab.element("#mhfe-encrypt-command-copy").click();
+    await settle();
+    expect(tab.copied).toEqual([line]);
+    expect(tab.element("#mhfe-encrypt-command-status").textContent).toBe("Copied to clipboard.");
+    choose(tab.element, { pim: "1024" });
+    expect(commandShown(tab.element)).toBe("");
+    expect(tab.element("#mhfe-encrypt-command-copy").disabled).toBe(true);
+    expect(tab.element("#mhfe-encrypt-command-status").textContent).toBe(
+      "Type a PIM from 1 to 1023, or untick “Use a custom PIM”.",
+    );
+    tab.element("#mhfe-encrypt-command-copy").click();
+    await settle();
+    expect(tab.copied).toEqual([line]);
+    // The typed password never reaches the command, its status or the clipboard.
+    choose(tab.element, { pim: "3" });
+    expect(commandShown(tab.element)).toBe(line);
+    for (const shown of [commandShown(tab.element), ...tab.copied])
+      expect(shown).not.toContain(PASSWORD);
+    expect(tab.element("#mhfe-encrypt-command-status").textContent).not.toContain(PASSWORD);
+  });
+
+  it("keeps Encrypt closed above level 0 while another heavy job runs and after it ends", async () => {
+    const tab = await opened();
+    choose(tab.element, { level: 2 });
+    await tab.gate.runHeavy("other", async () => {
+      expect(tab.element("#mhfe-encrypt").disabled).toBe(true);
+    });
+    expect(tab.element("#mhfe-encrypt").disabled).toBe(true);
+    choose(tab.element, { level: 0 });
+    expect(tab.element("#mhfe-encrypt").disabled).toBe(false);
+  });
+
+  it("refuses to encrypt above level 0 before the phrase is read, even if Encrypt is pressed", async () => {
+    const tab = await opened();
+    choose(tab.element, { level: 2 });
+    // The fake page delivers a click to a closed button too: the run refuses on its own,
+    // whatever the button's state.
+    tab.element("#mhfe-encrypt").click();
+    await settle();
+    expect(tab.requests).toHaveLength(0);
+    expect(tab.readMnemonic).not.toHaveBeenCalled();
+    expect(tab.element("#mhfe-encrypt-status").textContent).toBe(
+      "A browser runs memory level 0 only: encrypt at level 2 with the mhfe command.",
+    );
+  });
+
+  for (const [field, badInput] of [
+    ["empty", false],
+    ["not a number", true],
+  ] as const)
+    it(`refuses a ticked PIM field that is ${field}, never encrypting at PIM 0`, async () => {
+      const tab = await opened();
+      tab.element("#mhfe-encrypt-pim").validity.badInput = badInput;
+      choose(tab.element, { pim: "" });
+      expect(tab.element("#mhfe-encrypt-command").hidden).toBe(false);
+      expect(commandShown(tab.element)).toBe("");
+      expect(tab.element("#mhfe-encrypt-command-status").textContent).toBe(
+        "Type the PIM as a whole number, or untick “Use a custom PIM”.",
+      );
+      tab.element("#mhfe-encrypt").click();
+      await settle();
+      expect(tab.requests).toHaveLength(0);
+      expect(tab.readMnemonic).not.toHaveBeenCalled();
+      expect(tab.element("#mhfe-encrypt-status").textContent).toBe(
+        "Type the PIM as a whole number, or untick “Use a custom PIM”.",
+      );
     });
 });

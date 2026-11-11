@@ -275,6 +275,21 @@ describe("the MHFE Check verdict belongs to the fields it checked", () => {
     expect(tab.requests).toHaveLength(0);
     expect(tab.status()).toMatch(/^Stopped\./u);
   });
+
+  for (const typed of ["", "1024"])
+    it(`refuses a ticked PIM field holding "${typed}" before any check, never checking at PIM 0`, async () => {
+      const tab = setup();
+      tab.element("#mhfe-check-use-pim").checked = true;
+      tab.edit("#mhfe-check-pim", typed);
+      tab.press();
+      await settle();
+      expect(tab.requests).toHaveLength(0);
+      expect(tab.status()).toBe(
+        typed === ""
+          ? "Type the PIM as a whole number, or untick “Use a custom PIM”."
+          : "Type a PIM from 1 to 1023, or untick “Use a custom PIM”.",
+      );
+    });
 });
 
 describe("a check that detects the original seed phrase's length (MHFE 0.6.0)", () => {

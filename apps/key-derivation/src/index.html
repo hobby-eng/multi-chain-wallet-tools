@@ -1036,12 +1036,13 @@
               </p>
               <h3>Not in this page</h3>
               <p>
-                Memory levels above 0 need more memory than a browser gives WebAssembly. The check of free memory, the
-                private terminal screen, the swap warning and the process protections of the mhfe program (no core
-                dumps, locked memory, no network, no file writes) need the operating system: this page conceals secrets
-                instead and ends each worker with its memory when its operation ends. Time estimates of settings,
-                reading from standard input, exit codes and the long vector replays serve the command line and scripts.
-                The executable version of this tool serves this page in fast mode, as mhfe serve does.
+                Memory levels above 0 need more than the 2 GiB that the browser's Argon2 build allows; Encode shows the
+                mhfe command that encrypts with them. The check of free memory, the private terminal screen, the swap
+                warning and the process protections of the mhfe program (no core dumps, locked memory, no network, no
+                file writes) need the operating system: this page conceals secrets instead and ends each worker with its
+                memory when its operation ends. Time estimates of settings, reading from standard input, exit codes and
+                the long vector replays serve the command line and scripts. The executable version of this tool serves
+                this page in fast mode, as mhfe serve does.
               </p>
               <h3>What the browser cannot wipe</h3>
               <p>
@@ -1361,12 +1362,49 @@
               invisible control characters are refused. Letter case and spaces count: lowercase words with single spaces
               are the easiest to type again years later.
             </p>
-            <p class="field-note mhfe-memory-note">
-              Memory level is always 0 (2 GiB) here. A browser gives WebAssembly at most 4 GiB, and the Argon2 code
-              allows at most 2 GiB in such 32-bit builds, so a browser cannot run a higher level and this page does not
-              offer the setting. To choose a higher memory level, or to open a container made with one, use the mhfe
-              command-line program.
-            </p>
+            <div class="field-heading-row">
+              <label for="mhfe-encrypt-memory-level">Memory level</label>
+              <details class="recovery-help option-help">
+                <summary class="help-mark" aria-label="What the memory level is">?</summary>
+                <div class="recovery-help-popover">
+                  <h3>Memory level</h3>
+                  <p>
+                    The memory of every Argon2 call, shown beside each level. It doubles every two levels, and the time
+                    of the encryption and of every recovery grows with it.
+                  </p>
+                  <p>
+                    Level 0, the default, needs no note. A container made at another level opens only at that same
+                    level, on a computer with that much free memory, and nothing in the container records the level:
+                    write it down with the password, and choose a level that the computer you will recover on can
+                    provide.
+                  </p>
+                </div>
+              </details>
+            </div>
+            <select id="mhfe-encrypt-memory-level"></select>
+            __MHFE_ENCODE_MEMORY_NOTE__
+            <div id="mhfe-encrypt-command" class="mhfe-command" hidden>
+              <p class="mhfe-command-title">The mhfe command with these settings</p>
+              <div class="mhfe-command-line">
+                <code id="mhfe-encrypt-command-text"></code>
+                <button id="mhfe-encrypt-command-copy" class="secondary compact" type="button">Copy</button>
+              </div>
+              <p id="mhfe-encrypt-command-status" class="field-note" role="status" aria-live="polite"></p>
+              <p id="mhfe-encrypt-command-length" class="field-note">
+                24 words has no option: for a 12- to 21-word phrase, mhfe asks how long the container should be, and
+                Enter keeps 24 words.
+              </p>
+              <p id="mhfe-encrypt-command-made" class="field-note" hidden>
+                mhfe makes the password itself and shows it once.
+              </p>
+              <p class="field-note">
+                The seed phrase is not copied here. mhfe asks for it, and for the password, as soon as the command runs,
+                so neither stays in the terminal history. The command itself, with its PIM and memory level, does stay
+                in the shell history; plain mhfe encrypt asks for them at its prompts instead. Run it as mhfe
+                recommends: on a trusted, non-persistent live system started from a USB stick, with the network
+                disconnected.
+              </p>
+            </div>
             <div class="actions">
               <button class="primary" id="mhfe-encrypt" type="button" data-heavy-job>Encrypt</button>
               <button class="secondary" id="mhfe-encrypt-stop" type="button" hidden>Cancel</button>
@@ -1640,12 +1678,7 @@
               >PIM (1–1023)
               <input id="mhfe-decrypt-pim" type="number" min="1" step="1" value="1" />
             </label>
-            <p class="field-note mhfe-memory-note">
-              Memory level is always 0 (2 GiB) here. A browser gives WebAssembly at most 4 GiB, and the Argon2 code
-              allows at most 2 GiB in such 32-bit builds, so a browser cannot run a higher level and this page does not
-              offer the setting. To choose a higher memory level, or to open a container made with one, use the mhfe
-              command-line program.
-            </p>
+            __MHFE_MEMORY_NOTE__
             <div id="mhfe-decrypt-more-passwords"></div>
             <p id="mhfe-decrypt-several-note" class="warning-callout">
               With several passwords, all their seed phrases are shown on one screen. Each appears under its password as
@@ -1967,12 +2000,7 @@
               >PIM (1–1023)
               <input id="mhfe-check-pim" type="number" min="1" step="1" value="1" />
             </label>
-            <p class="field-note mhfe-memory-note">
-              Memory level is always 0 (2 GiB) here. A browser gives WebAssembly at most 4 GiB, and the Argon2 code
-              allows at most 2 GiB in such 32-bit builds, so a browser cannot run a higher level and this page does not
-              offer the setting. To choose a higher memory level, or to open a container made with one, use the mhfe
-              command-line program.
-            </p>
+            __MHFE_MEMORY_NOTE__
             <div id="mhfe-check-passphrase-field">
               <div class="field-heading-row">
                 <label for="mhfe-check-passphrase">BIP39 passphrase of the wallet, or empty if it has none</label>
@@ -2649,12 +2677,7 @@
               >PIM (1–1023)
               <input id="mhfe-rekey-new-pim" type="number" min="1" step="1" value="1" />
             </label>
-            <p class="field-note mhfe-memory-note">
-              Memory level is always 0 (2 GiB) here. A browser gives WebAssembly at most 4 GiB, and the Argon2 code
-              allows at most 2 GiB in such 32-bit builds, so a browser cannot run a higher level and this page does not
-              offer the setting. To choose a higher memory level, or to open a container made with one, use the mhfe
-              command-line program.
-            </p>
+            __MHFE_REKEY_MEMORY_NOTE__
             <fieldset class="choice-group">
               <legend>Repair words for the container phrase?</legend>
               <div data-mhfe-repair-choices="mhfe-rekey-repair-count" data-mhfe-allow-none>
@@ -2963,12 +2986,7 @@
               >PIM (1–1023)
               <input id="mhfe-wallets-pim" type="number" min="1" step="1" value="1" />
             </label>
-            <p class="field-note mhfe-memory-note">
-              Memory level is always 0 (2 GiB) here. A browser gives WebAssembly at most 4 GiB, and the Argon2 code
-              allows at most 2 GiB in such 32-bit builds, so a browser cannot run a higher level and this page does not
-              offer the setting. To choose a higher memory level, or to open a container made with one, use the mhfe
-              command-line program.
-            </p>
+            __MHFE_MEMORY_NOTE__
             <div class="mhfe-password-field">
               <div class="field-heading-row">
                 <label for="mhfe-wallets-main-passphrase"

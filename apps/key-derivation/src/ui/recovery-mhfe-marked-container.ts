@@ -13,7 +13,7 @@ import {
   repairedContainer,
 } from "./recovery-mhfe-cards.js";
 import type { MhfeEngine } from "./recovery-mhfe-engine.js";
-import type { ContainerField, RecoverySettings } from "./recovery-mhfe-fields.js";
+import type { ContainerField, PimField, RecoverySettings } from "./recovery-mhfe-fields.js";
 import { MissingWordsSearch, type FoundContainer } from "./recovery-mhfe-missing-words.js";
 import type { MhfeRun } from "./recovery-mhfe-run.js";
 import type { MhfeWaiting } from "./recovery-mhfe-task.js";
@@ -55,7 +55,7 @@ export interface MarkedContainerHost {
    * while that needs an answer); see MissingWordsSearch.
    */
   readonly recovery: {
-    readonly pim: { value(): number };
+    readonly pim: Pick<PimField, "settled">;
     settings?(run: MhfeRun): Promise<RecoverySettings | MhfeWaiting>;
   };
   /**
@@ -110,7 +110,7 @@ export class MarkedContainer {
     const settings = recovery.settings?.bind(recovery);
     this.#search = new MissingWordsSearch(context, engine, host.prefix, this.#status, {
       ...(settings === undefined ? {} : { settings }),
-      pim: () => recovery.pim.value(),
+      pim: (maxPim) => recovery.pim.settled(maxPim),
       found: (found) => this.#offerFound(found),
       back: () => this.#typeAgain(),
     });

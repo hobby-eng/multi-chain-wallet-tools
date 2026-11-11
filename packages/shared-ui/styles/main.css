@@ -2701,9 +2701,51 @@ footer p {
 #mhfe-panel .mhfe-pim-note {
   margin-top: -0.75rem;
 }
-/* Why the browser offers no memory-level setting: shown as a warning. */
+/* Why the browser runs memory level 0 only: shown as a warning. */
 #mhfe-panel .mhfe-memory-note {
   color: var(--accent2);
+}
+
+/* The mhfe command for settings this page does not run: public text, broken where it must. */
+#mhfe-panel .mhfe-command {
+  display: grid;
+  gap: 0.5rem;
+}
+
+#mhfe-panel .mhfe-command > .field-note,
+#mhfe-panel .mhfe-command-title {
+  margin: 0;
+}
+
+/* Set like a field's label, which it stands in for. */
+#mhfe-panel .mhfe-command-title {
+  color: #d9e0e7;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+#mhfe-panel .mhfe-command-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+#mhfe-panel .mhfe-command-line code {
+  flex: 1 1 20rem;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid #35404d;
+  border-radius: 9px;
+  background: #090e14;
+  color: var(--text);
+  font: 13px/1.5 var(--mono);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+#mhfe-panel .mhfe-command-line code > span {
+  white-space: nowrap;
 }
 
 /* An MHFE result card stacks a status callout, the words, the buttons and a note; give them room. */
@@ -3634,7 +3676,8 @@ label:has(> input[type="checkbox"]) small {
 
 /* An empty status line takes no row of its grid; its first message brings it back. */
 #mnemocode-reencode-status:empty,
-#mnemocode-table-export-status:empty {
+#mnemocode-table-export-status:empty,
+#mhfe-encrypt-command-status:empty {
   display: none;
 }
 

@@ -138,13 +138,14 @@ export class MhfeWalletsTab {
     const read = await this.#marked.read(run);
     if (read === undefined) return;
     const { client, facts } = read;
-    const { hiddenWalletRefusals } = await run.step(() => this.#engine.coreParameters());
+    const { hiddenWalletRefusals, maxPim } = await run.step(() => this.#engine.coreParameters());
+    const pim = this.#pim.settled(maxPim);
     this.#refusals = new Set(hiddenWalletRefusals);
     this.#status.textContent = "Starting the session: MHFE reserves its 2 GiB of memory.";
     const session = await run.step(() =>
       client.openHiddenWallets({
         container: facts.container,
-        pim: this.#pim.value(),
+        pim,
         mainPassphrase: this.#mainPassphrase.value,
       }),
     );

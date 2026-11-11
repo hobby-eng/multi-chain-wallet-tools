@@ -73,8 +73,11 @@ export interface MissingWordsOptions {
    * password field of its own (Hidden wallets, whose passwords belong to the session).
    */
   readonly settings?: (run: MhfeRun) => Promise<RecoverySettings | MhfeWaiting>;
-  /** The tab's PIM, for the time a search with the owner's wallet takes. */
-  readonly pim: () => number;
+  /**
+   * The tab's PIM, settled against the package's highest, `maxPim` (PimField.settled), for the
+   * time a search with the owner's wallet takes and for the block's own password.
+   */
+  readonly pim: (maxPim: number) => number;
   /** Shows a found container phrase, to be used only after the person says so. */
   readonly found: (found: FoundContainer) => void;
   /** Back to the container phrase, to type it again. */
@@ -289,7 +292,7 @@ export class MissingWordsSearch {
     if (known === "original") this.#reference.reference();
     this.#time.textContent = searchTimeText(
       this.#candidates,
-      this.#options.pim(),
+      await this.#settledPim(run),
       this.#engine.recoverySeconds,
     );
     this.#time.hidden = false;
@@ -386,8 +389,14 @@ export class MissingWordsSearch {
     return {
       password: this.#password?.value ?? "",
       passwordRepair: "asTyped",
-      pim: this.#options.pim(),
+      pim: await this.#settledPim(run),
     };
+  }
+
+  /** The host's PIM, refused before any work where its field holds no usable PIM. */
+  async #settledPim(run: MhfeRun): Promise<number> {
+    const { maxPim } = await run.step(() => this.#engine.coreParameters());
+    return this.#options.pim(maxPim);
   }
 
   #progress(progress: MhfeSearchProgress, clock: JobClock): void {

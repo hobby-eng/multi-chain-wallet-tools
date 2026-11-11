@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { MhfeInputLifecycleCase } from "../browser-cases/mhfe-input-lifecycle.mjs";
 import { MhfePendingInputCase } from "../browser-cases/mhfe-pending-input-lifecycle.mjs";
 import { MhfeContainerAdaptationCase } from "../browser-cases/mhfe-container-adaptation.mjs";
+import { MhfeEncryptCommandCase } from "../browser-cases/mhfe-encrypt-command.mjs";
 import { createHash } from "node:crypto";
 import { entropyToMnemonic, mnemonicToSeedSync } from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english.js";
@@ -538,6 +539,16 @@ export class MhfeBrowserCases {
     await new MhfeInputLifecycleCase(page).run();
     run.checks.push(
       "MHFE exact public repair and raw Encode/repair admission without an Argon2 recovery",
+    );
+  };
+  /** Encode's memory level and the mhfe command beside it, without an Argon2 run. */
+  static mhfeEncryptCommand = async (context, profile, run) => {
+    const { page, before } = await openBackupPanel(context, profile, run, "mhfe-panel");
+    run.checks.push(await new MhfeEncryptCommandCase(page).run());
+    assert.deepEqual(await storageSnapshot(page), before);
+    assert.equal(run.requests.length, 0);
+    run.checks.push(
+      "MHFE Encode's mhfe command: shown only for a PIM or memory level other than 0, exact for every choice, copied exactly with the phrase hidden and shown, Encrypt closed above level 0; storage/no HTTP",
     );
   };
   /** Shared checkedMnemonic boundary for the native browser cases. */

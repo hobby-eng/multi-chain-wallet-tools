@@ -99,6 +99,31 @@ const MHFE_PIM_HELP = optionHelp("What the PIM is", "PIM", [
   "A stronger password protects more than a higher PIM: each extra random word multiplies an attacker's work by 7,776, a PIM only by a fixed factor.",
 ]);
 
+/** Why a browser runs MHFE's memory level 0 only: one text for every MHFE tab that says so. */
+const MHFE_BROWSER_LEVEL_LIMIT =
+  "a browser gives WebAssembly at most 4 GiB, and the Argon2 code allows at most 2 GiB in such 32-bit builds";
+
+/** The note under a tab's MHFE settings: what the tab runs, why, and where the rest runs. */
+function mhfeMemoryNote(runs, elsewhere) {
+  return `<p class="field-note mhfe-memory-note">${runs}: ${MHFE_BROWSER_LEVEL_LIMIT}. ${elsewhere}</p>`;
+}
+
+const MHFE_OPENS_ONLY_IN_MHFE =
+  "A container made at a higher level opens only in the mhfe command-line program";
+
+/** The memory notes of the MHFE tabs: Encode, which offers every level, and the others. */
+const MHFE_MEMORY_NOTES = {
+  encode: mhfeMemoryNote(
+    "This tab encrypts at memory level 0 only, and Encrypt is off at a higher level",
+    "A higher level is for the mhfe command-line program, whose command appears below once a PIM or a higher level is chosen.",
+  ),
+  open: mhfeMemoryNote("This tab runs memory level 0 (2 GiB) only", `${MHFE_OPENS_ONLY_IN_MHFE}.`),
+  rekey: mhfeMemoryNote(
+    "This tab runs memory level 0 (2 GiB) only",
+    `${MHFE_OPENS_ONLY_IN_MHFE}, and only mhfe rekey gives the new container a higher level.`,
+  ),
+};
+
 /**
  * Silent Payments tab, checkbox and panel. The original wallet uses an empty prefix; the derived child wallet
  * uses CHILD_WALLET_ID_PREFIX, so both workspaces share one markup and one runtime (silent-payment-feature.ts).
@@ -467,6 +492,9 @@ export class ProfileTemplate {
       __SILENT_PAYMENT_TOGGLE__: silentPaymentToggle,
       __SILENT_PAYMENT_PANEL__: silentPaymentPanel,
       __MHFE_PIM_HELP__: MHFE_PIM_HELP,
+      __MHFE_ENCODE_MEMORY_NOTE__: MHFE_MEMORY_NOTES.encode,
+      __MHFE_MEMORY_NOTE__: MHFE_MEMORY_NOTES.open,
+      __MHFE_REKEY_MEMORY_NOTE__: MHFE_MEMORY_NOTES.rekey,
       __DERIVATION_TYPE_HELP__: derivationHelp,
       __BIP85_TAB__: bip85Tab,
       __BIP85_TOGGLE__: bip85Toggle,
@@ -497,7 +525,7 @@ export class ProfileTemplate {
       if (value !== undefined) rendered = rendered.replaceAll(marker, value);
     }
     const remaining = rendered.match(
-      /__(?:DOCUMENT_TITLE|EDITION_NAME|BUILD_PROFILE|BRAND_NAME|EDITION_EYEBROW|KEY_DERIVATION_[A-Z_]+|DISCOVERY_[A-Z_]+|DASH_HEADER_BRAND|PROFILE_BRAND_MARK|RECOVERY_COIN_FIELD|RECOVERY_PUBLIC_KEY_PLACEHOLDER|RECOVERY_PUBLIC_KEY_SCOPE|ACTIVITY_[A-Z_]+|TOOL_INTRODUCTION|PSBT_[A-Z_]+)__/gu,
+      /__(?:DOCUMENT_TITLE|EDITION_NAME|BUILD_PROFILE|BRAND_NAME|EDITION_EYEBROW|KEY_DERIVATION_[A-Z_]+|DISCOVERY_[A-Z_]+|DASH_HEADER_BRAND|PROFILE_BRAND_MARK|RECOVERY_COIN_FIELD|RECOVERY_PUBLIC_KEY_PLACEHOLDER|RECOVERY_PUBLIC_KEY_SCOPE|ACTIVITY_[A-Z_]+|TOOL_INTRODUCTION|PSBT_[A-Z_]+|MHFE_[A-Z_]+)__/gu,
     );
     if (remaining !== null)
       throw new Error(`Unexpanded build-profile marker: ${remaining.join(", ")}`);

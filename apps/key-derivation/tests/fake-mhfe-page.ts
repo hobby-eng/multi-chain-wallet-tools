@@ -6,11 +6,15 @@ import type { MhfeEngine } from "../src/ui/recovery-mhfe-engine.js";
 
 /**
  * The package's fixed values as its parameters() give them, the parts the tabs read: the rounds
- * of a stage, the same-length suite, the wallet check's bits and the coins of an address search.
+ * of a stage, the same-length suite, the PIM and memory levels, the wallet check's bits and the
+ * coins of an address search.
  */
 export function withPackageValues(engine: MhfeEngine): void {
   engine.coreParameters = (async () => ({
     maxInputTextBytes: 8192,
+    maxPim: 1023,
+    maxMemoryLevel: 21,
+    highestBrowserMemoryLevel: 0,
     repairWordCounts: [2, 4, 6, 8],
     rounds: 12,
     progressStages: ["recover", "encrypt", "check", "compare"],
@@ -70,6 +74,8 @@ export class FakeElement extends EventTarget {
   className = "";
   textContent = "";
   onclick: (() => void) | null = null;
+  /** A number field's state: badInput while its text is no number. */
+  readonly validity = { badInput: false };
   readonly dataset: Record<string, string | undefined> = {};
   readonly classList = new FakeClassList();
   readonly children: (FakeElement | string)[] = [];

@@ -170,10 +170,14 @@ export class MhfeDecodeTab {
     this.#adaptToContainer(facts);
     showContainerFacts(this.#readBack, this.#container.value, facts, this.#context.writeClipboard);
     const words = this.#length.value();
-    // Every password, and the repair of each, is settled before the first recovery, as mhfe asks.
+    const used = this.#passwords.used;
+    const whose = (index: number): string => (used.length > 1 ? `Password ${index + 1}: ` : "");
+    // Every PIM is settled before any review, and every password with its repair before the first
+    // recovery, as mhfe asks: a PIM that cannot be used is named before any password runs its work.
+    for (const [index, password] of used.entries()) await password.settledPim(run, whose(index));
     const reviewed = [];
-    for (const password of this.#passwords.used) {
-      const review = await password.reviewed(run);
+    for (const [index, password] of used.entries()) {
+      const review = await password.reviewed(run, whose(index));
       if ("wait" in review) return review;
       reviewed.push({ fields: password, ...review });
     }
