@@ -12,7 +12,7 @@ export class MultiChainRecoveryNetworkService extends DirectRecoveryNetworkServi
   readonly #public = new PublicMultiChainDataService();
 
   override addressHistory(
-    coin: "bitcoin" | "ethereum",
+    coin: string,
     network: RecoveryNetwork,
     address: string,
     signal?: AbortSignal,

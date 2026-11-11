@@ -4,7 +4,6 @@
 // selected coins and imports only their readers and derivations, so that it names no endpoint of
 // another coin, and a coin is one row with the Deriver's derivation of the same id.
 import TABLE from "../packages/public-data-providers/src/account-coins.json" with { type: "json" };
-import { SINGLE_KEY_COINS, singleKeyCoinModules } from "./single-key-coins.mjs";
 
 /** Every account coin's row with its id, in the table's order. */
 export const ACCOUNT_COINS = Object.freeze(
@@ -53,14 +52,6 @@ export function accountReadersSource(rows, module) {
       ),
     ],
     readers: `[${rows.map((row) => `new AccountStatesReader(${JSON.stringify(row)}, ${providers.get(row.api).symbol})`).join(", ")}]`,
-  };
-}
-
-/** The public addresses of an account coin: <PREFIX>_ADDRESSES of the Deriver's coin module. */
-export function accountAddressesModule(coin) {
-  return {
-    symbol: `${SINGLE_KEY_COINS[coin].prefix}_ADDRESSES`,
-    file: singleKeyCoinModules(coin).derivation,
   };
 }
 

@@ -93,6 +93,18 @@ export function singleKeySelfTest(coin) {
   return `run${words.join("")}DerivationSelfTest`;
 }
 
+/**
+ * The public addresses of a single-key coin for the Discovery Scanner: <PREFIX>_ADDRESSES of the
+ * Deriver's coin module, which an account coin and an EVM network with its own wallets' layouts
+ * (Ethereum Classic) import.
+ */
+export function singleKeyAddressesModule(coin) {
+  return {
+    symbol: `${SINGLE_KEY_COINS[coin].prefix}_ADDRESSES`,
+    file: singleKeyCoinModules(coin).derivation,
+  };
+}
+
 /** The repository-relative modules of a single-key coin. */
 export function singleKeyCoinModules(coin) {
   return Object.freeze({

@@ -2,6 +2,7 @@
   "ethereum": {
     "label": "Ethereum",
     "asset": "ETH",
+    "rpcOperator": "PublicNode",
     "networks": {
       "mainnet": {
         "chainId": 1,
@@ -20,6 +21,7 @@
   "bnb-chain": {
     "label": "BNB Chain",
     "asset": "BNB",
+    "rpcOperator": "PublicNode",
     "networks": {
       "mainnet": {
         "chainId": 56,
@@ -31,6 +33,7 @@
   "polygon": {
     "label": "Polygon",
     "asset": "POL",
+    "rpcOperator": "PublicNode",
     "networks": {
       "mainnet": {
         "chainId": 137,
@@ -42,6 +45,7 @@
   "arbitrum": {
     "label": "Arbitrum One",
     "asset": "ETH",
+    "rpcOperator": "PublicNode",
     "networks": {
       "mainnet": {
         "chainId": 42161,
@@ -53,6 +57,7 @@
   "optimism": {
     "label": "OP Mainnet",
     "asset": "ETH",
+    "rpcOperator": "PublicNode",
     "networks": {
       "mainnet": {
         "chainId": 10,
@@ -64,6 +69,7 @@
   "base": {
     "label": "Base",
     "asset": "ETH",
+    "rpcOperator": "PublicNode",
     "networks": {
       "mainnet": {
         "chainId": 8453,
@@ -75,6 +81,7 @@
   "avalanche": {
     "label": "Avalanche C-Chain",
     "asset": "AVAX",
+    "rpcOperator": "PublicNode",
     "networks": {
       "mainnet": {
         "chainId": 43114,
@@ -86,11 +93,26 @@
   "gnosis": {
     "label": "Gnosis",
     "asset": "xDAI",
+    "rpcOperator": "PublicNode",
     "networks": {
       "mainnet": {
         "chainId": 100,
         "name": "Gnosis Chain",
         "rpc": "https://gnosis-rpc.publicnode.com"
+      }
+    }
+  },
+  "ethereum-classic": {
+    "label": "Ethereum Classic",
+    "asset": "ETC",
+    "rpcOperator": "HebeBlock",
+    "walletCoin": "ethereum-classic",
+    "networks": {
+      "mainnet": {
+        "chainId": 61,
+        "name": "Ethereum Classic mainnet",
+        "rpc": "https://etc.etcdesktop.com",
+        "history": "https://etc.blockscout.com/api/v2"
       }
     }
   }

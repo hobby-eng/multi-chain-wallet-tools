@@ -10,8 +10,8 @@ describe("exhaustive standalone build matrix", () => {
 
   it("enumerates every reviewed valid composition exactly once", () => {
     // The nine account coins add 9 Viewer coin sets and 36 Scanner builds (256, against 220 before
-    // them).
-    expect(plan).toHaveLength(142886);
+    // them); Ethereum Classic, an EVM network, adds 1 Viewer coin set and 10 Scanner builds.
+    expect(plan).toHaveLength(142897);
     expect(new Set(plan.map(({ relativePath }) => relativePath)).size).toBe(plan.length);
   });
 
@@ -38,10 +38,10 @@ describe("exhaustive standalone build matrix", () => {
 
   it("can constrain planning without changing composition rules", () => {
     const discovery = createBuildMatrixPlan(["multi-chain"], "discovery-scanner");
-    // 14 coin sets without an account coin × 10 feature sets; each account coin alone × 4 (seed
+    // 15 coin sets without an account coin × 10 feature sets; each account coin alone × 4 (seed
     // discovery, no public-key scans); 8 sets with every table coin × 8 (seed discovery), and the
     // same 8 sets without the account coins × 2 (watch-only, with or without custom paths).
-    expect(discovery).toHaveLength(256);
+    expect(discovery).toHaveLength(266);
     // Watch-only builds hold several EVM networks again, never an account coin.
     const watchOnly = discovery.filter(({ features }) => !features.includes("seed-discovery"));
     expect(
@@ -62,8 +62,9 @@ describe("bounded standalone build smoke matrix", () => {
   );
 
   it("selects a stable unique subset of valid builds", () => {
-    // Each of the nine account coins alone, in the Scanner and in the Viewer.
-    expect(smoke).toHaveLength(118);
+    // Each of the nine account coins and of the EVM networks alone, in the Scanner and in the
+    // Viewer.
+    expect(smoke).toHaveLength(120);
     expect(new Set(smoke.map(({ relativePath }) => relativePath)).size).toBe(smoke.length);
     for (const job of smoke) {
       expect(

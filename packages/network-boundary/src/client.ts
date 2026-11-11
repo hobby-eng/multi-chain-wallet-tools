@@ -190,7 +190,7 @@ class NetworkBoundaryClient implements RecoveryNetworkApi {
     );
   }
   addressHistory(
-    coin: "bitcoin" | "ethereum",
+    coin: string,
     network: RecoveryNetwork,
     address: string,
     signal?: AbortSignal,

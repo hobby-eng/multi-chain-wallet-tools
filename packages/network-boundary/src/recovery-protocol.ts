@@ -61,8 +61,9 @@ export interface RecoveryNetworkApi {
     count: number,
     signal?: AbortSignal,
   ): Promise<ShieldedPageView>;
+  /** The history of an address of `coin`: Bitcoin, or an EVM network with a history endpoint. */
   addressHistory(
-    coin: "bitcoin" | "ethereum",
+    coin: string,
     network: RecoveryNetwork,
     address: string,
     signal?: AbortSignal,

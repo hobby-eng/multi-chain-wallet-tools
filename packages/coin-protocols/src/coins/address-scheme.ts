@@ -1,12 +1,16 @@
 // What the connected tools (the Discovery Scanner) derive of a single-key coin: its public addresses
 // under the layouts its wallets use, each address derived as the Deriver derives its row but
 // without any private key form, so that no private key string is ever made. Crypto-free: each kind
-// of coin (bip44-coin.ts, ed25519-coin.ts) builds its scheme, and a coin with both kinds of keys
-// combines them.
+// of coin (bip44-coin.ts, ed25519-coin.ts) builds its scheme, and a coin with several kinds of keys
+// or layouts combines them.
 
 /** One way a coin's wallets lay out its addresses, from index 0 on. */
 export interface AddressLayout {
-  /** The Deriver variant's adapter id, or "<adapter id>-accounts" for BIP44's account-index form. */
+  /**
+   * The layout's id, unique among the layouts a scan checks: a coin's Deriver variant's adapter id,
+   * "<adapter id>-accounts" for BIP44's account-index form, or a name of its own (a fixed path such
+   * as "ethereum-classic-ledger-legacy", the Discovery Scanner's EVM layouts such as "standard").
+   */
   readonly id: string;
   /** The layout's name in scan sections, with its path template. */
   readonly label: string;

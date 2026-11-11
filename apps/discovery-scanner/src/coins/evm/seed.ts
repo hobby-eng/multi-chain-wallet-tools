@@ -1,5 +1,5 @@
-// The seed scan of every EVM network: the three standard EOA profiles of EVM wallets and the custom
-// paths, each through its post-use gap, read from the network's own JSON-RPC.
+// The seed scan of every EVM network: the standard EOA layouts of its wallets (layouts.ts) and the
+// custom paths, each through its post-use gap, read from the network's own JSON-RPC.
 import { WalletScan } from "../../wallet-result.js";
 import { BIP32_BRANCH_SIZE, assertAddressCount } from "@ckd/core/bip32-limits.js";
 import { SeedScanSecrets } from "../../seed-scan-secrets.js";
@@ -20,9 +20,11 @@ import { appendCustomPaths, customScanPaths } from "../custom-path.js";
 import { ADDRESS_DISCOVERY_GAP } from "../../address-gap.js";
 import { AddressBook, AddressFindings, scanBranches } from "../../address-book.js";
 import { lookupBatches } from "../../scan-estimate.js";
+import type { AddressLayout, CoinAddressScheme, SeedAddresses } from "@ckd/coins/address-scheme.js";
 import type { RecoveryCoinFacts } from "../registry.js";
 import { EVM_VERSIONS, EvmAccounts, evmAmountFormatter } from "./accounts.js";
 import { evmCoinFacts, type EvmCoinOptions } from "./coin.js";
+import { evmLayouts } from "./layouts.js";
 
 interface EvmPathProfile {
   id: string;
@@ -30,38 +32,28 @@ interface EvmPathProfile {
   path(index: number): string;
   maximumCount: number;
   initialCount: number;
+  /** The own wallets' layout whose scheme derives this profile; otherwise the EVM root does. */
+  own?: AddressLayout;
 }
 
-/** The standard profiles of pathProfiles: BIP44, Ledger Live and legacy Ledger / MEW. */
-const STANDARD_PROFILE_COUNT = 3;
-
+/**
+ * The scan's profiles: the network's standard layouts under the scan's account (its own wallets'
+ * layouts `own` first), then custom paths.
+ */
 function pathProfiles(
   label: string,
+  own: CoinAddressScheme | undefined,
   config: RecoveryScanConfig,
 ): Iterable<EvmPathProfile> & { readonly length: number } {
-  const profiles: EvmPathProfile[] = [
-    {
-      id: "standard",
-      label: "Standard BIP44 · MetaMask / Trezor",
-      path: (index) => `m/44'/60'/${config.account}'/0/${index}`,
-      initialCount: config.coreReceiveCount,
-      maximumCount: BIP32_BRANCH_SIZE,
-    },
-    {
-      id: "ledger-live",
-      label: "Ledger Live accounts",
-      path: (index) => `m/44'/60'/${config.account + index}'/0/0`,
-      initialCount: config.coreReceiveCount,
-      maximumCount: BIP32_BRANCH_SIZE - config.account,
-    },
-    {
-      id: "ledger-legacy",
-      label: "Legacy Ledger / MEW",
-      path: (index) => `m/44'/60'/0'/${index}`,
-      initialCount: config.coreReceiveCount,
-      maximumCount: BIP32_BRANCH_SIZE,
-    },
-  ];
+  const ownLayouts = new Set(own?.layouts);
+  const profiles: EvmPathProfile[] = evmLayouts(own).map((layout) => ({
+    id: layout.id,
+    label: layout.label,
+    path: (index) => layout.path(config.account, index),
+    initialCount: config.coreReceiveCount,
+    maximumCount: layout.maximumCount(config.account),
+    ...(ownLayouts.has(layout) ? { own: layout } : {}),
+  }));
   if (profiles.some((profile) => profile.initialCount > profile.maximumCount))
     throw new Error(`The requested ${label} scan range exceeds the BIP32 index space.`);
   const custom = customScanPaths(config);
@@ -87,8 +79,15 @@ function deriveAddress(root: ReturnType<typeof rootFromSeed>, path: string): str
   }
 }
 
-/** The seed scan of the EVM network `facts`, reported as the coin `coin`. */
-function evmSeedScan(facts: EvmNetworkFacts, coin: RecoveryCoinFacts) {
+/**
+ * The seed scan of the EVM network `facts`, reported as the coin `coin`; `own` derives its own
+ * wallets' layouts, as the Deriver's coin derives them.
+ */
+function evmSeedScan(
+  facts: EvmNetworkFacts,
+  coin: RecoveryCoinFacts,
+  own: CoinAddressScheme | undefined,
+) {
   const { label, asset } = facts;
   const format = evmAmountFormatter(facts);
   return async (
@@ -100,7 +99,7 @@ function evmSeedScan(facts: EvmNetworkFacts, coin: RecoveryCoinFacts) {
     assertAddressCount(config.coreReceiveCount, `${label} address minimum`);
     if (config.scanCustomPath === true)
       assertAddressCount(config.customPathCount ?? 0, "Custom path address count");
-    const profiles = pathProfiles(label, config);
+    const profiles = pathProfiles(label, own, config);
     // A network without this chain (most EVM networks have no testnet here) is refused before the
     // seed is copied.
     evmChain(facts, config.network);
@@ -110,7 +109,11 @@ function evmSeedScan(facts: EvmNetworkFacts, coin: RecoveryCoinFacts) {
     const book = new AddressBook(chainAccounts);
     const found = AddressFindings.reportedTo(context, input.id, "core");
     const walletScan = new WalletScan(input, coin, config.network);
+    let opened: SeedAddresses | undefined;
     try {
+      const ownAddresses = own?.open(seed);
+      // Held for the wipe below; the scan's callbacks read the constant.
+      opened = ownAddresses;
       const scanned = await scanBranches(profiles, (profile, before) => ({
         initial: profile.initialCount,
         batchSize: RECOVERY_EVM_ACCOUNT_BATCH,
@@ -118,7 +121,11 @@ function evmSeedScan(facts: EvmNetworkFacts, coin: RecoveryCoinFacts) {
         cancelled: `${label} scan cancelled.`,
         derive: (index) => {
           const path = profile.path(index);
-          return { address: deriveAddress(root, path), index, path };
+          const address =
+            profile.own === undefined || ownAddresses === undefined
+              ? deriveAddress(root, path)
+              : ownAddresses.address(profile.own, config.account, index);
+          return { address, index, path };
         },
         lookUp: book.lookUpWith({
           includeUsedZeroBalance: config.includeUsedZeroBalance,
@@ -153,7 +160,7 @@ function evmSeedScan(facts: EvmNetworkFacts, coin: RecoveryCoinFacts) {
       const section: RecoverySection = {
         id: "core",
         title: `${label} EOA addresses`,
-        description: `Scans three standard EOA profiles${config.scanCustomPath ? " and the selected custom paths" : ""} through independent ${ADDRESS_DISCOVERY_GAP}-address post-use gaps.`,
+        description: `Scans ${evmLayouts(own).length} standard EOA profiles${config.scanCustomPath ? " and the selected custom paths" : ""} through independent ${ADDRESS_DISCOVERY_GAP}-address post-use gaps.`,
         state: book.gap.truncated ? "partial" : "complete",
         metrics: book.scanMetrics(format, scanned),
         findings: found.list,
@@ -175,6 +182,7 @@ function evmSeedScan(facts: EvmNetworkFacts, coin: RecoveryCoinFacts) {
         ],
       });
     } finally {
+      opened?.wipe();
       root.wipePrivateData();
       secrets.close();
     }
@@ -182,8 +190,8 @@ function evmSeedScan(facts: EvmNetworkFacts, coin: RecoveryCoinFacts) {
 }
 
 /**
- * The seed adapter of the EVM network `facts`, a EVM network table row; `options` adds what the row does
- * not say, such as Ethereum's history.
+ * The seed adapter of the EVM network `facts`, an EVM network table row; `options` adds what the row
+ * does not say, such as Ethereum's history or Ethereum Classic's own wallets' layouts.
  */
 export function createEvmSeedRecoveryAdapter(
   facts: EvmNetworkFacts,
@@ -194,7 +202,8 @@ export function createEvmSeedRecoveryAdapter(
     ...coin,
     // Every standard wallet profile, receive addresses only.
     minimumSeedLookups: (settings) =>
-      STANDARD_PROFILE_COUNT * lookupBatches(settings.coreReceiveCount, RECOVERY_EVM_ACCOUNT_BATCH),
-    scan: evmSeedScan(facts, coin),
+      evmLayouts(options.addresses).length *
+      lookupBatches(settings.coreReceiveCount, RECOVERY_EVM_ACCOUNT_BATCH),
+    scan: evmSeedScan(facts, coin, options.addresses),
   };
 }

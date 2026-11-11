@@ -1,7 +1,7 @@
 import { BIP32_MAINNET_VERSIONS } from "@ckd/core/networks.js";
-import { bip44CoinDerivation, type Bip44CoinKeys } from "../bip44-coin.js";
+import { bip44CoinAddresses, bip44CoinDerivation, type Bip44CoinKeys } from "../bip44-coin.js";
 import { evmAddressOfKey } from "../keccak-account.js";
-import { ETHEREUM_CLASSIC_PROFILES } from "./profiles.js";
+import { ETHEREUM_CLASSIC_LEDGER_LEGACY, ETHEREUM_CLASSIC_PROFILES } from "./profiles.js";
 
 /** Ethereum Classic's key and address encodings. */
 export const ETHEREUM_CLASSIC_KEYS: Bip44CoinKeys = {
@@ -20,3 +20,14 @@ export const ETHEREUM_CLASSIC_KEYS: Bip44CoinKeys = {
 export function ethereumClassicDerivation(id: string) {
   return bip44CoinDerivation(ETHEREUM_CLASSIC_PROFILES, () => ETHEREUM_CLASSIC_KEYS, id);
 }
+
+/**
+ * Ethereum Classic's public 0x addresses for the connected tools, as its own wallets lay them out:
+ * the BIP44 address index and Ledger Live's account index at its coin type 61 (the Deriver's row and
+ * Ledger Live's account form), then Ledger's legacy Ethereum Classic path.
+ */
+export const ETHEREUM_CLASSIC_ADDRESSES = bip44CoinAddresses(
+  ETHEREUM_CLASSIC_PROFILES,
+  ETHEREUM_CLASSIC_KEYS,
+  { fixedPaths: [ETHEREUM_CLASSIC_LEDGER_LEGACY] },
+);

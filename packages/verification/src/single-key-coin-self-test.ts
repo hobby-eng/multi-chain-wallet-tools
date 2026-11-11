@@ -39,8 +39,16 @@ interface SingleKeySelfTestSpec {
   readonly addresses?: CoinAddressScheme;
 }
 
-/** The address of `seed` at the first index of the `addresses` layout `id`, opened and wiped. */
-function firstPublicAddress(addresses: CoinAddressScheme, id: string, seed: Uint8Array): string {
+/**
+ * The address of `seed` at the first index of the `addresses` layout `id` (account 0), opened and
+ * wiped; a coin's own check reads a layout without a Deriver row (Ethereum Classic's Ledger legacy
+ * path) through it.
+ */
+export function firstPublicAddress(
+  addresses: CoinAddressScheme,
+  id: string,
+  seed: Uint8Array,
+): string {
   const layout = addresses.layouts.find((candidate) => candidate.id === id);
   if (layout === undefined)
     throw new Error(`Cryptographic self-test failed: ${id} has no public address layout.`);

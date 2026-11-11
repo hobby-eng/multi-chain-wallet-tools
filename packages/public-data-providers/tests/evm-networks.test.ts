@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { validateEvmAccountsPayload } from "../src/evm-network-facts.js";
-import { EVM_NETWORKS } from "../src/evm-networks.js";
+import { hasEvmHistory, validateEvmAccountsPayload } from "../src/evm-network-facts.js";
+import { EVM_NETWORKS, evmNetwork } from "../src/evm-networks.js";
 
 const ADDRESS = "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed";
 
@@ -15,6 +15,7 @@ describe("the EVM network table", () => {
       "base",
       "avalanche",
       "gnosis",
+      "ethereum-classic",
     ]);
     const chainIds = EVM_NETWORKS.flatMap(({ networks }) =>
       Object.values(networks).map(({ chainId }) => chainId),
@@ -31,6 +32,24 @@ describe("the EVM network table", () => {
       }
       expect(networks.testnet !== undefined).toBe(id === "ethereum");
     }
+  });
+
+  it("reads history only where a row names a Blockscout root: Ethereum and Ethereum Classic", () => {
+    expect(EVM_NETWORKS.filter(hasEvmHistory).map(({ id }) => id)).toEqual([
+      "ethereum",
+      "ethereum-classic",
+    ]);
+    expect(evmNetwork("ethereum-classic").networks.mainnet).toEqual({
+      chainId: 61,
+      name: "Ethereum Classic mainnet",
+      rpc: "https://etc.etcdesktop.com",
+      history: "https://etc.blockscout.com/api/v2",
+    });
+  });
+
+  it("names each network's JSON-RPC operator: PublicNode, and HebeBlock for Ethereum Classic", () => {
+    for (const row of EVM_NETWORKS)
+      expect(row.rpcOperator).toBe(row.id === "ethereum-classic" ? "HebeBlock" : "PublicNode");
   });
 });
 

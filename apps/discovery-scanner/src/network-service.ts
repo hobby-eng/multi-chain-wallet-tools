@@ -64,7 +64,7 @@ export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
   }
 
   async addressHistory(
-    _coin: "bitcoin" | "ethereum",
+    _coin: string,
     _network: RecoveryNetwork,
     _address: string,
     _signal?: AbortSignal,

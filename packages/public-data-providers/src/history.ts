@@ -162,17 +162,17 @@ export async function bitcoinAddressHistory(
   throw new Error("No Bitcoin history provider.");
 }
 
-function ethAddress(value: unknown): string | null {
+function evmAddress(value: unknown): string | null {
   if (value === null) return null;
-  const address = record(value, "Ethereum address").hash;
+  const address = record(value, "EVM address").hash;
   // Deliberate copy of the EVM address shape (@ckd/core/eip55.ts): importing that module here would
   // put Ethereum text into Dash Community builds. A provider's "0X" prefix is read too; the 0x form
   // is what this module returns.
   if (typeof address !== "string" || !/^0x[0-9a-f]{40}$/iu.test(address))
-    throw new Error("Invalid Ethereum history address.");
+    throw new Error("Invalid EVM history address.");
   return address.toLowerCase();
 }
-async function ethPages(
+async function evmPages(
   url: string,
   signal: AbortSignal | undefined,
   consume: (item: Record<string, unknown>) => void,
@@ -183,12 +183,12 @@ async function ethPages(
     signal?.throwIfAborted();
     const response = record(
       await fetchJson(url + query, signal, {}, HISTORY_TIMEOUT_MS),
-      "Ethereum history page",
+      "EVM history page",
     );
     const items = array(response.items, 50);
-    for (const item of items) consume(record(item, "Ethereum history item"));
+    for (const item of items) consume(record(item, "EVM history item"));
     if (response.next_page_params === null) return true;
-    const params = record(response.next_page_params, "Ethereum pagination");
+    const params = record(response.next_page_params, "EVM history pagination");
     const search = new URLSearchParams();
     for (const [key, value] of Object.entries(params).sort()) {
       if (["block_number", "index", "items_count", "transaction_index"].includes(key))
@@ -201,33 +201,34 @@ async function ethPages(
           typeof value !== "string" ||
           !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z$/u.test(value)
         )
-          throw new Error("Invalid Ethereum cursor timestamp.");
+          throw new Error("Invalid EVM history cursor timestamp.");
         timestamp(value);
         search.set(key, value);
-      } else throw new Error("Unexpected Ethereum cursor.");
+      } else throw new Error("Unexpected EVM history cursor.");
     }
     query = `?${search.toString()}`;
     if (items.length === 0 || search.size === 0 || cursors.has(query))
-      throw new Error("Repeated Ethereum history cursor.");
+      throw new Error("Repeated EVM history cursor.");
     cursors.add(query);
   }
   return false;
 }
 
 /**
- * The native ETH history of `address` from a Blockscout API v2 root (`endpoint`, from Ethereum's row
- * of the EVM network table).
+ * The history of `address` in the native asset `unit` of an EVM network, from the Blockscout API v2
+ * root (`endpoint`) that the network's row of the EVM network table names.
  */
-export async function ethereumAddressHistory(
+export async function evmAddressHistory(
   address: string,
   endpoint: string,
+  unit: { readonly asset: string; readonly atomicUnit: string; readonly decimals: number },
   signal?: AbortSignal,
 ): Promise<RecoveryHistory> {
   const url = `${endpoint}/addresses/${address.toLowerCase()}`;
   const target = address.toLowerCase();
-  const h = emptyRecoveryHistory("ETH", "wei", 18);
+  const h = emptyRecoveryHistory(unit.asset, unit.atomicUnit, unit.decimals);
   h.source = "Blockscout";
-  h.scope = "Confirmed native ETH transactions and internal value transfers";
+  h.scope = `Confirmed native ${unit.asset} transactions and internal value transfers`;
   h.note =
     "Dates are block times in UTC. Failed transfers add no received/sent value, but sender gas fees are counted. Self-transfers appear in both totals. Tokens, validator withdrawals and mining rewards are outside this history scope; this is not a full balance reconciliation.";
   let received = 0n,
@@ -237,26 +238,26 @@ export async function ethereumAddressHistory(
   const ids = new Set<string>(),
     transactions = new Set<string>(),
     traceIds = new Set<string>();
-  const normalComplete = await ethPages(`${url}/transactions`, signal, (tx) => {
+  const normalComplete = await evmPages(`${url}/transactions`, signal, (tx) => {
     if (tx.block_number === null) return;
-    unsignedInteger(tx.block_number, "Ethereum block number");
+    unsignedInteger(tx.block_number, "EVM block number");
     const id = hash(tx.hash, true);
-    if (ids.has(id)) throw new Error("Repeated Ethereum transaction.");
+    if (ids.has(id)) throw new Error("Repeated EVM transaction.");
     ids.add(id);
     transactions.add(id);
     const date = timestamp(tx.timestamp);
-    const from = ethAddress(tx.from),
-      to = ethAddress(tx.to ?? tx.created_contract ?? null);
-    if (from !== target && to !== target) throw new Error("Unrelated Ethereum transaction.");
+    const from = evmAddress(tx.from),
+      to = evmAddress(tx.to ?? tx.created_contract ?? null);
+    if (from !== target && to !== target) throw new Error("Unrelated EVM transaction.");
     if (tx.status !== "ok" && tx.status !== "error")
-      throw new Error("Unknown Ethereum transaction status.");
-    const value = BigInt(decimal(tx.value, "Ethereum value"));
+      throw new Error("Unknown EVM transaction status.");
+    const value = BigInt(decimal(tx.value, "EVM value"));
     const incoming = tx.status === "ok" && to === target ? value : 0n;
     const outgoing = tx.status === "ok" && from === target ? value : 0n;
     let fee = 0n;
     if (from === target) {
-      const data = record(tx.fee, "Ethereum transaction fee");
-      if (data.type === "actual") fee = BigInt(decimal(data.value, "Ethereum gas fee"));
+      const data = record(tx.fee, "EVM transaction fee");
+      if (data.type === "actual") fee = BigInt(decimal(data.value, "EVM gas fee"));
       else feesKnown = false;
     }
     received += incoming;
@@ -264,25 +265,24 @@ export async function ethereumAddressHistory(
     fees += fee;
     activity(h, date, incoming, outgoing + fee);
   });
-  const internalComplete = await ethPages(`${url}/internal-transactions`, signal, (tx) => {
+  const internalComplete = await evmPages(`${url}/internal-transactions`, signal, (tx) => {
     const id = hash(tx.transaction_hash, true);
-    const index = unsignedInteger(tx.index, "Ethereum internal index");
+    const index = unsignedInteger(tx.index, "EVM internal index");
     const traceId = `${id}:${index}`;
-    if (traceIds.has(traceId)) throw new Error("Repeated Ethereum internal transaction.");
+    if (traceIds.has(traceId)) throw new Error("Repeated EVM internal transaction.");
     traceIds.add(traceId);
-    unsignedInteger(tx.block_number, "Ethereum internal block number");
-    const from = ethAddress(tx.from),
-      to = ethAddress(tx.to ?? tx.created_contract ?? null);
-    if (from !== target && to !== target)
-      throw new Error("Unrelated Ethereum internal transaction.");
-    if (typeof tx.success !== "boolean") throw new Error("Unknown Ethereum internal status.");
+    unsignedInteger(tx.block_number, "EVM internal block number");
+    const from = evmAddress(tx.from),
+      to = evmAddress(tx.to ?? tx.created_contract ?? null);
+    if (from !== target && to !== target) throw new Error("Unrelated EVM internal transaction.");
+    if (typeof tx.success !== "boolean") throw new Error("Unknown EVM internal status.");
     if (index === 0 && ids.has(id) && tx.type !== "selfdestruct") return;
     if (tx.success !== true || tx.error != null) return;
     if (!["call", "create", "create2", "selfdestruct", "suicide"].includes(String(tx.type))) {
       if (["delegatecall", "staticcall", "callcode"].includes(String(tx.type))) return;
-      throw new Error("Unknown Ethereum internal transfer type.");
+      throw new Error("Unknown EVM internal transfer type.");
     }
-    const value = BigInt(decimal(tx.value, "Ethereum internal value"));
+    const value = BigInt(decimal(tx.value, "EVM internal value"));
     const incoming = to === target ? value : 0n,
       outgoing = from === target ? value : 0n;
     received += incoming;

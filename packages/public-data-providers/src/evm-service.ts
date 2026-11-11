@@ -2,7 +2,7 @@ import { EVM_RPC_QUANTITY } from "@ckd/core/numeric-limits.js";
 import { normalizeEthereumAddress } from "./address-normalization.js";
 import {
   EVM_NETWORK_ERRORS,
-  evmChain,
+  EvmNetworkRows,
   type EvmChainFacts,
   type EvmNetworkFacts,
 } from "./evm-network-facts.js";
@@ -18,10 +18,10 @@ import {
  * come from the caller (a composed build inlines its selected rows), so this module names none.
  */
 export class EvmAccountService {
-  readonly #networks: ReadonlyMap<string, EvmNetworkFacts>;
+  readonly #networks: EvmNetworkRows;
 
   constructor(networks: readonly EvmNetworkFacts[]) {
-    this.#networks = new Map(networks.map((facts) => [facts.id, facts]));
+    this.#networks = new EvmNetworkRows(networks);
   }
 
   /**
@@ -36,11 +36,7 @@ export class EvmAccountService {
     addresses: string[],
     signal?: AbortSignal,
   ): Promise<EvmAccountBatchView> {
-    const facts = this.#networks.get(coin);
-    if (facts === undefined) throw EVM_NETWORK_ERRORS.coin();
-    if (network !== "mainnet" && network !== "testnet")
-      throw new Error("Network Worker rejected an unsupported network.");
-    const endpoint = evmChain(facts, network);
+    const { facts, chain: endpoint } = this.#networks.chain(coin, network);
     if (
       !Array.isArray(addresses) ||
       addresses.length < 1 ||
