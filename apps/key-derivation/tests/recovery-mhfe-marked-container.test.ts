@@ -6,6 +6,7 @@ vi.mock("@ckd/recovery-mhfe-wasm/runtime/mhfe.wasm", () => ({ default: new Uint8
 
 import { RecoveryJobGate } from "../src/ui/recovery-job-gate.js";
 import { MhfeEngine } from "../src/ui/recovery-mhfe-engine.js";
+import { PimField } from "../src/ui/recovery-mhfe-fields.js";
 import { MarkedContainer } from "../src/ui/recovery-mhfe-marked-container.js";
 import { searchTimeText } from "../src/ui/recovery-mhfe-missing-words.js";
 import { MhfeRun } from "../src/ui/recovery-mhfe-run.js";
@@ -131,7 +132,7 @@ function setup(written: string, found = true, pendingSearch?: Promise<void>) {
       } as never,
       status: element("#mhfe-decrypt-status") as never,
       recovery: {
-        pim: { value: () => 0 },
+        pim: { settled: () => 0 },
         settings: async () => ({
           password: "synthetic password",
           passwordRepair: "asTyped",
@@ -395,6 +396,10 @@ describe("a container phrase with words marked ?", () => {
 });
 
 describe("the time of a search with the owner's wallet", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("uses one readable unit, as mhfe does", () => {
     expect(timeRange(60, 120)).toBe("1 to 2 minutes");
     expect(timeRange(3 * 3600, 6 * 3600)).toBe("3 to 6 hours");
@@ -412,4 +417,51 @@ describe("the time of a search with the owner's wallet", () => {
       "8 candidates, each a full recovery: about 32 to 56 minutes at these settings.",
     );
   });
+
+  it("settles a PIM before any work, refusing a ticked field without a usable PIM", () => {
+    const page = installPage();
+    const pim = new PimField("check");
+    page("#mhfe-check-use-pim").checked = true;
+    for (const [typed, badInput] of [
+      ["", false],
+      ["", true],
+      ["1.5", false],
+    ] as const) {
+      page("#mhfe-check-pim").value = typed;
+      page("#mhfe-check-pim").validity.badInput = badInput;
+      expect(pim.value()).not.toBe(0);
+      expect(() => pim.settled(1023)).toThrow(
+        expect.objectContaining({
+          code: "wallet.mhfe-pim.not-typed",
+          message: "Type the PIM as a whole number, or untick “Use a custom PIM”.",
+        }),
+      );
+      expect(PimField.refused(pickRefusal(() => pim.settled(1023)))).toBe(true);
+    }
+    page("#mhfe-check-pim").validity.badInput = false;
+    for (const typed of ["1024", "0", "-1"]) {
+      page("#mhfe-check-pim").value = typed;
+      expect(() => pim.settled(1023, "Password 2: ")).toThrow(
+        expect.objectContaining({
+          code: "wallet.mhfe-pim.range",
+          message: "Password 2: Type a PIM from 1 to 1023, or untick “Use a custom PIM”.",
+        }),
+      );
+    }
+    page("#mhfe-check-pim").value = "2";
+    expect(pim.settled(1023)).toBe(2);
+    page("#mhfe-check-use-pim").checked = false;
+    expect(pim.settled(1023)).toBe(0);
+    expect(PimField.refused(new Error("Type the PIM as a whole number."))).toBe(false);
+  });
 });
+
+/** The error `refuse` throws. */
+function pickRefusal(refuse: () => unknown): unknown {
+  try {
+    refuse();
+  } catch (error) {
+    return error;
+  }
+  return undefined;
+}

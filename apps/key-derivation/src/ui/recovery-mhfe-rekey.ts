@@ -246,7 +246,9 @@ export class MhfeRekeyTab {
     const terms = this.#confirmationTerms();
     const parameters = await run.step(() => this.#engine.coreParameters());
     const repairWordCount = selectedRepairCount("mhfe-rekey-repair-count", parameters);
-    const old = await this.#old.reviewed(run);
+    // Both PIMs are settled before any review or work, each named for its container.
+    const newPim = this.#newPim.settled(parameters.maxPim, "New container: ");
+    const old = await this.#old.reviewed(run, "Old container: ");
     if ("wait" in old) return old;
     required<HTMLElement>("#mhfe-rekey-keep-old").textContent = KEEP_FOR_OTHER_WALLETS;
     const typed = this.#newPasswordChoice.passwords(disclosure);
@@ -266,7 +268,7 @@ export class MhfeRekeyTab {
         newPassword: typed.password,
         newPasswordRepeat: typed.repeat,
         newPasswordRepair: fresh.repair,
-        newPim: this.#newPim.value(),
+        newPim,
         repairWordCount,
         ...terms,
         onProgress: progressCallback(

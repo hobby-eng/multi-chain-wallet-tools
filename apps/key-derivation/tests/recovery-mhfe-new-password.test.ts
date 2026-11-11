@@ -80,21 +80,44 @@ function setup() {
       return { password: MADE, bits: 64.625, weak: false, checkWord: false };
     },
   })) as never;
-  new MhfeEncodeTab(
-    { jobs: gate, writeClipboard: async () => undefined, readMnemonic: () => PHRASE } as never,
-    engine,
-  );
+  const copied: string[] = [];
+  const writeClipboard = async (text: string) => {
+    copied.push(text);
+  };
+  new MhfeEncodeTab({ jobs: gate, writeClipboard, readMnemonic: () => PHRASE } as never, engine);
   const choose = async (kind: (typeof KINDS)[number]): Promise<void> => {
     for (const other of KINDS)
       element(`#mhfe-encrypt-password-kind-${other}`).checked = other === kind;
     element(`#mhfe-encrypt-password-kind-${kind}`).dispatchEvent(new Event("change"));
+    // The fake page does not bubble: the panel hears the change as a page's would.
+    element("#mhfe-create-panel").dispatchEvent(new Event("change"));
     await settle();
   };
   const encrypt = async (): Promise<void> => {
     element("#mhfe-encrypt").click();
     await settle();
   };
-  return { element, made, encrypted, choose, encrypt };
+  /** Opens MHFE's fields, as its panel check does, so that every memory level is offered. */
+  const open = async (): Promise<void> => {
+    engine.passed();
+    await settle();
+  };
+  /** Chooses a memory level, as a person does in its list. */
+  const level = async (chosen: number): Promise<void> => {
+    element("#mhfe-encrypt-memory-level").value = String(chosen);
+    for (const target of ["#mhfe-encrypt-memory-level", "#mhfe-create-panel"])
+      element(target).dispatchEvent(new Event("change"));
+    await settle();
+  };
+  return { element, engine, made, encrypted, copied, choose, encrypt, open, level };
+}
+
+/** The command line shown: its parts, an option with its value each, joined by spaces. */
+function commandShown(page: ReturnType<typeof setup>): string {
+  return page
+    .element("#mhfe-encrypt-command-text")
+    .children.map((part) => (typeof part === "string" ? part : part.textContent))
+    .join("");
 }
 
 describe("a container password made by MHFE in Encode", () => {
@@ -162,5 +185,103 @@ describe("a container password made by MHFE in Encode", () => {
       password: "synthetic own password",
       passwordRepeat: "synthetic own password",
     });
+  });
+});
+
+describe("no password made in Encode at a memory level the browser cannot run", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /** Says that no password made is held or shown. */
+  function noneShown(page: ReturnType<typeof setup>): void {
+    expect(page.element("#mhfe-encrypt-made-shown").hidden).toBe(true);
+    expect(page.element("#mhfe-encrypt-made-text").textContent).toBe("");
+    expect(page.element("#mhfe-encrypt-made-copy-field").hidden).toBe(true);
+  }
+
+  it("makes and shows none when the kind is chosen at a higher level", async () => {
+    const page = setup();
+    await page.open();
+    await page.level(2);
+    await page.choose("checkWord");
+    expect(page.made).toEqual([]);
+    noneShown(page);
+    expect(commandShown(page)).toBe(
+      "mhfe encrypt --pim 0 --mem 2 --new-password check-word --repair-words 0",
+    );
+    expect(page.element("#mhfe-encrypt-command-made").hidden).toBe(false);
+  });
+
+  it("keeps a password made at level 0 out of sight above it, and asks for its copy back at 0", async () => {
+    const page = setup();
+    await page.open();
+    await page.choose("words");
+    expect(page.made).toHaveLength(1);
+    page.element("#mhfe-encrypt-made-written").click();
+    page.element("#mhfe-encrypt-made-copy").value = MADE;
+    await page.level(2);
+    noneShown(page);
+    // Its typed-back copy is emptied, and nothing encrypts at this level.
+    expect(page.element("#mhfe-encrypt-made-copy").value).toBe("");
+    page.element("#mhfe-encrypt-made-copy").value = MADE;
+    await page.encrypt();
+    expect(page.encrypted).toEqual([]);
+    page.element("#mhfe-encrypt-made-again").click();
+    noneShown(page);
+    await page.level(0);
+    // The same password, not a new one: the copy the person wrote down stays valid.
+    expect(page.made).toHaveLength(1);
+    expect(page.element("#mhfe-encrypt-made-copy-field").hidden).toBe(false);
+    expect(page.element("#mhfe-encrypt-made-text").textContent).toBe("");
+    page.element("#mhfe-encrypt-made-again").click();
+    expect(page.element("#mhfe-encrypt-made-text").textContent).toBe(MADE);
+    page.element("#mhfe-encrypt-made-written").click();
+    page.element("#mhfe-encrypt-made-copy").value = MADE;
+    await page.encrypt();
+    expect(page.encrypted).toHaveLength(1);
+    expect(page.encrypted[0]).toMatchObject({ password: MADE, pim: 0, memoryLevel: 0 });
+  });
+
+  it("drops a password still being made when the level rises, and makes another back at 0", async () => {
+    const page = setup();
+    await page.open();
+    const passwords = await page.engine.passwords();
+    let arrive!: () => void;
+    const late = new Promise<void>((resolve) => {
+      arrive = resolve;
+    });
+    page.engine.passwords = (async () => ({
+      ...passwords,
+      make: async (options: Record<string, unknown>) => {
+        page.made.push(options);
+        await late;
+        return { password: MADE, bits: 64.625, weak: false, checkWord: false };
+      },
+    })) as never;
+    await page.choose("words");
+    await page.level(2);
+    arrive();
+    await settle();
+    noneShown(page);
+    await page.level(0);
+    expect(page.made).toHaveLength(2);
+    expect(page.element("#mhfe-encrypt-made-text").textContent).toBe(MADE);
+  });
+
+  it("never puts a password made at level 0 into the command or the clipboard", async () => {
+    const page = setup();
+    await page.open();
+    await page.choose("words");
+    page.element("#mhfe-encrypt-use-pim").checked = true;
+    page.element("#mhfe-encrypt-pim").value = "3";
+    page.element("#mhfe-create-panel").dispatchEvent(new Event("input"));
+    const line = "mhfe encrypt --pim 3 --mem 0 --new-password words --repair-words 0";
+    expect(commandShown(page)).toBe(line);
+    page.element("#mhfe-encrypt-command-copy").click();
+    await settle();
+    expect(page.copied).toEqual([line]);
+    expect(page.element("#mhfe-encrypt-made-text").textContent).toBe(MADE);
+    for (const shown of [commandShown(page), ...page.copied]) expect(shown).not.toContain(MADE);
   });
 });

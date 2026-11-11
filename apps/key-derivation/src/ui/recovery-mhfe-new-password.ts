@@ -61,21 +61,32 @@ export class NewPasswordChoice implements Disposable {
   readonly #copyField: HTMLElement;
   readonly #copy: PasswordField;
   readonly #status: HTMLElement;
+  readonly #madeHere: () => boolean;
   #made: Made | undefined;
   /** Counts the passwords asked for, so that a late one for an older choice is dropped. */
   #revision = 0;
   #disclosureRevision = 0;
+  /** What `madeHere` said when it was last applied; reconsider() acts when it changes. */
+  #wasMadeHere = true;
 
-  /** `prefix` names the fields, as in `#mhfe-{prefix}-password-kind`; `status` is the tab's line. */
+  /**
+   * `prefix` names the fields, as in `#mhfe-{prefix}-password-kind`; `status` is the tab's line.
+   * `madeHere` says whether the page may make or show a password now: where its operation cannot
+   * run, such as Encode at a memory level the browser cannot run, a made kind is only a setting of
+   * the mhfe command, nothing is made, and a password made before is kept out of sight. Without it
+   * a password is always made.
+   */
   constructor(
     engine: NewPasswordEngine,
     prefix: string,
     own: { readonly password: PasswordField; readonly repeat: PasswordField },
     status: HTMLElement,
     jobs: RecoveryJobGate,
+    madeHere: () => boolean = () => true,
   ) {
     this.#engine = engine;
     this.#jobs = jobs;
+    this.#madeHere = madeHere;
     this.#prefix = `mhfe-${prefix}`;
     this.#own = own;
     this.#status = status;
@@ -155,6 +166,28 @@ export class NewPasswordChoice implements Disposable {
       : [this.#copy.input];
   }
 
+  /**
+   * Applies a change of `madeHere`. Once the page may make no password, a password made is kept
+   * but neither shown nor asked for, its typed-back copy is emptied (a secret in a field the person
+   * no longer sees), and one still being made is dropped and wiped when it arrives. Once it may
+   * again, the password kept is asked for as written down, so the copy the person wrote stays
+   * valid, and a made kind without one gets a new password. Nothing happens while the answer stays.
+   */
+  reconsider(): void {
+    const madeHere = this.#madeHere();
+    if (madeHere === this.#wasMadeHere) return;
+    this.#wasMadeHere = madeHere;
+    if (madeHere) {
+      if (this.#made !== undefined) this.#askCopy(false);
+      else if (this.kind !== "own") void this.#choose();
+      return;
+    }
+    // A later answer of a make still running is for a choice no longer current.
+    this.#revision += 1;
+    this.#askCopy(false);
+    this.#copy.clear();
+  }
+
   /** Forgets a password made, once it was used: the next one is made anew. */
   forget(): void {
     this.#revision += 1;
@@ -194,10 +227,12 @@ export class NewPasswordChoice implements Disposable {
     this.#copy.clear();
     const disclosure = this.#disclosureRevision;
     const ready = this.#jobs.captureReadiness();
+    const madeHere = this.#madeHere();
+    this.#wasMadeHere = madeHere;
     try {
       const kind = this.kind;
       this.#render();
-      if (kind === "own" || !ready()) return;
+      if (kind === "own" || !ready() || !madeHere) return;
       this.#own.password.clear();
       this.#own.repeat.clear();
       const passwords = await this.#engine.passwords();
@@ -239,7 +274,13 @@ export class NewPasswordChoice implements Disposable {
   /** Shows the password made, privately, until the person says it is written down. */
   #show(): void {
     const made = this.#made;
-    if (made === undefined || !this.#jobs.ready || document.visibilityState === "hidden") return;
+    if (
+      made === undefined ||
+      !this.#madeHere() ||
+      !this.#jobs.ready ||
+      document.visibilityState === "hidden"
+    )
+      return;
     this.#text.textContent = made.secret.value;
     this.#strength.textContent = made.summary.replace(/^made by MHFE: /u, "");
     this.#checkWordNote.hidden = !made.checkWord;
@@ -247,12 +288,13 @@ export class NewPasswordChoice implements Disposable {
     this.#copyField.hidden = true;
   }
 
-  /** Hides the password made and asks for it as written down. */
+  /** Hides the password made and asks for it as written down, where it may be used. */
   #askCopy(focus = true): void {
+    const asked = this.#made !== undefined && this.#madeHere();
     this.#text.textContent = "";
     this.#shown.hidden = true;
-    this.#copyField.hidden = this.#made === undefined;
-    if (focus && this.#made !== undefined) this.#copy.input.focus();
+    this.#copyField.hidden = !asked;
+    if (focus && asked) this.#copy.input.focus();
   }
 
   #render(): void {

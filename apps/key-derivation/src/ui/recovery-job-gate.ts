@@ -23,6 +23,11 @@ export class RecoveryJobGate {
     return this.#runningJob;
   }
 
+  /** Whether a heavy job may start now: the gate is ready and no other heavy job runs. */
+  get acceptsHeavyJob(): boolean {
+    return this.#ready && this.#runningJob === null;
+  }
+
   /** Updates ordinary readiness without reopening a gate whose known answer failed. */
   setReady(ready: boolean): void {
     this.#ready = ready && !this.#selfTestFailed;
@@ -91,7 +96,7 @@ export function bindJobGate(
   const apply = (change: JobGateChange): void => {
     const running = gate.runningJob;
     for (const action of change === "ready" ? actions : heavy) {
-      action.disabled = !gate.ready || (running !== null && heavy.has(action));
+      action.disabled = heavy.has(action) ? !gate.acceptsHeavyJob : !gate.ready;
     }
     busyLine.hidden = running === null;
     busyLine.textContent =

@@ -6,16 +6,10 @@
 // what to keep names any passphrase of the wallet (mhfe docs/BROWSER-PACKAGE.md).
 import { NewContainerResult } from "./recovery-mhfe-cards.js";
 import { MhfeInputText } from "@ckd/recovery-backup/mhfe-input-text.js";
+import { EncryptCommandView, EncryptSettings } from "./recovery-mhfe-command.js";
 import type { MhfeEngine } from "./recovery-mhfe-engine.js";
 import type { MhfeRun } from "./recovery-mhfe-run.js";
-import {
-  PasswordField,
-  PasswordReview,
-  PimField,
-  StrengthNote,
-  selectedRepairCount,
-  reviewSaid,
-} from "./recovery-mhfe-fields.js";
+import { PasswordField, PasswordReview, StrengthNote, reviewSaid } from "./recovery-mhfe-fields.js";
 import {
   ENCRYPT_STAGES,
   REHEARSE,
@@ -42,12 +36,11 @@ export class MhfeEncodeTab {
   readonly #engine: MhfeEngine;
   readonly #status = required<HTMLElement>("#mhfe-encrypt-status");
   readonly #readBack = required<HTMLElement>("#mhfe-encrypt-read");
-  readonly #sameLength = required<HTMLInputElement>("#mhfe-length-same");
   readonly #password = new PasswordField("mhfe-encrypt-password", "MHFE password");
   readonly #repeat = new PasswordField("mhfe-encrypt-password-confirm", "password confirmation");
-  readonly #pim = new PimField("encrypt");
   readonly #review: PasswordReview;
   readonly #newPassword: NewPasswordChoice;
+  readonly #settings: EncryptSettings;
   readonly #result: NewContainerResult;
   readonly #task: MhfeTask;
 
@@ -65,7 +58,11 @@ export class MhfeEncodeTab {
       { password: this.#password, repeat: this.#repeat },
       this.#status,
       context.jobs,
+      // Read only once the person chooses a kind, after the settings below exist.
+      () => this.#settings.runsHere(),
     );
+    this.#settings = new EncryptSettings(this.#newPassword);
+    new EncryptCommandView(context, engine, this.#settings);
     this.#result = new NewContainerResult(
       required<HTMLElement>("#mhfe-encrypt-result"),
       engine,
@@ -99,9 +96,10 @@ export class MhfeEncodeTab {
   async #encrypt(run: MhfeRun, disclosure: NewPasswordDisclosure): Promise<MhfeTaskOutcome> {
     const client = await run.step(() => this.#engine.client());
     const parameters = await run.step(() => this.#engine.coreParameters());
+    // Refused before the phrase is read: a level the browser cannot run, or a PIM out of range.
+    const settings = this.#settings.forBrowser(parameters);
     using phrase = new MhfeInputText(this.#context.readMnemonic("mhfe", "#mhfe-source"));
     const typed = this.#newPassword.passwords(disclosure);
-    const repairWordCount = selectedRepairCount("mhfe-repair-count", parameters);
     const facts = await run.step(() => phrase.use((text) => client.readPhrase(text)));
     if (phrase.use((text) => readBackDiffers(text, facts.phrase)))
       renderReadBackWords(
@@ -112,7 +110,7 @@ export class MhfeEncodeTab {
       );
     const choice = await this.#review.choose(run, typed.password, typed.repeat);
     if ("wait" in choice) return choice;
-    const sameLength = this.#sameLength.checked;
+    const { sameLength } = settings;
     // About one phrase in four billion also passes the check of another length; automatic detection
     // would then not give it back on its own. The package says so for each container it offers:
     // never for a same-length one, which keeps the phrase's own length.
@@ -135,9 +133,10 @@ export class MhfeEncodeTab {
           password: typed.password,
           passwordRepeat: typed.repeat,
           passwordRepair: choice.repair,
-          pim: this.#pim.value(),
+          pim: settings.pim,
+          memoryLevel: settings.memoryLevel,
           sameLength,
-          repairWordCount,
+          repairWordCount: settings.repairWords,
           onProgress: (report) =>
             run.publish(() => {
               clearPasswords();

@@ -1,3 +1,4 @@
+import { ErrorCatalog } from "@ckd/core/error-catalog.js";
 import { PasswordControl } from "./password-control.js";
 import { RecoverySecretLifecycle } from "./recovery-secret-lifecycle.js";
 // Input fields that the MHFE operation tabs share: the PIM with its checkbox, a password with its
@@ -32,8 +33,22 @@ const REVIEW_DROPPED = "The password changed while it was reviewed. Press the bu
 /** The error of an answer used after the password changed, between the review and the long work. */
 const REVIEW_OUTDATED = "The password changed after it was reviewed. Press the button again.";
 
+/**
+ * The page's one refusal of a ticked PIM field, before any work: no whole number in it, or one
+ * outside the package's range. `whose` names the field where a tab has several, such as
+ * "Password 2: ", and is empty otherwise.
+ */
+const PIM_ERRORS = new ErrorCatalog("wallet.mhfe-pim", {
+  "not-typed": (whose: string) =>
+    `${whose}Type the PIM as a whole number, or untick “Use a custom PIM”.`,
+  range: (whose: string, most: number) =>
+    `${whose}Type a PIM from 1 to ${most}, or untick “Use a custom PIM”.`,
+});
+
 /** A PIM field shown only while its "Use a custom PIM" checkbox is ticked; unticked means PIM 0. */
 export class PimField {
+  /** A ticked box asks for a PIM other than the default 0, as the field's label says: 1 up. */
+  static readonly #LOWEST_CUSTOM = 1;
   readonly #checkbox: HTMLInputElement;
   readonly #input: HTMLInputElement;
 
@@ -49,9 +64,33 @@ export class PimField {
     synchronize();
   }
 
-  /** The PIM to send; the package refuses one out of range with its own message. */
+  /**
+   * The PIM as typed: 0 while unticked, and NaN for a ticked field that is empty or holds no
+   * number, never PIM 0. For what the page shows; work takes settled().
+   */
   value(): number {
-    return this.#checkbox.checked ? Number(this.#input.value) : 0;
+    if (!this.#checkbox.checked) return 0;
+    if (this.#input.value === "" || this.#input.validity.badInput) return Number.NaN;
+    return Number(this.#input.value);
+  }
+
+  /**
+   * The PIM to work with: 0 while unticked. Refuses, before any work, a ticked field without a
+   * whole number (wallet.mhfe-pim.not-typed) or with one outside 1 to `maxPim`, the package's
+   * highest (wallet.mhfe-pim.range), naming the field with `whose`, such as "Password 2: ".
+   */
+  settled(maxPim: number, whose = ""): number {
+    if (!this.#checkbox.checked) return 0;
+    const pim = this.value();
+    if (!Number.isSafeInteger(pim)) throw PIM_ERRORS.create("not-typed", [whose]);
+    if (pim < PimField.#LOWEST_CUSTOM || pim > maxPim)
+      throw PIM_ERRORS.create("range", [whose, maxPim]);
+    return pim;
+  }
+
+  /** Whether `error` is one of settled()'s refusals, whose message a page shows as it is. */
+  static refused(error: unknown): error is Error {
+    return PIM_ERRORS.matches(error, ["not-typed", "range"]);
   }
 
   set disabled(disabled: boolean) {
@@ -348,24 +387,34 @@ export class ContainerPassword {
   readonly password: PasswordField;
   readonly pim: PimField;
   readonly review: PasswordReview;
+  readonly #engine: MhfeEngine;
 
   constructor(engine: MhfeEngine, prefix: string, label: string) {
+    this.#engine = engine;
     this.password = new PasswordField(`mhfe-${prefix}-password`, label);
     this.pim = new PimField(prefix);
     this.review = new PasswordReview(engine, `mhfe-${prefix}-password-review`, [this.password]);
   }
 
+  /** The PIM, settled against the package's range before any work (PimField.settled). */
+  async settledPim(run: MhfeRun, whose = ""): Promise<number> {
+    const { maxPim } = await run.step(() => this.#engine.coreParameters());
+    return this.pim.settled(maxPim, whose);
+  }
+
   /**
    * The password as reviewed and the PIM, with the line that says what the review did;
-   * a waiting outcome while the review needs an answer.
+   * a waiting outcome while the review needs an answer. The PIM is settled first, named by
+   * `whose`, so that no review or work runs for a field that holds no usable PIM.
    */
-  async reviewed(run: MhfeRun): Promise<ReviewedRecoverySettings | MhfeWaiting> {
+  async reviewed(run: MhfeRun, whose = ""): Promise<ReviewedRecoverySettings | MhfeWaiting> {
+    const pim = await this.settledPim(run, whose);
     const choice = await this.review.choose(run, this.password.value);
     if ("wait" in choice) return choice;
     const settings = {
       password: this.password.value,
       passwordRepair: choice.repair,
-      pim: this.pim.value(),
+      pim,
     };
     return { settings, outcome: reviewSaid(choice), choice };
   }

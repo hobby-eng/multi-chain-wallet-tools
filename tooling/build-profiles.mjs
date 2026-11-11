@@ -102,6 +102,7 @@ const DASH_SHARED_INPUTS = new Set([
   "packages/recovery-backup/src/mnemocode-input.ts",
   "packages/recovery-backup/src/mnemocode-reencoding.ts",
   "packages/recovery-backup/src/mhfe-check-result.ts",
+  "packages/recovery-backup/src/mhfe-encrypt-command.ts",
   "packages/recovery-backup/src/mhfe-input-text.ts",
   "packages/recovery-backup/src/mhfe-repair-choices.ts",
   "packages/recovery-backup/src/mnemocode-cards.ts",
