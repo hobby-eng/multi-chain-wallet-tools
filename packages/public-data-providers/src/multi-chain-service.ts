@@ -1,9 +1,10 @@
 import { ACCOUNT_COIN_READERS } from "./account-coins.js";
 import { AccountStatesService } from "./account-states-service.js";
 import { BitcoinPublicDataService } from "./bitcoin-service.js";
-import { EthereumPublicDataService } from "./ethereum-service.js";
+import { EvmHistoryService } from "./evm-history-service.js";
+import { hasEvmHistory } from "./evm-network-facts.js";
 import { EvmAccountService } from "./evm-service.js";
-import { EVM_NETWORKS, evmNetwork } from "./evm-networks.js";
+import { EVM_NETWORKS } from "./evm-networks.js";
 import type {
   AccountStatesView,
   EvmAccountBatchView,
@@ -19,19 +20,19 @@ import type {
  */
 export class PublicMultiChainDataService {
   readonly #bitcoin = new BitcoinPublicDataService();
-  readonly #ethereum = new EthereumPublicDataService(evmNetwork("ethereum"));
+  readonly #evmHistory = new EvmHistoryService(EVM_NETWORKS.filter(hasEvmHistory));
   readonly #evm = new EvmAccountService(EVM_NETWORKS);
   readonly #accounts = new AccountStatesService(ACCOUNT_COIN_READERS);
 
+  /** Bitcoin's history, or that of an EVM network whose row names a history endpoint. */
   async addressHistory(
-    coin: "bitcoin" | "ethereum",
+    coin: string,
     network: PublicDataNetwork,
     address: string,
     signal?: AbortSignal,
   ): Promise<RecoveryHistory> {
     if (coin === "bitcoin") return await this.#bitcoin.addressHistory(network, address, signal);
-    if (coin === "ethereum") return await this.#ethereum.addressHistory(network, address, signal);
-    throw new Error(`Unsupported history coin: ${String(coin)}.`);
+    return await this.#evmHistory.addressHistory(coin, network, address, signal);
   }
   utxoAddresses(
     network: PublicDataNetwork,

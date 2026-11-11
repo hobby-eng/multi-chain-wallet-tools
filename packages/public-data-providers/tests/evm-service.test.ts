@@ -5,7 +5,8 @@ import { EvmAccountService } from "../src/evm-service.js";
 afterEach(() => vi.unstubAllGlobals());
 
 // Independent of the EVM network table: each network's EIP-155 chain id (hex, as eth_chainId answers it)
-// and its PublicNode endpoint, as checked against the live endpoints on 2026-11-10.
+// and its endpoint (PublicNode's; HebeBlock's for Ethereum Classic), as checked against the live
+// endpoints on 2026-11-10 (Ethereum Classic's on 2026-11-11).
 const MAINNETS: Readonly<Record<string, readonly [string, string]>> = {
   ethereum: ["0x1", "https://ethereum-rpc.publicnode.com"],
   "bnb-chain": ["0x38", "https://bsc-rpc.publicnode.com"],
@@ -15,6 +16,7 @@ const MAINNETS: Readonly<Record<string, readonly [string, string]>> = {
   base: ["0x2105", "https://base-rpc.publicnode.com"],
   avalanche: ["0xa86a", "https://avalanche-c-chain-rpc.publicnode.com"],
   gnosis: ["0x64", "https://gnosis-rpc.publicnode.com"],
+  "ethereum-classic": ["0x3d", "https://etc.etcdesktop.com"],
 };
 // EIP-55's own example address.
 const ADDRESS = "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed";

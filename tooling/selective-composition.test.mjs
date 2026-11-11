@@ -3,12 +3,15 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
+  activityProviderSummary,
   applyActivityCoinTemplate,
   assertActivityViewerComposition,
+  createActivityViewerCompositionPlugin,
 } from "./activity-viewer-composition.mjs";
 import {
   applyDiscoveryFeatureTemplate,
   assertDiscoveryComposition,
+  createDiscoveryCompositionPlugin,
   discoveryNetworkRuntimeSource,
 } from "./discovery-composition.mjs";
 import {
@@ -29,7 +32,16 @@ import {
 } from "./key-derivation-features.mjs";
 import { assertPsbtComposition } from "./psbt-inspector-composition.mjs";
 import { assertDashOnlyGraph, BUILD_PROFILES } from "./build-profiles.mjs";
-import { assertSelectedEvmEndpoints } from "./evm-networks.mjs";
+import { hasEvmHistory as runtimeHasEvmHistory } from "@ckd/public-data-providers/evm-network-facts.js";
+import { mnemonicToSeed } from "@ckd/core/bip39.js";
+import { normalizeEthereumAddress } from "@ckd/public-data-providers/address-normalization.js";
+import {
+  assertSelectedEvmEndpoints,
+  EVM_NETWORKS,
+  evmWalletCoin,
+  hasEvmHistory,
+} from "./evm-networks.mjs";
+import { singleKeyAddressesModule } from "./single-key-coins.mjs";
 import { MnemoCodeWalletTemplate } from "./mnemocode-wallet-template.mjs";
 
 const options = (coins, features = []) => ({
@@ -37,6 +49,18 @@ const options = (coins, features = []) => ({
   hasCoin: (coin) => coins.includes(coin),
   has: (feature) => features.includes(feature),
 });
+
+/** The source that a composition plugin (`plugin`) loads for the module `path`. */
+function composedSource(plugin, path) {
+  let load;
+  plugin.setup({
+    onResolve() {},
+    onLoad(_filter, callback) {
+      load = callback;
+    },
+  });
+  return load({ path }).contents;
+}
 
 // Independent graph fixture for the reviewed generic PNG closure: the shared UI's rules and the
 // core's byte and refusal helpers, none of them MnemoCode's.
@@ -526,9 +550,15 @@ describe("selective bundle graph guards", () => {
     expect(() =>
       assertDiscoveryComposition(base, [
         ...shared,
-        "apps/discovery-scanner/src/coins/ethereum/history.ts",
+        "apps/discovery-scanner/src/coins/ethereum/index.ts",
       ]),
     ).toThrow(/excluded ethereum/u);
+    expect(() =>
+      assertDiscoveryComposition(base, [
+        ...shared,
+        "apps/discovery-scanner/src/coins/evm/history.ts",
+      ]),
+    ).toThrow(/selected no EVM history/u);
     expect(() =>
       assertDiscoveryComposition(options(["bitcoin"], ["seed-discovery"]), [
         "apps/discovery-scanner/src/coins/bitcoin/seed.ts",
@@ -544,6 +574,174 @@ describe("selective bundle graph guards", () => {
     expect(() =>
       assertSelectedEvmEndpoints(base, "https://bsc-rpc.publicnode.com", "page"),
     ).toThrow(/bsc-rpc\.publicnode\.com/u);
+  });
+
+  it("composes Ethereum Classic alone with its own endpoints, its history and both derivations", () => {
+    const etc = options(["ethereum-classic"], ["seed-discovery"]);
+    const runtime = discoveryNetworkRuntimeSource("/workspace", etc);
+    expect(runtime).toContain(`validateEvmAccountsPayload(value, ["ethereum-classic"])`);
+    expect(runtime).toContain(
+      `assertOneOf(body.coin, ["ethereum-classic"], 'Public history coin')`,
+    );
+    expect(runtime).toContain(
+      `if (["ethereum-classic"].includes(request.payload.coin)) return service.evmAddressHistory(`,
+    );
+    expect(runtime).not.toMatch(/'ethereum'|"ethereum"|bitcoin|utxo\.addresses/u);
+    expect(applySelectedNetworkCsp("connect-src https:;", etc)).toBe(
+      "connect-src https://etc.etcdesktop.com https://etc.blockscout.com;",
+    );
+    const inputs = [
+      "apps/discovery-scanner/src/coins/evm/seed.ts",
+      "apps/discovery-scanner/src/coins/evm/history.ts",
+      "packages/public-data-providers/src/evm-service.ts",
+      "packages/public-data-providers/src/evm-history-service.ts",
+      "packages/public-data-providers/src/evm-network-facts.ts",
+      "packages/coin-protocols/src/coins/keccak-account.ts",
+      // Ethereum's derivation self-test comes with every EVM network, and Ethereum Classic's own
+      // with its wallets' layouts.
+      "packages/coin-protocols/src/coins/ethereum/index.ts",
+      "packages/coin-protocols/src/coins/ethereum-classic/index.ts",
+      "packages/verification/src/derivation-self-test-ethereum-classic.ts",
+      "packages/network-boundary/src/request-validation.ts",
+      "apps/discovery-scanner/src/seed-scan-input.ts",
+      "packages/secret-vault/src/worker-bootstrap.ts",
+    ];
+    expect(() => assertDiscoveryComposition(etc, inputs)).not.toThrow();
+    const without = (suffix) => inputs.filter((input) => !input.endsWith(suffix));
+    for (const suffix of ["/coins/evm/history.ts", "/evm-history-service.ts"])
+      expect(() => assertDiscoveryComposition(etc, without(suffix))).toThrow(
+        /ethereum-classic history/u,
+      );
+    expect(() =>
+      assertDiscoveryComposition(etc, without("/coins/ethereum-classic/index.ts")),
+    ).toThrow(/ethereum-classic wallet layouts/u);
+    expect(() =>
+      assertDiscoveryComposition(etc, without("derivation-self-test-ethereum-classic.ts")),
+    ).toThrow(/ethereum-classic derivation self-test/u);
+    expect(() =>
+      assertSelectedEvmEndpoints(options(["ethereum"]), "https://etc.blockscout.com", "page"),
+    ).toThrow(/etc\.blockscout\.com/u);
+  });
+
+  it("composes Ethereum and Ethereum Classic with one history service and Ethereum Classic's own layouts", () => {
+    const both = options(["ethereum", "ethereum-classic"], ["seed-discovery"]);
+    const plugin = createDiscoveryCompositionPlugin("/workspace", both);
+    const service = composedSource(plugin, "ckd:selected-discovery-network-service");
+    expect(service).toMatch(
+      /new EvmHistoryService\(\[\{"id":"ethereum",.*\{"id":"ethereum-classic",/u,
+    );
+    expect(service).toContain("evmAddressHistory(coin, network, address, signal)");
+    const runtime = composedSource(plugin, "ckd:selected-discovery-network-runtime");
+    expect(runtime).toContain(
+      `assertOneOf(body.coin, ["ethereum","ethereum-classic"], 'Public history coin')`,
+    );
+    expect(runtime).toContain(
+      `if (["ethereum","ethereum-classic"].includes(request.payload.coin)) return service.evmAddressHistory(`,
+    );
+    const registry = composedSource(plugin, "ckd:selected-discovery-registry");
+    expect(registry).toContain(`getHistory: evmHistory("ethereum")`);
+    expect(registry).toContain(`getHistory: evmHistory("ethereum-classic")`);
+    expect(registry.match(/addresses: ETHEREUM_CLASSIC_ADDRESSES/gu)).toHaveLength(1);
+    expect(registry).toContain(
+      `evmNetworkPrivacy([{"rpcOperator":"PublicNode"},{"rpcOperator":"HebeBlock"}])`,
+    );
+    const selfTest = composedSource(plugin, "ckd:selected-discovery-self-test");
+    expect(selfTest).toContain("runEthereumDerivationSelfTest");
+    expect(selfTest).toContain("runEthereumClassicDerivationSelfTest");
+  });
+
+  it("keeps Ethereum Classic's derivation modules out of a build without seed scans", () => {
+    const watchOnly = options(["ethereum-classic"], ["watch-only-discovery"]);
+    const registry = composedSource(
+      createDiscoveryCompositionPlugin("/workspace", watchOnly),
+      "ckd:selected-discovery-registry",
+    );
+    expect(registry).toContain("createEvmWatchOnlyRecoveryAdapter");
+    expect(registry).not.toContain("ETHEREUM_CLASSIC_ADDRESSES");
+    const inputs = [
+      "apps/discovery-scanner/src/coins/evm/watch-adapter.ts",
+      "apps/discovery-scanner/src/coins/evm/history.ts",
+      "packages/public-data-providers/src/evm-service.ts",
+      "packages/public-data-providers/src/evm-history-service.ts",
+      "packages/public-data-providers/src/evm-network-facts.ts",
+      "packages/wallet-recovery/src/watch-only/evm.ts",
+      "packages/coin-protocols/src/coins/keccak-account.ts",
+      "packages/network-boundary/src/request-validation.ts",
+      "apps/discovery-scanner/src/watch-only-input.ts",
+    ];
+    expect(() => assertDiscoveryComposition(watchOnly, inputs)).not.toThrow();
+    expect(() =>
+      assertDiscoveryComposition(watchOnly, [
+        ...inputs,
+        "packages/coin-protocols/src/coins/ethereum-classic/index.ts",
+      ]),
+    ).toThrow(/scans no seed, but EVM wallet layout modules remain/u);
+  });
+
+  it("names the Viewer's EVM providers by the operator of their JSON-RPC, and their history", () => {
+    expect(activityProviderSummary(options(["base", "ethereum-classic", "gnosis"]))).toBe(
+      "Base, Gnosis: PublicNode JSON-RPC · Ethereum Classic: HebeBlock JSON-RPC · Ethereum Classic history: Blockscout",
+    );
+    expect(activityProviderSummary(options(["ethereum", "bnb-chain"]))).toBe(
+      "Ethereum, BNB Chain: PublicNode JSON-RPC · Ethereum history: Blockscout",
+    );
+    const source = composedSource(
+      createActivityViewerCompositionPlugin(
+        "/workspace",
+        options(["ethereum", "ethereum-classic"]),
+      ),
+      "selection",
+    );
+    expect(source).toMatch(
+      /new EvmHistoryService\(\[\{"id":"ethereum",.*\{"id":"ethereum-classic",/u,
+    );
+    expect(source).toContain("createEvmActivityAdapter(evmNetworks[0], evmAccounts, evmHistory)");
+    expect(source).toContain("createEvmActivityAdapter(evmNetworks[1], evmAccounts, evmHistory)");
+  });
+
+  it("ties an EVM row to its own wallets' layouts only by its walletCoin, a scheme of EIP-55 0x addresses", async () => {
+    const tied = EVM_NETWORKS.filter((row) => evmWalletCoin(row) !== undefined);
+    expect(tied.map(({ id, walletCoin }) => [id, walletCoin])).toEqual([
+      ["ethereum-classic", "ethereum-classic"],
+    ]);
+    const seed = mnemonicToSeed(`${"abandon ".repeat(11)}about`);
+    for (const row of tied) {
+      const { symbol, file } = singleKeyAddressesModule(evmWalletCoin(row));
+      const scheme = (await import(new URL(`../${file}`, import.meta.url).href))[symbol];
+      const opened = scheme.open(seed);
+      try {
+        const address = opened.address(scheme.layouts[0], 0, 0);
+        expect(address).toMatch(/^0x[0-9a-fA-F]{40}$/u);
+        // The EIP-55 checksum form: normalizing the address leaves it as it is.
+        expect(normalizeEthereumAddress(address)).toBe(address);
+      } finally {
+        opened.wipe();
+      }
+    }
+    expect(() => evmWalletCoin({ id: "base", walletCoin: "no-such-coin" })).toThrow(
+      /names no single-key coin/u,
+    );
+  });
+
+  it("reads history where the EVM network table names it, in the tooling as in the runtime", () => {
+    expect(EVM_NETWORKS.filter(hasEvmHistory).map(({ id }) => id)).toEqual([
+      "ethereum",
+      "ethereum-classic",
+    ]);
+    for (const row of EVM_NETWORKS) expect(hasEvmHistory(row)).toBe(runtimeHasEvmHistory(row));
+    expect(() =>
+      assertActivityViewerComposition(options(["ethereum-classic"]), [
+        "apps/activity-viewer/src/activity-evm.ts",
+        "packages/public-data-providers/src/evm-service.ts",
+      ]),
+    ).toThrow(/ethereum-classic history/u);
+    expect(() =>
+      assertActivityViewerComposition(options(["gnosis"]), [
+        "apps/activity-viewer/src/activity-evm.ts",
+        "packages/public-data-providers/src/evm-service.ts",
+        "packages/public-data-providers/src/evm-history-service.ts",
+      ]),
+    ).toThrow(/selected no EVM history/u);
   });
 
   it("offers the EVM networks of the EVM network table in the Activity Viewer and removes unselected ones", () => {

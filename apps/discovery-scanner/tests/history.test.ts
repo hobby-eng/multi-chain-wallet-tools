@@ -2,7 +2,7 @@ import { MultiChainRecoveryNetworkService } from "../src/network-service-multich
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   bitcoinAddressHistory,
-  ethereumAddressHistory,
+  evmAddressHistory,
   HISTORY_MAX_PAGES,
 } from "../../../packages/public-data-providers/src/history.js";
 import {
@@ -135,10 +135,49 @@ function trace(n: number, index: number, from: string, to: string, value: string
     type: "call",
   };
 }
-// The Blockscout API roots of Ethereum's EVM network table row.
+// The Blockscout API roots of Ethereum's and Ethereum Classic's EVM network table rows.
 const BLOCKSCOUT = "https://eth.blockscout.com/api/v2";
 const SEPOLIA_BLOCKSCOUT = "https://eth-sepolia.blockscout.com/api/v2";
-describe("Ethereum history", () => {
+const ETC_BLOCKSCOUT = "https://etc.blockscout.com/api/v2";
+const unit = (asset: string) => ({ asset, atomicUnit: "wei", decimals: 18 });
+const ethereumAddressHistory = (address: string, endpoint: string) =>
+  evmAddressHistory(address, endpoint, unit("ETH"));
+describe("EVM history", () => {
+  it("refuses a transaction without a status instead of guessing whether its value moved", async () => {
+    // Ethereum Classic's Blockscout reports a status for transactions before Atlantis (EIP-658
+    // receipt statuses) too, probed 2026-11-11; an entry without one fails the history, never
+    // reads as zero.
+    fetchMock((url) => ({
+      items: url.endsWith("/internal-transactions")
+        ? []
+        : [{ ...ethTx(1, other, eth, "100"), status: null }],
+      next_page_params: null,
+    }));
+    await expect(evmAddressHistory(eth, ETC_BLOCKSCOUT, unit("ETC"))).rejects.toThrow(
+      "Unknown EVM transaction status.",
+    );
+  });
+
+  it("reads Ethereum Classic's history from its own root, in ETC", async () => {
+    const fetch = fetchMock((url) => ({
+      items: url.endsWith("/internal-transactions") ? [] : [ethTx(1, other, eth, "100")],
+      next_page_params: null,
+    }));
+    expect(await evmAddressHistory(eth, ETC_BLOCKSCOUT, unit("ETC"))).toMatchObject({
+      status: "complete",
+      asset: "ETC",
+      atomicUnit: "wei",
+      decimals: 18,
+      scope: "Confirmed native ETC transactions and internal value transfers",
+      totalReceivedAtomic: "100",
+      transactionCount: 1,
+    });
+    expect(fetch.mock.calls.map(([url]) => url)).toEqual([
+      `${ETC_BLOCKSCOUT}/addresses/${eth}/transactions`,
+      `${ETC_BLOCKSCOUT}/addresses/${eth}/internal-transactions`,
+    ]);
+  });
+
   it("counts contract deployment value once when the normal recipient is null", async () => {
     const deployed = { ...ethTx(1, other, eth, "100"), to: null, created_contract: { hash: eth } };
     const root = {
@@ -434,9 +473,12 @@ it("validates history RPC address, network and coin before network access", asyn
     /invalid Ethereum/iu,
   );
   await expect(service.addressHistory("bitcoin", "invalid" as "mainnet", btc)).rejects.toThrow();
-  await expect(service.addressHistory("unknown" as "bitcoin", "mainnet", btc)).rejects.toThrow(
-    "Unsupported history coin",
-  );
+  await expect(service.addressHistory("base", "mainnet", eth)).rejects.toMatchObject({
+    code: "evm.coin",
+  });
+  await expect(service.addressHistory("unknown", "mainnet", btc)).rejects.toMatchObject({
+    code: "evm.coin",
+  });
   expect(fetch).not.toHaveBeenCalled();
 });
 

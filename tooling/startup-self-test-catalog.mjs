@@ -124,6 +124,7 @@ const ETHEREUM_CLASSIC = Object.freeze([
   "ethereum-classic path boundary refusal",
   "Ethereum Classic BIP44 · coin type 61",
   "Ethereum Classic master/account extended-key integrity",
+  "Ethereum Classic Ledger legacy · m/44'/60'/160720'/0'/i",
 ]);
 const COSMOS = Object.freeze([
   "cosmos mainnet path metadata",

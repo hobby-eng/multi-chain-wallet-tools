@@ -3,6 +3,7 @@
 // evm-networks.json). A build composes any of them from this table: it inlines the rows of its
 // selected networks, so that it names no endpoint of another network, and a network is one row.
 import TABLE from "../packages/public-data-providers/src/evm-networks.json" with { type: "json" };
+import { SINGLE_KEY_COINS } from "./single-key-coins.mjs";
 
 /** Every EVM network's row with its id, Ethereum first, in the table's order. */
 export const EVM_NETWORKS = Object.freeze(
@@ -26,6 +27,45 @@ export function isEvmCoin(coin) {
 export function selectedEvmNetworks(options) {
   return EVM_NETWORKS.filter(({ id }) => options.hasCoin(id));
 }
+
+/**
+ * Whether an EVM network's row names a Blockscout history endpoint on any of its chains (Ethereum,
+ * Ethereum Classic). Deliberate copy of hasEvmHistory (packages/public-data-providers/src/
+ * evm-network-facts.ts), which tooling cannot import; tooling/selective-composition.test.mjs keeps
+ * both in step.
+ */
+export function hasEvmHistory(row) {
+  return Object.values(row.networks).some((chain) => chain.history !== undefined);
+}
+
+/**
+ * The Deriver's single-key coin whose public address scheme lays out an EVM network's own wallets
+ * (Ethereum Classic's coin type 61 and Ledger's legacy path), checked before Ethereum's layouts: the
+ * row's `walletCoin`; undefined for a network whose wallets derive at Ethereum's coin type only. A
+ * seed scan of the network imports that scheme and runs that coin's derivation self-test. Refuses a
+ * row that names a coin the Deriver does not have.
+ */
+export function evmWalletCoin(row) {
+  if (row.walletCoin === undefined) return undefined;
+  if (!Object.hasOwn(SINGLE_KEY_COINS, row.walletCoin))
+    throw new Error(`EVM network ${row.id} names no single-key coin: ${row.walletCoin}.`);
+  return row.walletCoin;
+}
+
+/** The selected rows whose history a build reads, in table order. */
+export function selectedEvmHistoryNetworks(options) {
+  return selectedEvmNetworks(options).filter(hasEvmHistory);
+}
+
+/**
+ * The graph markers of the EVM history modules, the Scanner's history reader and the history
+ * service, which a build with a selected history row holds and a build without one must not. The
+ * Blockscout parser's module (history.ts) also holds Bitcoin's history, so it is no marker.
+ */
+export const EVM_HISTORY_MARKERS = Object.freeze({
+  scanner: "/discovery-scanner/src/coins/evm/history.ts",
+  service: "/evm-history-service.ts",
+});
 
 /** The JSON-RPC and history endpoints of an EVM network, on every chain it offers. */
 function endpoints(row) {
@@ -73,15 +113,15 @@ export function assertSelectedEvmEndpoints(options, text, label) {
 
 /**
  * What a full Multi-Chain connected tool must hold and a Dash Community one must not: the chain-id
- * check, the group's name, and every EVM network's name and JSON-RPC host. "Base" is too common a
- * word to forbid by itself; its host stands for it.
+ * check, the group's name, and every EVM network's name and endpoint hosts (JSON-RPC and history).
+ * "Base" is too common a word to forbid by itself; its host stands for it.
  */
 export function evmArtifactMarkers() {
   return {
     required: [
       "eth_chainId",
       EVM_NETWORK_GROUP,
-      ...EVM_NETWORKS.flatMap((row) => [row.label, new URL(row.networks.mainnet.rpc).host]),
+      ...EVM_NETWORKS.flatMap((row) => [row.label, ...evmProviderHosts(row)]),
     ],
     forbidden: [
       "eth_chainId",

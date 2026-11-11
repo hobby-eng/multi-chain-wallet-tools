@@ -1,6 +1,6 @@
 import { balanceOnlyHistory } from "@ckd/network-boundary/recovery-history.js";
 import { normalizeEthereumAddress } from "@ckd/public-data-providers/address-normalization.js";
-import type { EthereumPublicDataService } from "@ckd/public-data-providers/ethereum-service.js";
+import type { EvmHistoryService } from "@ckd/public-data-providers/evm-history-service.js";
 import {
   EVM_DECIMALS,
   EVM_NETWORK_ERRORS,
@@ -14,7 +14,7 @@ import type { PublicDataNetwork, RecoveryHistory } from "@ckd/public-data-provid
 import type { ExternalActivityAdapter } from "./external-activity.js";
 
 type EvmAccountReader = Pick<EvmAccountService, "accounts">;
-type EvmHistoryReader = Pick<EthereumPublicDataService, "addressHistory">;
+type EvmHistoryReader = Pick<EvmHistoryService, "addressHistory">;
 
 /** The name of the EIP-55 known answers, the same for every EVM network, so listed once. */
 const EIP55_CHECK = "EVM EIP-55 address checksum";
@@ -49,8 +49,8 @@ function evmBalanceOnlyHistory(
 
 /**
  * The public-address activity of the EVM network `facts` (a row of the EVM network table): balance
- * and nonce from `accounts`, and history from `history` where the network has one (Ethereum's
- * Blockscout).
+ * and nonce from `accounts`, and history from `history` where the network's row names a history
+ * endpoint (Blockscout's, for Ethereum and Ethereum Classic).
  */
 export function createEvmActivityAdapter(
   facts: EvmNetworkFacts,
@@ -75,7 +75,7 @@ export function createEvmActivityAdapter(
       const [found, batch] = await Promise.all([
         history === undefined
           ? evmBalanceOnlyHistory(facts, network)
-          : history.addressHistory(network, address, signal),
+          : history.addressHistory(facts.id, network, address, signal),
         accounts.accounts(facts.id, network, [address], signal),
       ]);
       const [account] = batch.entries;

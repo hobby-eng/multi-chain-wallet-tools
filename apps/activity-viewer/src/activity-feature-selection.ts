@@ -1,6 +1,7 @@
 import { ACCOUNT_COIN_READERS } from "@ckd/public-data-providers/account-coins.js";
 import { AccountStatesService } from "@ckd/public-data-providers/account-states-service.js";
-import { EthereumPublicDataService } from "@ckd/public-data-providers/ethereum-service.js";
+import { EvmHistoryService } from "@ckd/public-data-providers/evm-history-service.js";
+import { hasEvmHistory } from "@ckd/public-data-providers/evm-network-facts.js";
 import { EVM_NETWORKS } from "@ckd/public-data-providers/evm-networks.js";
 import { EvmAccountService } from "@ckd/public-data-providers/evm-service.js";
 import { createAccountActivityAdapter } from "./activity-account.js";
@@ -11,6 +12,7 @@ import { createEvmActivityAdapter } from "./activity-evm.js";
 // every account coin of the account coin table. A composed build inlines the rows of its selected
 // networks and coins instead (tooling/activity-viewer-composition.mjs).
 const evmAccounts = new EvmAccountService(EVM_NETWORKS);
+const evmHistory = new EvmHistoryService(EVM_NETWORKS.filter(hasEvmHistory));
 const accountStates = new AccountStatesService(ACCOUNT_COIN_READERS);
 
 export const SELECTED_EXTERNAL_ACTIVITY_ADAPTERS = [
@@ -19,8 +21,8 @@ export const SELECTED_EXTERNAL_ACTIVITY_ADAPTERS = [
     createEvmActivityAdapter(
       facts,
       evmAccounts,
-      // Ethereum alone has a history provider (Blockscout).
-      facts.id === "ethereum" ? new EthereumPublicDataService(facts) : undefined,
+      // Only a network whose row names a history endpoint has a history provider (Blockscout).
+      hasEvmHistory(facts) ? evmHistory : undefined,
     ),
   ),
   ...ACCOUNT_COIN_READERS.map((reader) => createAccountActivityAdapter(reader, accountStates)),

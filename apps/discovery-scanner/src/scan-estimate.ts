@@ -44,10 +44,11 @@ export function bitcoinScanEstimate(
 /** The estimate line of an EVM network's seed scan (`label` names the network). */
 export function evmScanEstimate(
   label: string,
+  profiles: number,
   receiveCount: string,
   options: StandardEstimateOptions,
 ): string {
-  return `${label} EOA · 3 standard wallet profiles${options.customPath ? (options.customRange ? " + custom account range" : " + custom path") : ""} · ${estimateInteger(receiveCount, 1).toLocaleString()} minimum derivations per profile + 20-address post-use gaps · ${estimateConcurrency(options.requests)} network requests at once${options.includeUsedZero ? " · used zero-balance accounts enabled" : ""}`;
+  return `${label} EOA · ${profiles} standard wallet profiles${options.customPath ? (options.customRange ? " + custom account range" : " + custom path") : ""} · ${estimateInteger(receiveCount, 1).toLocaleString()} minimum derivations per profile + 20-address post-use gaps · ${estimateConcurrency(options.requests)} network requests at once${options.includeUsedZero ? " · used zero-balance accounts enabled" : ""}`;
 }
 
 /** The estimate line of an account coin's seed scan (`label` names the coin). */

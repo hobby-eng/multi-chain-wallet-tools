@@ -18,7 +18,10 @@ export interface EvmChainFacts {
   readonly name: string;
   /** The JSON-RPC endpoint of balances and nonces. */
   readonly rpc: string;
-  /** The Blockscout API v2 root of address history; absent where the tools read no history. */
+  /**
+   * The Blockscout API v2 root of address history (EvmHistoryService); absent where the tools read
+   * no history.
+   */
   readonly history?: string;
 }
 
@@ -29,6 +32,14 @@ export interface EvmNetworkFacts {
   readonly label: string;
   /** The native asset's ticker, such as "BNB". */
   readonly asset: string;
+  /** Who runs the network's JSON-RPC endpoints, as the privacy notes and provider lines name it. */
+  readonly rpcOperator: string;
+  /**
+   * The Deriver's single-key coin whose public address scheme lays out the network's own wallets
+   * (Ethereum Classic's coin type 61 and Ledger's legacy path), checked before Ethereum's layouts;
+   * absent for a network whose wallets derive at Ethereum's coin type only.
+   */
+  readonly walletCoin?: string;
   readonly networks: { readonly mainnet: EvmChainFacts; readonly testnet?: EvmChainFacts };
 }
 
@@ -36,6 +47,10 @@ export interface EvmNetworkFacts {
 export const EVM_DECIMALS = 18;
 /** The name of the atomic unit of every EVM network's native asset. */
 export const EVM_ATOMIC_UNIT = "wei";
+/** Whether the network's row names a Blockscout history endpoint on any of its chains. */
+export function hasEvmHistory(facts: Pick<EvmNetworkFacts, "networks">): boolean {
+  return Object.values(facts.networks).some((chain) => chain?.history !== undefined);
+}
 
 /** The native unit of an EVM network, as balances, histories and exports name it. */
 export function evmAmountUnit(facts: Pick<EvmNetworkFacts, "asset">): {
@@ -94,6 +109,31 @@ export function evmChain(facts: EvmNetworkFacts, network: NetworkName): EvmChain
   const chain = facts.networks[network];
   if (chain === undefined) throw EVM_NETWORK_ERRORS.network(facts.label);
   return chain;
+}
+
+/**
+ * The EVM networks a provider service was given (a composed build inlines its selected rows), by
+ * id: the one lookup of the account and history services.
+ */
+export class EvmNetworkRows {
+  readonly #networks: ReadonlyMap<string, EvmNetworkFacts>;
+
+  constructor(networks: readonly EvmNetworkFacts[]) {
+    this.#networks = new Map(networks.map((facts) => [facts.id, facts]));
+  }
+
+  /**
+   * The row of `coin` and its chain on `network`; refuses a network these rows do not hold, a
+   * network name other than mainnet and testnet, and a chain the row lacks, before any request.
+   */
+  chain(coin: string, network: NetworkName): { facts: EvmNetworkFacts; chain: EvmChainFacts } {
+    const facts = this.#networks.get(coin);
+    if (facts === undefined) throw EVM_NETWORK_ERRORS.coin();
+    // The type admits only the two names; a value from the boundary is checked again here.
+    if (network !== "mainnet" && network !== "testnet")
+      throw new Error("Network Worker rejected an unsupported network.");
+    return { facts, chain: evmChain(facts, network) };
+  }
 }
 
 /**

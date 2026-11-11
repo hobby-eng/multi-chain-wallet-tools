@@ -65,7 +65,47 @@ describe("EVM network activity", () => {
     expect(adapter.networks).toEqual(["mainnet", "testnet"]);
     expect(adapter.readsHistory).toBe(true);
     const result = await adapter.query(ADDRESS, "testnet", new AbortController().signal);
-    expect(history.addressHistory).toHaveBeenCalledWith("testnet", ADDRESS, expect.anything());
+    expect(history.addressHistory).toHaveBeenCalledWith(
+      "ethereum",
+      "testnet",
+      ADDRESS,
+      expect.anything(),
+    );
     expect(result.history.source).toBe("Blockscout");
+  });
+
+  it("reads Ethereum Classic's balance, nonce and history as ETC on Mainnet only", async () => {
+    const history = {
+      addressHistory: vi.fn(async () => ({
+        ...emptyPublicHistory("ETC", "wei", 18),
+        status: "complete" as const,
+        source: "Blockscout",
+      })),
+    };
+    const reader = accounts("61");
+    const adapter = createEvmActivityAdapter(evmNetwork("ethereum-classic"), reader, history);
+    expect(adapter).toMatchObject({
+      id: "ethereum-classic",
+      label: "Ethereum Classic",
+      asset: "ETC",
+      decimals: 18,
+      networks: ["mainnet"],
+      readsHistory: true,
+    });
+    const result = await adapter.query(ADDRESS, "mainnet", new AbortController().signal);
+    expect(reader.accounts).toHaveBeenCalledWith(
+      "ethereum-classic",
+      "mainnet",
+      [ADDRESS],
+      expect.anything(),
+    );
+    expect(history.addressHistory).toHaveBeenCalledWith(
+      "ethereum-classic",
+      "mainnet",
+      ADDRESS,
+      expect.anything(),
+    );
+    expect(result).toMatchObject({ coin: "ethereum-classic", balanceAtomic: 1n, nonce: 3n });
+    expect(result.history).toMatchObject({ asset: "ETC", source: "Blockscout" });
   });
 });

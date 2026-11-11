@@ -9,6 +9,16 @@ import { clearDerivationResult } from "@ckd/core/secrets.js";
 import type { Bip32BatchOptions, DerivationResult } from "@ckd/core/types.js";
 import { combinedAddressScheme, type CoinAddressScheme } from "@ckd/coins/address-scheme.js";
 import { COSMOS_ADDRESSES, cosmosDerivation } from "@ckd/coins/cosmos/index.js";
+import { bip44CoinAddresses } from "@ckd/coins/bip44-coin.js";
+import {
+  ETHEREUM_CLASSIC_ADDRESSES,
+  ETHEREUM_CLASSIC_KEYS,
+  ethereumClassicDerivation,
+} from "@ckd/coins/ethereum-classic/index.js";
+import {
+  ETHEREUM_CLASSIC_LEDGER_LEGACY,
+  ETHEREUM_CLASSIC_PROFILES,
+} from "@ckd/coins/ethereum-classic/profiles.js";
 import { HEDERA_ADDRESSES, hederaDerivation } from "@ckd/coins/hedera/index.js";
 import { INJECTIVE_ADDRESSES, injectiveDerivation } from "@ckd/coins/injective/index.js";
 import { NEAR_ADDRESSES, nearDerivation } from "@ckd/coins/near/index.js";
@@ -75,6 +85,7 @@ const BIP44: readonly [string, CoinAddressScheme, Derivation, string][] = [
   ["Tron", TRON_ADDRESSES, tronDerivation, "tron"],
   ["Cosmos", COSMOS_ADDRESSES, cosmosDerivation, "cosmos"],
   ["Injective", INJECTIVE_ADDRESSES, injectiveDerivation, "injective"],
+  ["Ethereum Classic", ETHEREUM_CLASSIC_ADDRESSES, ethereumClassicDerivation, "ethereum-classic"],
 ];
 
 describe("the account coins' public address layouts", () => {
@@ -227,6 +238,82 @@ describe("the account coins' public address layouts", () => {
     expect(() => opened.address(solana, 0, 0)).toThrow(/not a layout/u);
     opened.wipe();
     expect(() => opened.address(xrp, 0, 0)).toThrow();
+  });
+});
+
+describe("Ethereum Classic's public addresses", () => {
+  it("lay out its coin type 61 as the Deriver's row and Ledger Live do, then Ledger's legacy path", () => {
+    expect(ETHEREUM_CLASSIC_ADDRESSES.layouts.map(({ id, label }) => [id, label])).toEqual([
+      ["ethereum-classic", "BIP44 · coin type 61 · m/44'/61'/a'/0/i"],
+      ["ethereum-classic-accounts", "Ledger Live accounts · m/44'/61'/i'/0/0"],
+      [
+        "ethereum-classic-ledger-legacy",
+        "Ledger legacy Ethereum Classic / MEW · m/44'/60'/160720'/0'/i",
+      ],
+    ]);
+    expect(scanned(ETHEREUM_CLASSIC_ADDRESSES, "ethereum-classic", 0, 0).address).toBe(
+      "0xFA22515E43658ce56A7682B801e9B5456f511420",
+    );
+  });
+
+  it("derive Ledger's legacy path at the oracle's addresses, whatever the scan's account", () => {
+    // test/oracles/bip32_oracle.py's BIP32 with a separate Keccak-256 (2026-11-11), which first
+    // reproduces the phrase's MetaMask and Ethereum Classic BIP44 addresses.
+    const legacy = "ethereum-classic-ledger-legacy";
+    expect(scanned(ETHEREUM_CLASSIC_ADDRESSES, legacy, 0, 0)).toEqual({
+      path: "m/44'/60'/160720'/0'/0",
+      address: "0x4C067164DFD49d0b8B63A466296667683202e43B",
+    });
+    expect(scanned(ETHEREUM_CLASSIC_ADDRESSES, legacy, 7, 1)).toEqual({
+      path: "m/44'/60'/160720'/0'/1",
+      address: "0x5384FeaCa8F17e6Ef553cdF90c29Cb7e74F9D020",
+    });
+    const layout = ETHEREUM_CLASSIC_ADDRESSES.layouts[2];
+    if (layout === undefined) throw new Error("No layout.");
+    expect(layout.maximumCount(7)).toBe(BIP32_BRANCH_SIZE);
+    const opened = ETHEREUM_CLASSIC_ADDRESSES.open(SEED);
+    try {
+      expect(() => opened.address(layout, 0, BIP32_BRANCH_SIZE)).toThrow(/Address index/u);
+    } finally {
+      opened.wipe();
+    }
+    expect(() => opened.address(layout, 0, 0)).toThrow();
+  });
+
+  it("refuses a fixed path without levels or with a level outside the hardened index space", () => {
+    const scheme = (hardened: readonly number[]) =>
+      bip44CoinAddresses(ETHEREUM_CLASSIC_PROFILES, ETHEREUM_CLASSIC_KEYS, {
+        fixedPaths: [{ ...ETHEREUM_CLASSIC_LEDGER_LEGACY, hardened }],
+      });
+    expect(() => scheme([])).toThrow(/names no fixed path/u);
+    expect(() => scheme([44, BIP32_BRANCH_SIZE])).toThrow(/path level/u);
+    expect(() => scheme([44, -1])).toThrow(/path level/u);
+  });
+
+  it("wipes a fixed path's node between the root and the branch when a derivation fails", () => {
+    const layout = ETHEREUM_CLASSIC_ADDRESSES.layouts[2];
+    if (layout === undefined) throw new Error("No layout.");
+    const derive = HDKey.prototype.deriveChild;
+    let calls = 0;
+    // Fault: the third level's derivation fails, as BIP32's invalid-child case (probability below
+    // 2^-127) would make it.
+    vi.spyOn(HDKey.prototype, "deriveChild").mockImplementation(function (
+      this: HDKey,
+      index: number,
+    ) {
+      calls += 1;
+      if (calls === 3) throw new Error("fault");
+      return derive.call(this, index);
+    });
+    const wiped = vi.spyOn(HDKey.prototype, "wipePrivateData");
+    const opened = ETHEREUM_CLASSIC_ADDRESSES.open(SEED);
+    try {
+      expect(() => opened.address(layout, 0, 0)).toThrow("fault");
+      // m/44' after its child m/44'/60', and m/44'/60' when its child fails.
+      expect(wiped.mock.contexts.map((node) => (node as HDKey).depth)).toEqual([1, 2]);
+    } finally {
+      opened.wipe();
+    }
   });
 });
 

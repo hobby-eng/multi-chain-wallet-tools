@@ -7,7 +7,6 @@ import { EVM_NETWORK_GROUP, EVM_NETWORK_IDS } from "./evm-networks.mjs";
 import {
   ACCOUNT_COIN_GROUP,
   ACCOUNT_COINS,
-  accountAddressesModule,
   accountArtifactMarkers,
   accountProviderModule,
   assertSelectedAccountEndpoints,
@@ -20,6 +19,7 @@ import {
   assertDiscoveryComposition,
   discoveryNetworkRuntimeSource,
 } from "./discovery-composition.mjs";
+import { singleKeyAddressesModule } from "./single-key-coins.mjs";
 import { applySelectedNetworkCsp, parseToolFeatureOptions } from "./tool-feature-options.mjs";
 import { ToolProtocolFooter } from "./tool-protocol-footer.mjs";
 import { findDashArtifactViolations } from "./verify-dash-community-artifacts.mjs";
@@ -73,7 +73,7 @@ describe("account coin tooling", () => {
       const providers = await import(resolve(root, provider.file));
       const { addressVectors, canonical } = providers[provider.symbol];
       expect(canonical(addressVectors.canonical)).toBe(addressVectors.canonical);
-      const addresses = accountAddressesModule(row.id);
+      const addresses = singleKeyAddressesModule(row.id);
       const derivation = await import(resolve(root, addresses.file));
       expect(derivation[addresses.symbol].layouts.length).toBeGreaterThan(0);
     }

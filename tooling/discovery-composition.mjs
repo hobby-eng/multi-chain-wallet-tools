@@ -5,14 +5,26 @@ import {
 } from "./derivation-self-tests.mjs";
 import {
   ACCOUNT_SHARED_MARKERS,
-  accountAddressesModule,
   accountReadersSource,
   isAccountCoin,
   selectedAccountCoins,
   unselectedAccountMarkers,
 } from "./account-coins.mjs";
-import { EVM_SHARED_MARKERS, isEvmCoin, selectedEvmNetworks } from "./evm-networks.mjs";
-import { needsSharedModule, SHARED_MODULES } from "./single-key-coins.mjs";
+import {
+  EVM_HISTORY_MARKERS,
+  EVM_SHARED_MARKERS,
+  evmWalletCoin,
+  hasEvmHistory,
+  isEvmCoin,
+  selectedEvmHistoryNetworks,
+  selectedEvmNetworks,
+} from "./evm-networks.mjs";
+import {
+  needsSharedModule,
+  SHARED_MODULES,
+  singleKeyAddressesModule,
+  singleKeyCoinMarkers,
+} from "./single-key-coins.mjs";
 import { replaceBalancedElement as replaceHtmlElement } from "./html-elements.mjs";
 import { resolve } from "node:path";
 import { readFileSync } from "node:fs";
@@ -50,11 +62,20 @@ function evmFactory(options) {
   ];
 }
 
-/** Ethereum's history, the one an EVM network adds to its EVM network table row. */
-const ETHEREUM_HISTORY = [
-  "getEthereumHistory",
-  "apps/discovery-scanner/src/coins/ethereum/history.ts",
-];
+/** The history reader that an EVM network whose row names a history endpoint adds to its row. */
+const EVM_HISTORY = ["evmHistory", "apps/discovery-scanner/src/coins/evm/history.ts"];
+
+/** The privacy note of a build's EVM networks, built from their rows' operators. */
+const EVM_PRIVACY = ["evmNetworkPrivacy", "apps/discovery-scanner/src/coins/evm/coin.ts"];
+
+/**
+ * The Deriver coins whose address schemes lay out the selected EVM networks' own wallets (Ethereum
+ * Classic's); only a seed scan derives them, so a build without seed discovery has none.
+ */
+function selectedEvmWalletCoins(options) {
+  if (!options.has("seed-discovery")) return [];
+  return selectedEvmNetworks(options).flatMap((row) => evmWalletCoin(row) ?? []);
+}
 
 /** The seed factory of every account coin; the policy admits account coins with seed discovery only. */
 const ACCOUNT_SEED_FACTORY = [
@@ -65,12 +86,13 @@ const ACCOUNT_SEED_FACTORY = [
 function registrySource(root, options) {
   const evm = new Map(selectedEvmNetworks(options).map((row) => [row.id, row]));
   const accounts = new Map(selectedAccountCoins(options).map((row) => [row.id, row]));
+  const walletCoins = selectedEvmWalletCoins(options);
   const imports = new Map();
   const entries = options.coins.map((coin) => {
     const account = accounts.get(coin);
     if (account !== undefined) {
       // Each account coin is its row, inlined, and the Deriver's derivation of the same coin.
-      const addresses = accountAddressesModule(coin);
+      const addresses = singleKeyAddressesModule(coin);
       imports.set(...ACCOUNT_SEED_FACTORY);
       imports.set(addresses.symbol, addresses.file);
       return `${ACCOUNT_SEED_FACTORY[0]}(${JSON.stringify(account)}, ${addresses.symbol})`;
@@ -82,19 +104,34 @@ function registrySource(root, options) {
       return symbol;
     }
     // Each EVM network is its row of the EVM network table, inlined, so that the build names no
-    // other network.
+    // other network, with the privacy note of the build's networks, its history where its row names
+    // one, and its own wallets' layouts where its Deriver coin has them.
     const [factory, file] = evmFactory(options);
     imports.set(factory, file);
-    if (coin !== "ethereum") return `${factory}(${JSON.stringify(row)})`;
-    imports.set(...ETHEREUM_HISTORY);
-    return `${factory}(${JSON.stringify(row)}, { getHistory: ${ETHEREUM_HISTORY[0]} })`;
+    imports.set(...EVM_PRIVACY);
+    const extras = ["privacy: evmPrivacy"];
+    if (hasEvmHistory(row)) {
+      imports.set(...EVM_HISTORY);
+      extras.push(`getHistory: ${EVM_HISTORY[0]}(${JSON.stringify(coin)})`);
+    }
+    const walletCoin = evmWalletCoin(row);
+    if (walletCoin !== undefined && walletCoins.includes(walletCoin)) {
+      const addresses = singleKeyAddressesModule(walletCoin);
+      imports.set(addresses.symbol, addresses.file);
+      extras.push(`addresses: ${addresses.symbol}`);
+    }
+    return `${factory}(${JSON.stringify(row)}, { ${extras.join(", ")} })`;
   });
   const lines = [...imports].map(
     ([symbol, file]) => `import { ${symbol} } from ${JSON.stringify(resolve(root, file))};`,
   );
+  const privacy =
+    evm.size === 0
+      ? ""
+      : `const evmPrivacy = ${EVM_PRIVACY[0]}(${JSON.stringify([...evm.values()].map(({ rpcOperator }) => ({ rpcOperator })))});\n`;
   return `${lines.join("\n")}
 import { createRecoveryCoinRegistry } from ${JSON.stringify(resolve(root, "apps/discovery-scanner/src/coins/registry.ts"))};
-export const { getRecoveryCoin, listRecoveryCoins } = createRecoveryCoinRegistry([${entries.join(", ")}]);`;
+${privacy}export const { getRecoveryCoin, listRecoveryCoins } = createRecoveryCoinRegistry([${entries.join(", ")}]);`;
 }
 
 function networkServiceSource(root, options) {
@@ -141,15 +178,15 @@ function networkServiceSource(root, options) {
       "evmAccounts(coin, network, addresses, signal) { return evm.accounts(coin, network, addresses, signal); }",
     );
   }
-  if (options.hasCoin("ethereum")) {
+  // The selected networks whose rows name a history endpoint, each read from its own Blockscout root.
+  const histories = selectedEvmHistoryNetworks(options);
+  if (histories.length > 0) {
     imports.push(
-      `import { EthereumPublicDataService } from ${JSON.stringify(resolve(root, "packages/public-data-providers/src/ethereum-service.ts"))};`,
+      `import { EvmHistoryService } from ${JSON.stringify(resolve(root, "packages/public-data-providers/src/evm-history-service.ts"))};`,
     );
-    setup.push(
-      `const ethereum = new EthereumPublicDataService(${JSON.stringify(evm.find(({ id }) => id === "ethereum"))});`,
-    );
+    setup.push(`const evmHistory = new EvmHistoryService(${JSON.stringify(histories)});`);
     methods.push(
-      "ethereumAddressHistory(network, address, signal) { return ethereum.addressHistory(network, address, signal); }",
+      "evmAddressHistory(coin, network, address, signal) { return evmHistory.addressHistory(coin, network, address, signal); }",
     );
   }
   const accounts = selectedAccountCoins(options);
@@ -217,7 +254,8 @@ export function discoveryNetworkRuntimeSource(root, options) {
       `case 'utxo.addresses': return service.utxoAddresses(request.payload.network, request.payload.addresses, signal);`,
     );
   }
-  if (options.hasCoin("ethereum")) historyCoins.push("ethereum");
+  const evmHistoryIds = selectedEvmHistoryNetworks(options).map(({ id }) => id);
+  historyCoins.push(...evmHistoryIds);
   const evmIds = selectedEvmNetworks(options).map(({ id }) => id);
   const evmImport = [];
   if (evmIds.length > 0) {
@@ -247,9 +285,9 @@ export function discoveryNetworkRuntimeSource(root, options) {
       routes.push(
         `if (request.payload.coin === 'bitcoin') return service.bitcoinAddressHistory(request.payload.network, request.payload.address, signal);`,
       );
-    if (options.hasCoin("ethereum"))
+    if (evmHistoryIds.length > 0)
       routes.push(
-        `if (request.payload.coin === 'ethereum') return service.ethereumAddressHistory(request.payload.network, request.payload.address, signal);`,
+        `if (${JSON.stringify(evmHistoryIds)}.includes(request.payload.coin)) return service.evmAddressHistory(request.payload.coin, request.payload.network, request.payload.address, signal);`,
       );
     cases.push(
       `case 'address.history': ${routes.join(" ")} throw new Error('Public history coin is not included in this build.');`,
@@ -322,10 +360,18 @@ export function discoveryAppEntry(root, options) {
 }
 
 function selfTestSource(root, options) {
-  // Every EVM network derives Ethereum's accounts, so any of them brings Ethereum's known answers.
+  // Every EVM network derives Ethereum's accounts, so any of them brings Ethereum's known answers;
+  // an EVM network with its own wallets' layouts brings its Deriver coin's, whose scheme derives
+  // them.
   const evm = selectedEvmNetworks(options).length > 0;
+  const walletCoins = selectedEvmWalletCoins(options);
   const modules = Object.entries(DERIVATION_SELF_TESTS)
-    .filter(([coin]) => options.hasCoin(coin) || (coin === "ethereum" && evm))
+    .filter(
+      ([coin]) =>
+        (options.hasCoin(coin) && !isEvmCoin(coin)) ||
+        (coin === "ethereum" && evm) ||
+        walletCoins.includes(coin),
+    )
     .map(([, module]) => module);
   // The candidate lists come with seed discovery, which is the only build of this self-test.
   modules.push([
@@ -546,7 +592,7 @@ export function assertDiscoveryComposition(options, inputs) {
       "/dash-network/",
       "/@dashevo/evo-sdk/",
     ],
-    ethereum: ["/discovery-scanner/src/coins/ethereum/", "/ethereum-service.ts"],
+    ethereum: ["/discovery-scanner/src/coins/ethereum/"],
   };
   const evm = selectedEvmNetworks(options).length > 0;
   // Without any EVM network, Ethereum's derivation and every shared EVM module stay out too, but
@@ -618,11 +664,40 @@ export function assertDiscoveryComposition(options, inputs) {
       );
   };
   requireInput("runtime network request validation", "/network-boundary/src/request-validation.ts");
-  for (const coin of options.coins) {
+  for (const coin of options.coins)
     if (!isEvmCoin(coin)) requireInput(`${coin} coin support`, `/coins/${coin}/`);
-    else if (coin === "ethereum")
-      requireInput("Ethereum history", "/discovery-scanner/src/coins/ethereum/history.ts");
+  // Each selected network whose row names a history endpoint reads it; without one, no EVM history
+  // module stays.
+  const histories = selectedEvmHistoryNetworks(options);
+  for (const { id } of histories)
+    for (const marker of Object.values(EVM_HISTORY_MARKERS)) requireInput(`${id} history`, marker);
+  if (histories.length === 0) {
+    const leaked = normalized.filter((input) =>
+      Object.values(EVM_HISTORY_MARKERS).some((marker) => input.includes(marker)),
+    );
+    if (leaked.length)
+      throw new Error(
+        `Discovery Scanner selected no EVM history, but its modules remain:\n${leaked.join("\n")}`,
+      );
   }
+  // An EVM network's own wallets' layouts come with its Deriver coin's scheme and derivation
+  // self-test in a seed build, and with neither module of that coin in a build without seed scans.
+  const walletCoins = selectedEvmWalletCoins(options);
+  for (const coin of walletCoins) {
+    requireInput(`${coin} wallet layouts`, singleKeyAddressesModule(coin).file);
+    requireInput(`${coin} derivation self-test`, `derivation-self-test-${coin}.ts`);
+  }
+  const absentWallets = selectedEvmNetworks(options).flatMap((row) => {
+    const coin = evmWalletCoin(row);
+    return coin === undefined || walletCoins.includes(coin) ? [] : singleKeyCoinMarkers(coin);
+  });
+  const leakedWallets = normalized.filter((input) =>
+    absentWallets.some((marker) => input.includes(marker)),
+  );
+  if (leakedWallets.length)
+    throw new Error(
+      `Discovery Scanner scans no seed, but EVM wallet layout modules remain:\n${leakedWallets.join("\n")}`,
+    );
   // Each selected account coin's provider, the modules they share, and no unselected coin's modules.
   const accounts = selectedAccountCoins(options);
   for (const { api } of accounts) requireInput("account coins", `/account-coins/${api}.ts`);

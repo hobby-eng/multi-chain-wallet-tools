@@ -4,7 +4,7 @@
 // module only adds the coin's encodings, so each coin brings nothing but those.
 import type { HDKey } from "@scure/bip32";
 import { requirePublic, rootFromSeed } from "@ckd/core/bip32.js";
-import { BIP32_BRANCH_SIZE, BIP32_HARDENED_OFFSET } from "@ckd/core/bip32-limits.js";
+import { assertIndex, BIP32_BRANCH_SIZE, BIP32_HARDENED_OFFSET } from "@ckd/core/bip32-limits.js";
 import { bytesToHex, encodeWif, secp256k1, wipe } from "@ckd/core/crypto.js";
 import type { Bip32Versions } from "@ckd/core/networks.js";
 import type { Bip32SummaryLabels } from "../bip32-summary.js";
@@ -138,9 +138,43 @@ export function bip44CoinDerivation(
 const RECEIVE_BRANCH = 0;
 
 /** A layout of a BIP44 variant, with where index i of a scan at account a sits: its account and index. */
-interface Bip44Layout {
+interface VariantLayout {
   readonly profile: Bip44CoinProfile;
   at(account: number, index: number): { readonly account: number; readonly index: number };
+}
+
+/**
+ * A layout of addresses m/h₁'/…/hₙ'/i under one fixed hardened path that the scan's account does not
+ * move, such as Ledger's legacy Ethereum Classic path m/44'/60'/160720'/0'/i: `hardened` lists that
+ * path's levels, and the address index i is the last, unhardened level.
+ */
+export interface FixedPathLayout {
+  readonly id: string;
+  /** The layout's name in scan sections, with its path template. */
+  readonly label: string;
+  readonly hardened: readonly number[];
+}
+
+/** Where a layout's addresses sit: under a variant's account, or under a fixed path. */
+type Bip44Layout = VariantLayout | FixedPathLayout;
+
+/**
+ * The layout of a fixed path, which derives from that path whatever the scan's account; refuses a
+ * path without levels or with a level outside the hardened index space.
+ */
+function fixedPathLayout(facts: FixedPathLayout): [AddressLayout, Bip44Layout] {
+  if (facts.hardened.length === 0) throw new Error(`${facts.id} names no fixed path.`);
+  for (const level of facts.hardened) assertIndex(level, `${facts.id} path level`);
+  const branch = `m/${facts.hardened.map((level) => `${level}'`).join("/")}`;
+  return [
+    Object.freeze({
+      id: facts.id,
+      label: facts.label,
+      path: (_account: number, index: number) => `${branch}/${assertIndex(index, "Address index")}`,
+      maximumCount: () => BIP32_BRANCH_SIZE,
+    }),
+    facts,
+  ];
 }
 
 /**
@@ -161,7 +195,7 @@ function bip44Layouts(
   const layout = (
     id: string,
     label: string,
-    at: Bip44Layout["at"],
+    at: VariantLayout["at"],
     maximumCount: AddressLayout["maximumCount"],
   ): [AddressLayout, Bip44Layout] => [
     Object.freeze({
@@ -196,20 +230,24 @@ function bip44Layouts(
 export interface Bip44AddressOptions {
   /** Whether Ledger Live derives the coin by account index, m/purpose'/coin'/i'/0/0 (default). */
   readonly accountIndex?: boolean;
+  /** Fixed paths that the coin's wallets also use, after the variants' layouts. */
+  readonly fixedPaths?: readonly FixedPathLayout[];
   /** What the layouts cannot reach (CoinAddressScheme.notCovered). */
   readonly notCovered?: string;
 }
 
 /**
  * The addresses of one seed under a BIP44 coin's layouts. The root, each variant's coin-type node
- * m/purpose'/coin' and the receive branch of the account in use are derived once and held until
- * wipe(); every other node, the account's included, is wiped as soon as its child is derived.
+ * m/purpose'/coin', the receive branch of the account in use and each fixed path's branch are
+ * derived once and held until wipe(); every other node, the account's included, is wiped as soon
+ * as its child is derived.
  */
 class Bip44SeedAddresses implements SeedAddresses {
   readonly #root: HDKey;
   readonly #keys: Bip44CoinKeys;
   readonly #layouts: ReadonlyMap<AddressLayout, Bip44Layout>;
   readonly #coinNodes = new Map<Bip44CoinProfile, HDKey>();
+  readonly #fixedBranches = new Map<FixedPathLayout, HDKey>();
   #branch: { profile: Bip44CoinProfile; account: number; node: HDKey } | null = null;
 
   constructor(
@@ -225,9 +263,13 @@ class Bip44SeedAddresses implements SeedAddresses {
   address(layout: AddressLayout, account: number, index: number): string {
     const own = this.#layouts.get(layout);
     if (own === undefined) throw new Error(`${layout.id} is not a layout of this coin.`);
-    const at = own.at(account, index);
+    // The path checks the index first: an index past the last unhardened one would derive a
+    // hardened child.
     const path = layout.path(account, index);
-    const child = this.#branchOf(own.profile, at.account).deriveChild(at.index);
+    const child =
+      "hardened" in own
+        ? this.#fixedBranch(own).deriveChild(index)
+        : this.#variantChild(own, account, index);
     let publicKey: Uint8Array | null = null;
     try {
       publicKey = requirePublic(child, path);
@@ -242,9 +284,37 @@ class Bip44SeedAddresses implements SeedAddresses {
   wipe(): void {
     this.#branch?.node.wipePrivateData();
     this.#branch = null;
-    for (const node of this.#coinNodes.values()) node.wipePrivateData();
+    for (const node of [...this.#coinNodes.values(), ...this.#fixedBranches.values()])
+      node.wipePrivateData();
     this.#coinNodes.clear();
+    this.#fixedBranches.clear();
     this.#root.wipePrivateData();
+  }
+
+  /** The child of index `index` of a scan at account `account` under a variant's layout. */
+  #variantChild(own: VariantLayout, account: number, index: number): HDKey {
+    const at = own.at(account, index);
+    return this.#branchOf(own.profile, at.account).deriveChild(at.index);
+  }
+
+  /**
+   * The branch node of a fixed path, derived once level by level; each node between the root and
+   * the branch is wiped as soon as its child is derived, or when that derivation fails.
+   */
+  #fixedBranch(facts: FixedPathLayout): HDKey {
+    const held = this.#fixedBranches.get(facts);
+    if (held !== undefined) return held;
+    let node = this.#root;
+    for (const level of facts.hardened) {
+      const parent = node;
+      try {
+        node = parent.deriveChild(level + BIP32_HARDENED_OFFSET);
+      } finally {
+        if (parent !== this.#root) parent.wipePrivateData();
+      }
+    }
+    this.#fixedBranches.set(facts, node);
+    return node;
   }
 
   /** The coin-type node m/purpose'/coin' of `profile`; the purpose node is wiped at once. */
@@ -283,17 +353,20 @@ class Bip44SeedAddresses implements SeedAddresses {
 
 /**
  * The public addresses of a BIP44 coin for the connected tools: each variant's address index and,
- * unless `options` leaves it out, Ledger Live's account index (bip44Layouts), each address `keys`
- * makes of the child's public key, as the Deriver's rows show it; only public keys are read, and
- * every private node is wiped.
+ * unless `options` leaves it out, Ledger Live's account index (bip44Layouts), then the fixed paths
+ * `options` names, each address `keys` makes of the child's public key, as the Deriver's rows show
+ * it; only public keys are read, and every private node is wiped.
  */
 export function bip44CoinAddresses(
   profiles: readonly Bip44CoinProfile[],
   keys: Bip44CoinKeys,
   options: Bip44AddressOptions = {},
 ): CoinAddressScheme {
-  const { accountIndex = true, notCovered } = options;
-  const layouts = new Map(profiles.flatMap((profile) => bip44Layouts(profile, accountIndex)));
+  const { accountIndex = true, fixedPaths = [], notCovered } = options;
+  const layouts = new Map([
+    ...profiles.flatMap((profile) => bip44Layouts(profile, accountIndex)),
+    ...fixedPaths.map(fixedPathLayout),
+  ]);
   return Object.freeze({
     layouts: Object.freeze([...layouts.keys()]),
     ...(notCovered === undefined ? {} : { notCovered }),

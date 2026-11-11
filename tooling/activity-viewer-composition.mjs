@@ -4,7 +4,13 @@ import {
   selectedAccountCoins,
   unselectedAccountMarkers,
 } from "./account-coins.mjs";
-import { isEvmCoin, selectedEvmNetworks } from "./evm-networks.mjs";
+import {
+  EVM_HISTORY_MARKERS,
+  hasEvmHistory,
+  isEvmCoin,
+  selectedEvmHistoryNetworks,
+  selectedEvmNetworks,
+} from "./evm-networks.mjs";
 import { TOOL_MANIFESTS } from "./tool-manifests.mjs";
 import { replaceBalancedElement as replaceHtmlElement } from "./html-elements.mjs";
 import { resolve } from "node:path";
@@ -59,14 +65,16 @@ function selectedAdaptersSource(root, options) {
       `const evmNetworks = ${JSON.stringify(evm)};`,
       "const evmAccounts = new EvmAccountService(evmNetworks);",
     );
-    if (options.hasCoin("ethereum"))
+    // A network whose row names a history endpoint reads its history from Blockscout; the others
+    // load balance and nonce.
+    if (evm.some(hasEvmHistory))
       lines.push(
-        `import { EthereumPublicDataService } from ${module("packages/public-data-providers/src/ethereum-service.ts")};`,
+        `import { EvmHistoryService } from ${module("packages/public-data-providers/src/evm-history-service.ts")};`,
+        `const evmHistory = new EvmHistoryService(${JSON.stringify(evm.filter(hasEvmHistory))});`,
       );
-    // Ethereum alone has a history provider (Blockscout); the others load balance and nonce.
-    for (const [index, { id }] of evm.entries())
+    for (const [index, row] of evm.entries())
       adapters.push(
-        `createEvmActivityAdapter(evmNetworks[${index}], evmAccounts${id === "ethereum" ? `, new EthereumPublicDataService(evmNetworks[${index}])` : ""})`,
+        `createEvmActivityAdapter(evmNetworks[${index}], evmAccounts${hasEvmHistory(row) ? ", evmHistory" : ""})`,
       );
   }
   const accounts = selectedAccountCoins(options);
@@ -107,6 +115,27 @@ export function createActivityViewerCompositionPlugin(root, options) {
 const replaceBalancedElement = (source, openingPattern, replacement = "") =>
   replaceHtmlElement(source, openingPattern, replacement, "Activity Viewer template");
 
+/**
+ * The provider line of a Viewer build without Dash: Bitcoin's provider, the EVM networks grouped by
+ * the operator of their JSON-RPC (in table order) and those with a history by Blockscout, and each
+ * account coin's host.
+ */
+export function activityProviderSummary(options) {
+  const evm = selectedEvmNetworks(options);
+  const operators = Map.groupBy(evm, ({ rpcOperator }) => rpcOperator);
+  const histories = selectedEvmHistoryNetworks(options).map(({ label }) => label);
+  return [
+    ...(options.hasCoin("bitcoin") ? ["Bitcoin: Blockstream Esplora"] : []),
+    ...[...operators].map(
+      ([operator, rows]) => `${rows.map(({ label }) => label).join(", ")}: ${operator} JSON-RPC`,
+    ),
+    ...(histories.length > 0 ? [`${histories.join(", ")} history: Blockscout`] : []),
+    ...selectedAccountCoins(options).map(
+      ({ label, endpoint }) => `${label}: ${new URL(endpoint).host}`,
+    ),
+  ].join(" · ");
+}
+
 export function applyActivityCoinTemplate(template, options) {
   let rendered = template;
   for (const coin of TOOL_MANIFESTS["activity-viewer"].coins) {
@@ -125,14 +154,7 @@ export function applyActivityCoinTemplate(template, options) {
       ...(options.hasCoin("bitcoin") ? ["Bitcoin"] : []),
       ...[...evm, ...accounts].map(({ label }) => label),
     ];
-    const providerSummary = [
-      ...(options.hasCoin("bitcoin") ? ["Bitcoin: Blockstream Esplora"] : []),
-      ...(evm.length > 0
-        ? [`${evm.map(({ label }) => label).join(", ")}: PublicNode JSON-RPC`]
-        : []),
-      ...(options.hasCoin("ethereum") ? ["Ethereum history: Blockscout"] : []),
-      ...accounts.map(({ label, endpoint }) => `${label}: ${new URL(endpoint).host}`),
-    ].join(" · ");
+    const providerSummary = activityProviderSummary(options);
     rendered = replaceBalancedElement(
       rendered,
       /<div\b[^>]*class=["'][^"']*\bviewer-detection-tabs\b[^"']*["'][^>]*>/iu,
@@ -273,7 +295,6 @@ export function assertActivityViewerComposition(options, inputs) {
   const normalized = inputs.map((input) => input.replaceAll("\\", "/"));
   const markers = {
     bitcoin: ["/activity-bitcoin.ts", "/bitcoin-service.ts"],
-    ethereum: ["/ethereum-service.ts"],
     dash: [
       "/dash-network/",
       "/activity-viewer/src/start.ts",
@@ -299,7 +320,17 @@ export function assertActivityViewerComposition(options, inputs) {
       );
   };
   if (options.hasCoin("bitcoin")) requireInput("Bitcoin", "/activity-bitcoin.ts");
-  if (options.hasCoin("ethereum")) requireInput("Ethereum history", "/ethereum-service.ts");
+  // Each selected network whose row names a history endpoint reads it; without one, no EVM history
+  // service stays.
+  const histories = selectedEvmHistoryNetworks(options);
+  for (const { id } of histories) requireInput(`${id} history`, EVM_HISTORY_MARKERS.service);
+  if (histories.length === 0) {
+    const leaked = normalized.filter((input) => input.includes(EVM_HISTORY_MARKERS.service));
+    if (leaked.length > 0)
+      throw new Error(
+        `Activity Viewer selected no EVM history, but its modules remain:\n${leaked.join("\n")}`,
+      );
+  }
   // Each selected account coin's provider, the modules they share, and no unselected coin's modules.
   const accounts = selectedAccountCoins(options);
   for (const { api } of accounts) requireInput("account coins", `/account-coins/${api}.ts`);

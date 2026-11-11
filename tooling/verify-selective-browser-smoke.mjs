@@ -56,6 +56,27 @@ const variants = [
     },
   },
   {
+    // Ethereum Classic alone: its own coin type 61 beside Ethereum's 60, so both derivations'
+    // known answers, and its history.
+    id: "discovery-ethereum-classic",
+    script: "apps/discovery-scanner/scripts/build-discovery-scanner-html.mjs",
+    args: ["--coins", "ethereum-classic", "--features", "seed-discovery,custom-paths"],
+    selfTest: "#recovery-crypto-self-test-status.passed",
+    fingerprint: "#recovery-build-fingerprint",
+    frame: "#recovery-secret-vault",
+    inspect: async (scope) => {
+      assert.deepEqual(
+        await scope
+          .locator('#recovery-coin optgroup[label="EVM networks"] option')
+          .allTextContents(),
+        ["Ethereum Classic"],
+      );
+      const details = await scope.locator("#recovery-crypto-self-test-details").textContent();
+      assert.match(details, /Ethereum Classic/u);
+      assert.match(details, /Ethereum\b(?! Classic)/u);
+    },
+  },
+  {
     // An account coin alone: its own option, Mainnet only.
     id: "activity-xrp",
     script: "apps/activity-viewer/scripts/build-activity-viewer-html.mjs",

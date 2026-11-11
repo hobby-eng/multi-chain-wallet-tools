@@ -1,6 +1,9 @@
 import { ACCOUNT_COIN_READERS } from "@ckd/public-data-providers/account-coins.js";
 import { AccountStatesService } from "@ckd/public-data-providers/account-states-service.js";
-import { validateEvmAccountsPayload } from "@ckd/public-data-providers/evm-network-facts.js";
+import {
+  hasEvmHistory,
+  validateEvmAccountsPayload,
+} from "@ckd/public-data-providers/evm-network-facts.js";
 import { EVM_NETWORKS } from "@ckd/public-data-providers/evm-networks.js";
 import {
   RECOVERY_CORE_ADDRESS_BATCH,
@@ -43,6 +46,8 @@ const addressBatch =
 
 // Every account coin of the table: it refuses a payload as the development service would.
 const ALL_ACCOUNT_STATES = new AccountStatesService(ACCOUNT_COIN_READERS);
+// Bitcoin and every EVM network whose row names a history endpoint.
+const HISTORY_COINS = ["bitcoin", ...EVM_NETWORKS.filter(hasEvmHistory).map(({ id }) => id)];
 
 const ALL_OPERATION_VALIDATORS: NetworkOperationValidators = {
   ping: (value) => void exactNetworkPayload(value, []),
@@ -71,7 +76,7 @@ const ALL_OPERATION_VALIDATORS: NetworkOperationValidators = {
   },
   "address.history": (value) => {
     const body = exactNetworkPayload(value, ["coin", "network", "address"]);
-    assertOneOf(body.coin, ["bitcoin", "ethereum"], "Public history coin");
+    assertOneOf(body.coin, HISTORY_COINS, "Public history coin");
     assertRecoveryNetwork(body.network);
     assertPublicToken(body.address, "Address");
   },

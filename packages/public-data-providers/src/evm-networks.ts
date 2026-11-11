@@ -7,9 +7,12 @@ import type { EvmNetworkFacts } from "./evm-network-facts.js";
  * tests import this list: a composed build inlines the rows of its selected networks instead, so
  * that it names no endpoint of another network.
  *
- * Endpoint provenance (2026-11-10): every JSON-RPC endpoint answered eth_chainId with its row's
- * chain id, allowed any origin (CORS `*`) and accepted a 200-call JSON-RPC batch. Hyperliquid's
- * HyperEVM was left out: its public endpoint accepts only 20 calls per batch.
+ * Endpoint provenance: every JSON-RPC endpoint answered eth_chainId with its row's chain id, allowed
+ * any origin (CORS `*`) and accepted a 200-call JSON-RPC batch, PublicNode's on 2026-11-10 and
+ * HebeBlock's Ethereum Classic endpoint on 2026-11-11. Hyperliquid's HyperEVM was left out: its
+ * public endpoint accepts only 20 calls per batch. Ethereum Classic's Blockscout API v2 root,
+ * probed on 2026-11-11, allowed any origin and answered the address transaction and
+ * internal-transaction pages that EvmHistoryService reads from Ethereum's, in the same shapes.
  */
 export const EVM_NETWORKS: readonly EvmNetworkFacts[] = Object.freeze(
   Object.entries(table).map(([id, row]) => Object.freeze({ id, ...row })),
