@@ -81,7 +81,7 @@ export class CheckedMnemonicFeature implements CheckedGeneration, GenerationOpti
     this.#panel = required<HTMLElement>("#wallet-check-options");
     this.#help = required<HTMLDetailsElement>("#wallet-check-help");
     this.#cancel = required<HTMLButtonElement>("#wallet-check-cancel");
-    this.#need = page.querySelector<HTMLElement>("#passphrase-need");
+    this.#need = page.querySelector<HTMLElement>("#passphrase-need-kind");
     this.#buttons = buttons;
     this.#outlook = required<HTMLElement>("#wallet-check-outlook");
     this.#check = new MhfePanelCheck(engine, this.#panel, required("#wallet-check-status"), [
@@ -226,10 +226,9 @@ export class CheckedMnemonicFeature implements CheckedGeneration, GenerationOpti
     // The "?" explains the option before it is chosen (owner, 2026-10-23).
     this.#help.hidden = false;
     this.#cancel.hidden = this.#run === undefined;
+    // "case-sensitive" stays in the page's own span, which keeps the word whole on a phone.
     if (this.#need !== null)
-      this.#need.textContent = this.#box.checked
-        ? "required for MHFE generation, case-sensitive"
-        : "optional, case-sensitive";
+      this.#need.textContent = this.#box.checked ? "required for MHFE generation" : "optional";
     this.#buttons.limit("mhfe-wallet-check", this.#box.checked ? WALLET_CHECK_WORDS : undefined);
   }
 }

@@ -449,6 +449,10 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 13px;
 }
+/* The fields after the Dash coverage continue its grid: the same 13px as between its rows. */
+#seed-coverage:not([hidden]) + .coverage-grid {
+  margin-top: 13px;
+}
 .component-selection {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1409,6 +1413,15 @@ label.candidate-choice {
   gap: 10px;
   margin: 8px 0;
 }
+/* The search across coins and its options are rows of the source box, between the seed input mode
+   and the phrase, framed like the seed input mode row (owner, 2026-11-11). */
+#seed-source-panel > :is(label.candidate-choice, #candidate-options) {
+  margin: 0;
+  padding: 12px 16px;
+  border-inline: 1px solid #26323e;
+  border-bottom: 1px solid #202b35;
+  background: #0d141c;
+}
 label.candidate-choice input[type="checkbox"] {
   width: 16px;
   height: 16px;
@@ -1441,9 +1454,4 @@ label.candidate-choice input[type="checkbox"] {
   flex-wrap: wrap;
   gap: 0 24px;
   padding-left: 26px;
-}
-
-/* The opened batch options keep room from the phrase panel below them. */
-#candidate-options:not([hidden]) {
-  margin-bottom: 16px;
 }

@@ -155,106 +155,121 @@
               Copy
             </button>
           </div>
-          <div id="wallet-check-generation" class="generation-option">
-            <div class="field-heading-row">
-              <label class="feature-tab-toggle" for="wallet-check-enabled">
-                <input id="wallet-check-enabled" type="checkbox" disabled />
-                <span
-                  ><strong>Generate with the MHFE wallet check</strong
-                  ><small
-                    >Experimental · 24 words, with a BIP39 passphrase. Can be combined with a chosen word.</small
-                  ></span
-                >
-              </label>
-              <details id="wallet-check-help" class="recovery-help option-help">
-                <summary class="help-mark" aria-label="How the MHFE wallet check works">?</summary>
-                <div class="recovery-help-popover">
-                  <h3>What is checked?</h3>
-                  <p>
-                    BIP39 derives a 64-byte seed from the phrase and its BIP39 passphrase. MHFE draws fresh random
-                    phrases until the first two bytes of the tagged hash of that complete seed are zero:
-                    <code>SHA-256("MHFE-WALLET-CHECK-SEED-1" || BE32(256) || seed)</code>. Neither the words, their
-                    entropy nor the seed is zeroed.
-                  </p>
-                  <p>
-                    The check needs the BIP39 passphrase entered below: without one it would let anyone who sees the
-                    phrase test it. Keep the phrase and the passphrase for recovery, and keep all funds under this
-                    passphrase, since the wallet without it stays empty. Generation keeps the passphrase field
-                    unchanged.
-                  </p>
-                  <p>
-                    The check takes 16 bits of choice from the phrase's 256; a chosen word and words never to use take
-                    more, as stated below before the phrase is drawn. Generation takes about 65,536 trials on average,
-                    has no fixed completion time, and can be cancelled. Only a phrase meeting every selected condition
-                    is returned.
-                  </p>
-                  <p>
-                    This check is not encryption or proof of the wallet's identity. A wrong password or passphrase can
-                    pass about once in 65,536; compare a known address or fingerprint too. More: “mhfe new” in the mhfe
-                    README.
-                  </p>
+          <div class="generation-options">
+            <div id="wallet-check-generation" class="generation-option">
+              <div class="option-heading">
+                <input id="wallet-check-enabled" type="checkbox" aria-describedby="wallet-check-description" disabled />
+                <div class="field-heading-row">
+                  <label for="wallet-check-enabled">Generate with the MHFE wallet</label>
+                  <span class="option-title-end"
+                    ><label for="wallet-check-enabled">check</label>
+                    <details id="wallet-check-help" class="recovery-help option-help">
+                      <summary class="help-mark" aria-label="How the MHFE wallet check works">?</summary>
+                      <div class="recovery-help-popover">
+                        <h3>What is checked?</h3>
+                        <p>
+                          BIP39 derives a 64-byte seed from the phrase and its BIP39 passphrase. MHFE draws fresh random
+                          phrases until the first two bytes of the tagged hash of that complete seed are zero:
+                          <code>SHA-256("MHFE-WALLET-CHECK-SEED-1" || BE32(256) || seed)</code>. Neither the words,
+                          their entropy nor the seed is zeroed.
+                        </p>
+                        <p>
+                          The check needs the BIP39 passphrase entered below: without one it would let anyone who sees
+                          the phrase test it. Keep the phrase and the passphrase for recovery, and keep all funds under
+                          this passphrase, since the wallet without it stays empty. Generation keeps the passphrase
+                          field unchanged.
+                        </p>
+                        <p>
+                          The check takes 16 bits of choice from the phrase's 256; a chosen word and words never to use
+                          take more, as stated below before the phrase is drawn. Generation takes about 65,536 trials on
+                          average, has no fixed completion time, and can be cancelled. Only a phrase meeting every
+                          selected condition is returned.
+                        </p>
+                        <p>
+                          This check is not encryption or proof of the wallet's identity. A wrong password or passphrase
+                          can pass about once in 65,536; compare a known address or fingerprint too. More: “mhfe new” in
+                          the mhfe README.
+                        </p>
+                      </div>
+                    </details></span
+                  >
                 </div>
-              </details>
-            </div>
-            <p id="wallet-check-status" class="field-note" role="status" aria-live="polite" hidden></p>
-            <div id="wallet-check-options" hidden>
-              <p id="wallet-check-outlook" class="field-note warning" aria-live="polite" hidden></p>
-              <button id="wallet-check-cancel" type="button" class="secondary compact" hidden>Stop</button>
-            </div>
-          </div>
-          <div id="ton-generation" class="generation-option">
-            <div class="field-heading-row">
-              <label class="feature-tab-toggle" for="ton-generation-enabled">
-                <input id="ton-generation-enabled" type="checkbox" disabled />
-                <span
-                  ><strong>Generate a phrase the Telegram wallet accepts</strong
-                  ><small>24 words · a BIP39 phrase that is also a TON phrase.</small></span
+                <small id="wallet-check-description"
+                  >Experimental · 24 words, with a BIP39 passphrase. Can be combined with a chosen word.</small
                 >
-              </label>
-              <details id="ton-generation-help" class="recovery-help option-help">
-                <summary class="help-mark" aria-label="What a phrase the Telegram wallet accepts is">?</summary>
-                <div class="recovery-help-popover">
-                  <h3>BIP39 and TON phrases</h3>
-                  <p>
-                    The Telegram wallet and TON's own wallets keep a TON phrase: 24 words of the same English list,
-                    without BIP39's checksum, which pass TON's own check instead; about one random phrase in 256 does.
-                    The key comes from the words alone, not from BIP39's seed, so a BIP39 passphrase is not part of it.
-                  </p>
-                  <p>
-                    With this option the Deriver draws BIP39 phrases of 24 words until one also passes TON's check,
-                    about 256 draws. That phrase gives every coin's BIP39 keys, and the Telegram wallet's key under TON
-                    · Telegram wallet. Trust Wallet and Ledger derive their TON keys from the BIP39 seed of any phrase,
-                    so their addresses differ from the Telegram wallet's.
-                  </p>
-                </div>
-              </details>
-            </div>
-            <p id="ton-phrase-note" class="field-note" role="status" aria-live="polite" hidden></p>
-          </div>
-          <div class="field-heading-row generation-option">
-            <label class="feature-tab-toggle chosen-words-toggle" for="chosen-words-enabled">
-              <input id="chosen-words-enabled" type="checkbox" />
-              <span
-                ><strong>Generate with a chosen word</strong
-                ><small>Not recommended · a random phrase that also holds a word you choose.</small></span
-              >
-            </label>
-            <details id="chosen-words-help" class="recovery-help option-help">
-              <summary class="help-mark" aria-label="What generating with a chosen word does">?</summary>
-              <div class="recovery-help-popover">
-                <h3>A phrase with a word you choose</h3>
-                <p>
-                  The Generate buttons then draw a random phrase that also holds the word you choose, at a position or
-                  anywhere, and none of the words you rule out. The rest stays random, drawn with
-                  crypto.getRandomValues(); the checksum is calculated, never chosen.
-                </p>
-                <p>
-                  Each wish makes the phrase easier to find for someone who knows or guesses it: a word at a position
-                  takes about 11 of its random bits, a word anywhere about 7. Never write the word down next to the
-                  phrase.
-                </p>
               </div>
-            </details>
+              <p id="wallet-check-status" class="field-note" role="status" aria-live="polite" hidden></p>
+              <div id="wallet-check-options" hidden>
+                <p id="wallet-check-outlook" class="field-note warning" aria-live="polite" hidden></p>
+                <button id="wallet-check-cancel" type="button" class="secondary compact" hidden>Stop</button>
+              </div>
+            </div>
+            <div id="ton-generation" class="generation-option">
+              <div class="option-heading">
+                <input
+                  id="ton-generation-enabled"
+                  type="checkbox"
+                  aria-describedby="ton-generation-description"
+                  disabled
+                />
+                <div class="field-heading-row">
+                  <label for="ton-generation-enabled">Generate a phrase the Telegram wallet</label>
+                  <span class="option-title-end"
+                    ><label for="ton-generation-enabled">accepts</label>
+                    <details id="ton-generation-help" class="recovery-help option-help">
+                      <summary class="help-mark" aria-label="What a phrase the Telegram wallet accepts is">?</summary>
+                      <div class="recovery-help-popover">
+                        <h3>BIP39 and TON phrases</h3>
+                        <p>
+                          The Telegram wallet and TON's own wallets keep a TON phrase: 24 words of the same English
+                          list, without BIP39's checksum, which pass TON's own check instead; about one random phrase in
+                          256 does. The key comes from the words alone, not from BIP39's seed, so a BIP39 passphrase is
+                          not part of it.
+                        </p>
+                        <p>
+                          With this option the Deriver draws BIP39 phrases of 24 words until one also passes TON's
+                          check, about 256 draws. That phrase gives every coin's BIP39 keys, and the Telegram wallet's
+                          key under TON · Telegram wallet. Trust Wallet and Ledger derive their TON keys from the BIP39
+                          seed of any phrase, so their addresses differ from the Telegram wallet's.
+                        </p>
+                      </div>
+                    </details></span
+                  >
+                </div>
+                <small id="ton-generation-description">24 words · a BIP39 phrase that is also a TON phrase.</small>
+              </div>
+              <p id="ton-phrase-note" class="field-note" role="status" aria-live="polite" hidden></p>
+            </div>
+            <div id="chosen-words-generation" class="generation-option">
+              <div class="option-heading">
+                <input id="chosen-words-enabled" type="checkbox" aria-describedby="chosen-words-description" />
+                <div class="field-heading-row">
+                  <label for="chosen-words-enabled">Generate with a chosen</label>
+                  <span class="option-title-end"
+                    ><label for="chosen-words-enabled">word</label>
+                    <details id="chosen-words-help" class="recovery-help option-help">
+                      <summary class="help-mark" aria-label="What generating with a chosen word does">?</summary>
+                      <div class="recovery-help-popover">
+                        <h3>A phrase with a word you choose</h3>
+                        <p>
+                          The Generate buttons then draw a random phrase that also holds the word you choose, at a
+                          position or anywhere, and none of the words you rule out. The rest stays random, drawn with
+                          crypto.getRandomValues(); the checksum is calculated, never chosen.
+                        </p>
+                        <p>
+                          Each wish makes the phrase easier to find for someone who knows or guesses it: a word at a
+                          position takes about 11 of its random bits, a word anywhere about 7. Never write the word down
+                          next to the phrase.
+                        </p>
+                      </div>
+                    </details></span
+                  >
+                </div>
+                <small id="chosen-words-description"
+                  >Not recommended · a random phrase that also holds a word you choose.</small
+                >
+              </div>
+            </div>
           </div>
           <div id="chosen-words-panel" class="chosen-words-panel" hidden>
             <p class="field-note chosen-words-warning">
@@ -287,9 +302,7 @@
           </section>
 
           <div class="field-heading-row">
-            <label for="passphrase"
-              >BIP39 passphrase <span id="passphrase-need" class="optional">optional, case-sensitive</span></label
-            >
+            <label for="passphrase">BIP39 passphrase</label>
             <details id="passphrase-help" class="recovery-help option-help">
               <summary class="help-mark" aria-label="What a BIP39 passphrase is">?</summary>
               <div class="recovery-help-popover">
@@ -305,11 +318,15 @@
                 </p>
               </div>
             </details>
+            <span id="passphrase-need" class="optional"
+              ><span id="passphrase-need-kind">optional</span>, <span class="nowrap">case-sensitive</span></span
+            >
             <button id="toggle-passphrase" class="secondary compact" type="button" aria-pressed="false">Show</button>
           </div>
           <input
             id="passphrase"
             type="password"
+            aria-describedby="passphrase-need"
             autocomplete="off"
             placeholder="Leave blank unless your wallet uses one"
           />
@@ -3840,7 +3857,8 @@
             </select>
             <p id="codex32-secret-type-note" class="field-note"></p>
             <label for="codex32-passphrase"
-              >BIP39 passphrase <span class="optional">optional and case-sensitive</span></label
+              >BIP39 passphrase
+              <span class="optional">optional and <span class="nowrap">case-sensitive</span></span></label
             >
             <input id="codex32-passphrase" type="password" autocomplete="off" />
             <div class="backup-options-grid">

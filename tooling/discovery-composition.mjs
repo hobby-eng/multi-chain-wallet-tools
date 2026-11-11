@@ -129,9 +129,15 @@ function registrySource(root, options) {
     evm.size === 0
       ? ""
       : `const evmPrivacy = ${EVM_PRIVACY[0]}(${JSON.stringify([...evm.values()].map(({ rpcOperator }) => ({ rpcOperator })))});\n`;
+  // Several coins come in the coin menu's order (coin-order.ts), each group's coins together; one
+  // coin, as in the Dash Community Edition, has none to keep, and its build names no other coin.
+  const ordered = entries.length > 1;
+  const adapters = ordered
+    ? `orderCoins([${entries.join(", ")}], ({ label }) => label, ({ group }) => group)`
+    : `[${entries.join(", ")}]`;
   return `${lines.join("\n")}
-import { createRecoveryCoinRegistry } from ${JSON.stringify(resolve(root, "apps/discovery-scanner/src/coins/registry.ts"))};
-${privacy}export const { getRecoveryCoin, listRecoveryCoins } = createRecoveryCoinRegistry([${entries.join(", ")}]);`;
+${ordered ? `import { orderCoins } from ${JSON.stringify(resolve(root, "packages/coin-protocols/src/coins/coin-order.ts"))};\n` : ""}import { createRecoveryCoinRegistry } from ${JSON.stringify(resolve(root, "apps/discovery-scanner/src/coins/registry.ts"))};
+${privacy}export const { getRecoveryCoin, listRecoveryCoins } = createRecoveryCoinRegistry(${adapters});`;
 }
 
 function networkServiceSource(root, options) {

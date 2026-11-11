@@ -109,25 +109,25 @@ describe("coin adapter extension contract", () => {
     }
   });
 
-  it("derives coin dropdown families and horizontal variants from the adapter registry", () => {
+  it("derives coin dropdown families, Bitcoin first and then alphabetical, and horizontal variants from the adapter registry", () => {
     expect(COIN_FAMILIES.map(({ id, label }) => ({ id, label }))).toEqual([
       { id: "bitcoin", label: "Bitcoin" },
-      { id: "ethereum", label: "Ethereum" },
-      { id: "dash", label: "Dash" },
-      { id: "litecoin", label: "Litecoin" },
-      { id: "dogecoin", label: "Dogecoin" },
       { id: "bitcoin-cash", label: "Bitcoin Cash" },
-      { id: "zcash", label: "Zcash" },
-      { id: "xrp", label: "XRP" },
-      { id: "tron", label: "Tron" },
-      { id: "ethereum-classic", label: "Ethereum Classic" },
       { id: "cosmos", label: "Cosmos" },
+      { id: "dash", label: "Dash" },
+      { id: "dogecoin", label: "Dogecoin" },
+      { id: "ethereum", label: "Ethereum" },
+      { id: "ethereum-classic", label: "Ethereum Classic" },
+      { id: "hedera", label: "Hedera" },
       { id: "injective", label: "Injective" },
+      { id: "litecoin", label: "Litecoin" },
+      { id: "near", label: "NEAR" },
       { id: "solana", label: "Solana" },
       { id: "stellar", label: "Stellar" },
-      { id: "near", label: "NEAR" },
-      { id: "hedera", label: "Hedera" },
       { id: "ton", label: "TON" },
+      { id: "tron", label: "Tron" },
+      { id: "xrp", label: "XRP" },
+      { id: "zcash", label: "Zcash" },
     ]);
     expect(
       COIN_FAMILIES.find(({ id }) => id === "bitcoin")?.adapters.map(

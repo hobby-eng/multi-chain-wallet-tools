@@ -75,7 +75,7 @@ function setup({ passed = true } = {}) {
     "wallet-check-outlook",
     "wallet-check-cancel",
     "passphrase",
-    "passphrase-need",
+    "passphrase-need-kind",
     ...[12, 15, 18, 21, 24].map((n) => `generate-${n}`),
   ];
   const elements = Object.fromEntries(ids.map((id) => [id, new Control()]));
@@ -135,9 +135,7 @@ describe("checked mnemonic page lifecycle", () => {
     expect(elements["generate-12"]!.disabled).toBe(true);
     expect(elements["generate-24"]!.disabled).toBe(false);
     expect(elements["wallet-check-help"]!.hidden).toBe(false);
-    expect(elements["passphrase-need"]!.textContent).toBe(
-      "required for MHFE generation, case-sensitive",
-    );
+    expect(elements["passphrase-need-kind"]!.textContent).toBe("required for MHFE generation");
     await expect(feature.generate(12, "TREZOR", wishes, () => undefined)).rejects.toThrow(
       /24-word/u,
     );

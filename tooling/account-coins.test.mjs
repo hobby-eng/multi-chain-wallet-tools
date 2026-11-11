@@ -244,7 +244,7 @@ describe("account coin tooling", () => {
   it("names the selected account coins in the Scanner's protocol footer", () => {
     const footer = new ToolProtocolFooter(MULTI_CHAIN, { coins: ["bitcoin", "solana", "near"] });
     expect(footer.render("discovery-scanner")).toBe(
-      "Bitcoin BIP44/BIP49/BIP84/BIP86 public discovery · Account balance discovery: Solana, NEAR",
+      "Bitcoin BIP44/BIP49/BIP84/BIP86 public discovery · Account balance discovery: NEAR, Solana",
     );
   });
 

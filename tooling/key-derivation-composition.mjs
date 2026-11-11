@@ -30,15 +30,33 @@ const adapterModules = {
   ),
 };
 
-function selectedRegistrySource(root, coins) {
+function selectedRegistrySource(root, features) {
+  const { coins } = features;
   const imports = coins.map(
     (coin) =>
       `import { ${adapterModules[coin][0]} } from ${JSON.stringify(resolve(root, adapterModules[coin][1]))};`,
   );
   const spreads = coins.map((coin) => `...${adapterModules[coin][0]}`).join(", ");
+  const registry = JSON.stringify(
+    resolve(root, "packages/coin-protocols/src/coins/registry-base.ts"),
+  );
+  const names =
+    "COIN_ADAPTERS, COIN_FAMILIES, getAdapterFamilyId, getCoinAdapter, getCoinFamily, getDefaultCoinAdapter";
+  // The Dash Community Edition holds Dash alone, and so do the lists it composes from MHFE and
+  // MnemoCode: it has no order to keep and names no other coin. Every other build orders its
+  // coins, and those lists, by coin-order.ts: Bitcoin first, then alphabetically.
+  if (features.dashCommunity === true)
+    return `${imports.join("\n")}
+import { createCoinRegistry } from ${registry};
+/** One coin: nothing to order. */
+export function compareCoinNames() { return 0; }
+export const { ${names} } = createCoinRegistry([${spreads}]);`;
+  const order = JSON.stringify(resolve(root, "packages/coin-protocols/src/coins/coin-order.ts"));
   return `${imports.join("\n")}
-import { createCoinRegistry } from ${JSON.stringify(resolve(root, "packages/coin-protocols/src/coins/registry-base.ts"))};
-export const { COIN_ADAPTERS, COIN_FAMILIES, getAdapterFamilyId, getCoinAdapter, getCoinFamily, getDefaultCoinAdapter } = createCoinRegistry([${spreads}]);`;
+import { createCoinRegistry } from ${registry};
+import { orderCoins } from ${order};
+export { compareCoinNames } from ${order};
+export const { ${names} } = createCoinRegistry([${spreads}], (labels) => orderCoins(labels, (label) => label));`;
 }
 
 function selectedRuntimeSource(root, coins) {
@@ -185,7 +203,7 @@ function selectedMnemoCodeCoinsSource(features) {
 export function createKeyDerivationCompositionPlugin(root, features) {
   const fullCoins = DERIVER_COINS.every((coin) => features.hasCoin(coin));
   const modules = new Map([
-    ["ckd:selected-coin-registry", selectedRegistrySource(root, features.coins)],
+    ["ckd:selected-coin-registry", selectedRegistrySource(root, features)],
     ["ckd:selected-runtime-registry", selectedRuntimeSource(root, features.coins)],
     ["ckd:selected-derivation-self-test", selectedSelfTestSource(root, features.coins)],
     ["ckd:selected-matcher-targets", selectedMatcherSource(root, features)],
