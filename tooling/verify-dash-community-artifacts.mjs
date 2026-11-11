@@ -129,6 +129,24 @@ function withoutEmbeddedBinary(html) {
   return kept.join("");
 }
 
+/**
+ * What the connected tools' Dash Community artifacts must not hold besides the patterns above: the
+ * account coin TON by name. The shared pattern cannot name it yet, since the Dash Community
+ * Deriver's phrase generation writes "TON phrase" (noted for the Deriver's audit).
+ */
+const DASH_CONNECTED_TOOL_PATTERNS = [[/\bTON\b/u, "account coin TON"]];
+
+/** The violations of a connected tool's (the Scanner's or the Viewer's) Dash Community artifact. */
+export function findDashConnectedToolViolations(html) {
+  const text = withoutEmbeddedBinary(html);
+  return [
+    ...findDashArtifactViolations(html),
+    ...DASH_CONNECTED_TOOL_PATTERNS.filter(([pattern]) => pattern.test(text)).map(
+      ([, label]) => label,
+    ),
+  ];
+}
+
 export function findDashArtifactViolations(html) {
   const protocolNeutralHtml = withoutEmbeddedBinary(html).replace(/(['"`])Bitcoin seed\1/gu, "");
   const lexicalViolations = DASH_FORBIDDEN_ARTIFACT_PATTERNS.filter(([pattern]) =>
@@ -202,7 +220,9 @@ function verifyDashCommunityArtifacts(projectRoot = root) {
     const violations =
       toolId === "psbt-inspector"
         ? findDashInspectorArtifactViolations(html)
-        : findDashArtifactViolations(html);
+        : toolId === "discovery-scanner" || toolId === "activity-viewer"
+          ? findDashConnectedToolViolations(html)
+          : findDashArtifactViolations(html);
     if (violations.length > 0) {
       throw new Error(
         `${tool.artifactName} contains forbidden non-Dash adapter, registration, or user-facing copy: ${violations.join(", ")}`,

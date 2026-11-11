@@ -58,6 +58,11 @@ export interface DerivationVector {
   readonly masterXpub?: string;
   /** The same address from the connected tools' public-only derivation, where the coin has one. */
   publicAddress?(seed: Uint8Array): string;
+  /**
+   * What the public-only derivation looks up where it is not the row's address: Hedera's ECDSA
+   * key alias, its public key in DER, since the row's EVM address does not name the key.
+   */
+  readonly publicLookup?: string;
 }
 
 /**
@@ -78,7 +83,11 @@ export function checkDerivationVectors(
       try {
         expectEqual(vector.name, resultValue(result, "address"), vector.address);
         if (vector.publicAddress !== undefined)
-          expectEqual(`${vector.name} public address`, vector.publicAddress(seed), vector.address);
+          expectEqual(
+            `${vector.name} public address`,
+            vector.publicAddress(seed),
+            vector.publicLookup ?? vector.address,
+          );
         checks.push(vector.name);
         if (vector.accountXpub === undefined) continue;
         expectEqual(

@@ -7,10 +7,14 @@ import { mnemonicToSeed } from "@ckd/core/bip39.js";
 import { BIP32_BRANCH_SIZE } from "@ckd/core/bip32-limits.js";
 import { clearDerivationResult } from "@ckd/core/secrets.js";
 import type { Bip32BatchOptions, DerivationResult } from "@ckd/core/types.js";
-import type { CoinAddressScheme } from "@ckd/coins/address-scheme.js";
+import { combinedAddressScheme, type CoinAddressScheme } from "@ckd/coins/address-scheme.js";
+import { COSMOS_ADDRESSES, cosmosDerivation } from "@ckd/coins/cosmos/index.js";
+import { HEDERA_ADDRESSES, hederaDerivation } from "@ckd/coins/hedera/index.js";
+import { INJECTIVE_ADDRESSES, injectiveDerivation } from "@ckd/coins/injective/index.js";
 import { NEAR_ADDRESSES, nearDerivation } from "@ckd/coins/near/index.js";
 import { SOLANA_ADDRESSES, solanaDerivation } from "@ckd/coins/solana/index.js";
 import { STELLAR_ADDRESSES, stellarDerivation } from "@ckd/coins/stellar/index.js";
+import { TON_ADDRESSES, tonDerivation } from "@ckd/coins/ton/index.js";
 import { TRON_ADDRESSES, tronDerivation } from "@ckd/coins/tron/index.js";
 import { XRP_ADDRESSES, xrpDerivation } from "@ckd/coins/xrp/index.js";
 
@@ -20,8 +24,11 @@ type Derivation = (id: string) => ((options: Bip32BatchOptions) => DerivationRes
 
 const SEED = mnemonicToSeed(`${"abandon ".repeat(11)}about`);
 
-/** The Deriver's row `start` of adapter `id` under `account`: its path and address. */
-function row(derivation: Derivation, id: string, account: number, start: number) {
+/**
+ * The Deriver's row `start` of adapter `id` under `account`: its path and address, or the value of
+ * its field `key` where the connected tools look up another of the row's values.
+ */
+function row(derivation: Derivation, id: string, account: number, start: number, key = "address") {
   const derive = derivation(id);
   if (derive === undefined) throw new Error(`${id} has no derivation.`);
   const result = derive({
@@ -34,7 +41,9 @@ function row(derivation: Derivation, id: string, account: number, start: number)
   });
   try {
     const [first] = result.rows;
-    const address = first?.basic.find(({ key }) => key === "address")?.value;
+    const address = [...(first?.basic ?? []), ...(first?.advanced ?? [])].find(
+      (field) => field.key === key,
+    )?.value;
     if (first === undefined || address === undefined) throw new Error(`${id} gave no row.`);
     return { path: first.path, address };
   } finally {
@@ -58,10 +67,14 @@ const ED25519: readonly [string, CoinAddressScheme, Derivation, readonly string[
   ["Solana", SOLANA_ADDRESSES, solanaDerivation, ["solana", "solana-ledger"]],
   ["Stellar", STELLAR_ADDRESSES, stellarDerivation, ["stellar"]],
   ["NEAR", NEAR_ADDRESSES, nearDerivation, ["near"]],
+  ["TON", TON_ADDRESSES, tonDerivation, ["ton-trust", "ton-ledger"]],
+  ["Hedera's Ed25519 keys", HEDERA_ADDRESSES, hederaDerivation, ["hedera"]],
 ];
 const BIP44: readonly [string, CoinAddressScheme, Derivation, string][] = [
   ["XRP", XRP_ADDRESSES, xrpDerivation, "xrp"],
   ["Tron", TRON_ADDRESSES, tronDerivation, "tron"],
+  ["Cosmos", COSMOS_ADDRESSES, cosmosDerivation, "cosmos"],
+  ["Injective", INJECTIVE_ADDRESSES, injectiveDerivation, "injective"],
 ];
 
 describe("the account coins' public address layouts", () => {
@@ -77,6 +90,31 @@ describe("the account coins' public address layouts", () => {
     expect(TRON_ADDRESSES.layouts.map(({ id }) => id)).toEqual(["tron", "tron-accounts"]);
     expect(STELLAR_ADDRESSES.layouts.map(({ id }) => id)).toEqual(["stellar"]);
     expect(NEAR_ADDRESSES.layouts.map(({ id }) => id)).toEqual(["near"]);
+    expect(COSMOS_ADDRESSES.layouts.map(({ id, label }) => [id, label])).toEqual([
+      ["cosmos", "BIP44 · m/44'/118'/a'/0/i"],
+      ["cosmos-accounts", "Ledger Live accounts · m/44'/118'/i'/0/0"],
+    ]);
+    expect(INJECTIVE_ADDRESSES.layouts.map(({ id, label }) => [id, label])).toEqual([
+      ["injective", "BIP44 · coin type 60 · m/44'/60'/a'/0/i"],
+      ["injective-accounts", "Ledger Live accounts · m/44'/60'/i'/0/0"],
+    ]);
+    // Hedera's Ed25519 variant first, then its ECDSA keys, without an account-index layout.
+    expect(HEDERA_ADDRESSES.layouts.map(({ id, label }) => [id, label])).toEqual([
+      ["hedera", "Ed25519 · m/44'/3030'/0'/0'/i'"],
+      ["hedera-ecdsa", "ECDSA · BIP44 · m/44'/3030'/a'/0/i"],
+    ]);
+    // Trust Wallet's and Ledger's keys; the Telegram wallet's TON phrase is no BIP39 seed.
+    expect(TON_ADDRESSES.layouts.map(({ id, label }) => [id, label])).toEqual([
+      ["ton-trust", "Trust Wallet · m/44'/607'/i'"],
+      ["ton-ledger", "Ledger · m/44'/607'/0'/0'/i'/0'"],
+    ]);
+  });
+
+  it("say what their layouts cannot reach where a coin's wallets hold more", () => {
+    expect(TON_ADDRESSES.notCovered).toMatch(/Telegram wallet \(W5\) is not scanned/u);
+    expect(HEDERA_ADDRESSES.notCovered).toMatch(/key list or a threshold key/u);
+    for (const scheme of [SOLANA_ADDRESSES, XRP_ADDRESSES, COSMOS_ADDRESSES, INJECTIVE_ADDRESSES])
+      expect(scheme.notCovered).toBeUndefined();
   });
 
   it("start from the published first addresses of the phrase", () => {
@@ -97,6 +135,45 @@ describe("the account coins' public address layouts", () => {
     expect(scanned(TRON_ADDRESSES, "tron", 0, 0).address).toBe(
       "TUEZSdKsoDHQMeZwihtdoBiN46zxhGWYdH",
     );
+    expect(scanned(COSMOS_ADDRESSES, "cosmos", 0, 0).address).toBe(
+      "cosmos19rl4cm2hmr8afy4kldpxz3fka4jguq0auqdal4",
+    );
+    expect(scanned(INJECTIVE_ADDRESSES, "injective", 0, 0).address).toBe(
+      "inj1npvwllfr9dqr8erajqqr6s0vxnk2ak55re90dz",
+    );
+    expect(scanned(HEDERA_ADDRESSES, "hedera", 0, 0).address).toBe(
+      "0.0.302a300506032b657003210010fcec8c5db29aeab62272a08be39b1ec75eba50624351fba9948ff5d3d78ecf",
+    );
+    // The ECDSA key's alias, its public key in DER, which names the key as its EVM address does not.
+    expect(scanned(HEDERA_ADDRESSES, "hedera-ecdsa", 0, 0).address).toBe(
+      "0.0.302d300706052b8104000a032200021de0d6f31872bbda0cfd1680e41a5a88af2646b8d1d015c5e1541ab21a0f4499",
+    );
+    expect(scanned(TON_ADDRESSES, "ton-trust", 0, 0).address).toBe(
+      "UQAzWZa6nM5mJev91wGc7VCSfBoIsYRqKJpV78N8Add9-RKY",
+    );
+    expect(scanned(TON_ADDRESSES, "ton-ledger", 0, 0).address).toBe(
+      "UQAhEnZmOZ4XCJ1BKsvvt4D1DobiFgIf8nbZdTiT0l-8mOpj",
+    );
+  });
+
+  it("give Hedera's ECDSA Deriver rows on the address index, as the alias of their DER key", () => {
+    for (const [account, index] of [
+      [0, 0],
+      [0, 4],
+      [1, 2],
+    ] as const) {
+      const { path, address: der } = row(
+        hederaDerivation,
+        "hedera-ecdsa",
+        account,
+        index,
+        "publicKeyDer",
+      );
+      expect(scanned(HEDERA_ADDRESSES, "hedera-ecdsa", account, index)).toEqual({
+        path,
+        address: `0.0.${der}`,
+      });
+    }
   });
 
   it.each(ED25519)(
@@ -150,6 +227,62 @@ describe("the account coins' public address layouts", () => {
     expect(() => opened.address(solana, 0, 0)).toThrow(/not a layout/u);
     opened.wipe();
     expect(() => opened.address(xrp, 0, 0)).toThrow();
+  });
+});
+
+describe("a combined scheme", () => {
+  it("derives each layout by the scheme that owns it and wipes every scheme it opened", () => {
+    const wipes: string[] = [];
+    const watched = (name: string, scheme: CoinAddressScheme): CoinAddressScheme => ({
+      layouts: scheme.layouts,
+      open(seed) {
+        const opened = scheme.open(seed);
+        return {
+          address: (layout, account, index) => opened.address(layout, account, index),
+          wipe() {
+            wipes.push(name);
+            opened.wipe();
+          },
+        };
+      },
+    });
+    const combined = combinedAddressScheme(
+      [watched("stellar", STELLAR_ADDRESSES), watched("xrp", XRP_ADDRESSES)],
+      "What none reaches.",
+    );
+    expect(combined.notCovered).toBe("What none reaches.");
+    expect(combined.layouts.map(({ id }) => id)).toEqual(["stellar", "xrp", "xrp-accounts"]);
+    const [stellar, xrp] = combined.layouts;
+    const [tron] = TRON_ADDRESSES.layouts;
+    if (stellar === undefined || xrp === undefined || tron === undefined)
+      throw new Error("No layout.");
+    const opened = combined.open(SEED);
+    expect(opened.address(stellar, 0, 0)).toBe(
+      "GB3JDWCQJCWMJ3IILWIGDTQJJC5567PGVEVXSCVPEQOTDN64VJBDQBYX",
+    );
+    expect(opened.address(xrp, 0, 0)).toBe("rHsMGQEkVNJmpGWs8XUBoTBiAAbwxZN5v3");
+    expect(() => opened.address(tron, 0, 0)).toThrow(/not a layout/u);
+    opened.wipe();
+    expect(wipes).toEqual(["stellar", "xrp"]);
+  });
+
+  it("wipes the schemes it opened when a later one fails to open", () => {
+    const wipes: string[] = [];
+    const opens = (name: string): CoinAddressScheme => ({
+      layouts: [],
+      open: () => ({
+        address: () => "",
+        wipe: () => wipes.push(name),
+      }),
+    });
+    const failing: CoinAddressScheme = {
+      layouts: [],
+      open: () => {
+        throw new Error("No root.");
+      },
+    };
+    expect(() => combinedAddressScheme([opens("first"), failing]).open(SEED)).toThrow("No root.");
+    expect(wipes).toEqual(["first"]);
   });
 });
 

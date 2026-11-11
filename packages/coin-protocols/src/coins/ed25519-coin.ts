@@ -93,10 +93,12 @@ export function ed25519CoinDerivation(
  * The public addresses of an Ed25519 coin for the connected tools: one layout per variant, whose
  * index is its row index counted from the scan's account; each key is derived as its row's is, only
  * its address (`address` of the public key, the one the row shows) is kept, and the key is wiped.
+ * `notCovered` says what the layouts cannot reach (CoinAddressScheme.notCovered).
  */
 export function ed25519CoinAddresses(
   profiles: readonly Ed25519CoinProfile[],
   address: (publicKey: Uint8Array) => string,
+  notCovered?: string,
 ): CoinAddressScheme {
   const profileOf = new Map<AddressLayout, Ed25519CoinProfile>(
     profiles.map((profile) => [
@@ -111,6 +113,7 @@ export function ed25519CoinAddresses(
   );
   return Object.freeze({
     layouts: Object.freeze([...profileOf.keys()]),
+    ...(notCovered === undefined ? {} : { notCovered }),
     open: (seed: Uint8Array) => ({
       address(layout: AddressLayout, account: number, index: number): string {
         const profile = profileOf.get(layout);

@@ -53,7 +53,7 @@ function scanProfiles(
 
 /** What the section says besides its gap: the provider's view and what it leaves out. */
 const ACCOUNT_SECTION_WARNING =
-  "Each request reads the provider's latest state, so different requests may read different heights; this is a single-source public provider view. Balances include any reserve the network keeps locked. An account that was emptied and closed no longer exists on its network and reads as unused, unless the provider still lists its transactions (Solana's signatures). Tokens, staked amounts and transaction history are not read.";
+  "Each request reads the provider's latest state, so different requests may read different heights; this is a single-source public provider view. Balances include any reserve the network keeps locked. An account that was emptied and closed no longer exists on its network and reads as unused, unless the provider still lists its transactions (Solana's signatures) or its deleted account (Hedera). A Hedera account that two addresses reach counts once, with the first. Tokens, staked amounts and transaction history are not read.";
 
 /** The section proof's heights, or that the provider reports none. */
 function heightsText(heights: { lowest: bigint | null; highest: bigint | null }): string {
@@ -63,28 +63,61 @@ function heightsText(heights: { lowest: bigint | null; highest: bigint | null })
     : `at heights ${lowest}–${highest}`;
 }
 
-/** The finding of a shown address of `layout`: its path, index and account. */
+/**
+ * The finding of a shown address of `layout`: its path, index and account, and its balance as the
+ * scan counts it (`balance`: on Hedera, without the accounts an earlier address found).
+ */
 function accountFinding(
   facts: AccountCoinFacts,
   layout: AddressLayout,
   item: { readonly address: string; readonly index: number; readonly path: string },
   state: AccountStateView,
+  balance: bigint,
 ): RecoveryFinding {
-  const balance = BigInt(state.balance);
+  const format = amountFormatter(facts);
+  const accounts = state.accounts ?? [];
+  const countedBefore = BigInt(state.balance) - balance;
   return {
     id: `${facts.id}:${layout.id}:${item.index}`,
     title: item.address,
     subtitle: `${layout.label} · index ${item.index}`,
     balanceAtomic: balance,
-    balanceLabel: amountFormatter(facts)(balance),
+    balanceLabel: format(balance),
     fields: [
       { label: "Scan profile", value: layout.label },
       { label: "Derivation path", value: item.path, copyable: true },
       { label: "Profile index", value: String(item.index) },
       {
         label: "Account on the network",
-        value: state.exists ? "Exists" : "Not held now; transactions listed",
+        value: state.exists ? "Exists" : "Not held now; used before",
       },
+      ...(accounts.length === 0
+        ? []
+        : [
+            {
+              label: "Account IDs",
+              value: accounts.map(({ id }) => id).join(", "),
+              copyable: true,
+            },
+          ]),
+      ...(accounts.length < 2
+        ? []
+        : [
+            {
+              label: "Account balances",
+              value: accounts
+                .map(({ id, balance }) => `${id}: ${format(BigInt(balance))}`)
+                .join(", "),
+            },
+          ]),
+      ...(countedBefore === 0n
+        ? []
+        : [
+            {
+              label: "Counted with an earlier address",
+              value: `${format(countedBefore)} of these accounts, which an earlier address found too`,
+            },
+          ]),
       ...(state.sequence === null ? [] : [{ label: "Account sequence", value: state.sequence }]),
     ],
   };
@@ -125,7 +158,9 @@ function accountSeedScan(
           maximum: maximumCount,
         }),
         show: ({ derived: item, state }) =>
-          found.show(item.address, item.path, () => accountFinding(facts, layout, item, state)),
+          found.show(item.address, item.path, () =>
+            accountFinding(facts, layout, item, state, states.balance(state)),
+          ),
         progress: (checked, target) =>
           context.onProgress({
             inputId: input.id,

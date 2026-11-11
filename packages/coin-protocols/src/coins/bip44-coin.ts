@@ -145,10 +145,13 @@ interface Bip44Layout {
 
 /**
  * The layouts of one BIP44 variant: its addresses m/purpose'/coin'/account'/0/i under the scan's
- * account, and Ledger Live's account form m/purpose'/coin'/i'/0/0, its accounts counted from the
- * scan's account.
+ * account, and where Ledger Live derives the coin (`accountIndex`), its account form
+ * m/purpose'/coin'/i'/0/0, its accounts counted from the scan's account.
  */
-function bip44Layouts(profile: Bip44CoinProfile): [AddressLayout, Bip44Layout][] {
+function bip44Layouts(
+  profile: Bip44CoinProfile,
+  accountIndex: boolean,
+): [AddressLayout, Bip44Layout][] {
   const head = `m/${profile.purpose}'/${profile.coinType}'`;
   const pathOf = (at: { account: number; index: number }) =>
     profile.paths.addressPath(
@@ -176,13 +179,25 @@ function bip44Layouts(profile: Bip44CoinProfile): [AddressLayout, Bip44Layout][]
       (account, index) => ({ account, index }),
       () => BIP32_BRANCH_SIZE,
     ),
-    layout(
-      `${profile.adapterId}-accounts`,
-      `Ledger Live accounts · ${head}/i'/0/0`,
-      (account, index) => ({ account: account + index, index: 0 }),
-      (account) => BIP32_BRANCH_SIZE - account,
-    ),
+    ...(accountIndex
+      ? [
+          layout(
+            `${profile.adapterId}-accounts`,
+            `Ledger Live accounts · ${head}/i'/0/0`,
+            (account, index) => ({ account: account + index, index: 0 }),
+            (account) => BIP32_BRANCH_SIZE - account,
+          ),
+        ]
+      : []),
   ];
+}
+
+/** What a BIP44 coin's public addresses leave out or say beyond its variants' address index. */
+export interface Bip44AddressOptions {
+  /** Whether Ledger Live derives the coin by account index, m/purpose'/coin'/i'/0/0 (default). */
+  readonly accountIndex?: boolean;
+  /** What the layouts cannot reach (CoinAddressScheme.notCovered). */
+  readonly notCovered?: string;
 }
 
 /**
@@ -267,17 +282,21 @@ class Bip44SeedAddresses implements SeedAddresses {
 }
 
 /**
- * The public addresses of a BIP44 coin for the connected tools: each variant's address index and
- * Ledger Live's account index (bip44Layouts), each address `keys` makes of the child's public key,
- * as the Deriver's rows show it; only public keys are read, and every private node is wiped.
+ * The public addresses of a BIP44 coin for the connected tools: each variant's address index and,
+ * unless `options` leaves it out, Ledger Live's account index (bip44Layouts), each address `keys`
+ * makes of the child's public key, as the Deriver's rows show it; only public keys are read, and
+ * every private node is wiped.
  */
 export function bip44CoinAddresses(
   profiles: readonly Bip44CoinProfile[],
   keys: Bip44CoinKeys,
+  options: Bip44AddressOptions = {},
 ): CoinAddressScheme {
-  const layouts = new Map(profiles.flatMap(bip44Layouts));
+  const { accountIndex = true, notCovered } = options;
+  const layouts = new Map(profiles.flatMap((profile) => bip44Layouts(profile, accountIndex)));
   return Object.freeze({
     layouts: Object.freeze([...layouts.keys()]),
+    ...(notCovered === undefined ? {} : { notCovered }),
     open: (seed: Uint8Array) => new Bip44SeedAddresses(seed, keys, layouts),
   });
 }

@@ -38,6 +38,10 @@ const ENDPOINTS = {
   stellar: "https://horizon.stellar.org",
   near: "https://free.rpc.fastnear.com",
   tron: "https://api.trongrid.io",
+  cosmos: "https://cosmos-rest.publicnode.com",
+  injective: "https://injective-rest.publicnode.com",
+  hedera: "https://mainnet.mirrornode.hedera.com",
+  ton: "https://toncenter.com",
 };
 /** The graph of a seed-only Scanner build of XRP: its derivation, its reader, the shared modules. */
 const XRP_SCANNER_GRAPH = [
@@ -126,6 +130,36 @@ describe("account coin tooling", () => {
     expect(() =>
       assertDiscoveryComposition(tron, [...graph, "apps/discovery-scanner/src/coins/evm/seed.ts"]),
     ).toThrow(/excluded ethereum/u);
+  });
+
+  it("lets Injective alone share the Cosmos SDK reader, but not the Cosmos Hub's modules", () => {
+    const injective = options(["injective"], ["seed-discovery"]);
+    const graph = [
+      "packages/coin-protocols/src/coins/injective/index.ts",
+      "packages/coin-protocols/src/coins/keccak-account.ts",
+      "apps/discovery-scanner/src/coins/account/seed.ts",
+      "packages/public-data-providers/src/account-states-service.ts",
+      "packages/public-data-providers/src/account-coin-facts.ts",
+      "packages/public-data-providers/src/account-coins/injective-rest.ts",
+      "packages/public-data-providers/src/account-coins/cosmos-sdk.ts",
+      "packages/network-boundary/src/request-validation.ts",
+      "apps/discovery-scanner/src/seed-scan-input.ts",
+      "packages/secret-vault/src/worker-bootstrap.ts",
+    ];
+    expect(() => assertDiscoveryComposition(injective, graph)).not.toThrow();
+    for (const leaked of [
+      "packages/public-data-providers/src/account-coins/cosmos-rest.ts",
+      "packages/coin-protocols/src/coins/cosmos/profiles.ts",
+    ])
+      expect(() => assertDiscoveryComposition(injective, [...graph, leaked])).toThrow(
+        /excluded account coins/u,
+      );
+    expect(applySelectedNetworkCsp("connect-src https:;", injective)).toBe(
+      "connect-src https://injective-rest.publicnode.com;",
+    );
+    expect(
+      applySelectedNetworkCsp("connect-src https:;", options(["ton"], ["seed-discovery"])),
+    ).toBe("connect-src https://toncenter.com;");
   });
 
   it("refuses a page that names an unselected account coin's endpoint", () => {

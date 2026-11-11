@@ -9,8 +9,9 @@ describe("exhaustive standalone build matrix", () => {
   const plan = createBuildMatrixPlan();
 
   it("enumerates every reviewed valid composition exactly once", () => {
-    // The account coins add 5 Viewer coin sets and 20 Scanner builds (240, against 220 before).
-    expect(plan).toHaveLength(142866);
+    // The nine account coins add 9 Viewer coin sets and 36 Scanner builds (256, against 220 before
+    // them).
+    expect(plan).toHaveLength(142886);
     expect(new Set(plan.map(({ relativePath }) => relativePath)).size).toBe(plan.length);
   });
 
@@ -40,7 +41,7 @@ describe("exhaustive standalone build matrix", () => {
     // 14 coin sets without an account coin × 10 feature sets; each account coin alone × 4 (seed
     // discovery, no public-key scans); 8 sets with every table coin × 8 (seed discovery), and the
     // same 8 sets without the account coins × 2 (watch-only, with or without custom paths).
-    expect(discovery).toHaveLength(240);
+    expect(discovery).toHaveLength(256);
     // Watch-only builds hold several EVM networks again, never an account coin.
     const watchOnly = discovery.filter(({ features }) => !features.includes("seed-discovery"));
     expect(
@@ -61,8 +62,8 @@ describe("bounded standalone build smoke matrix", () => {
   );
 
   it("selects a stable unique subset of valid builds", () => {
-    // Each of the five account coins alone, in the Scanner and in the Viewer.
-    expect(smoke).toHaveLength(110);
+    // Each of the nine account coins alone, in the Scanner and in the Viewer.
+    expect(smoke).toHaveLength(118);
     expect(new Set(smoke.map(({ relativePath }) => relativePath)).size).toBe(smoke.length);
     for (const job of smoke) {
       expect(

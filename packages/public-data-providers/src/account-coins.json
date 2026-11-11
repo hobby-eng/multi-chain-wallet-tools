@@ -48,5 +48,47 @@
     "endpoint": "https://api.trongrid.io",
     "batch": 20,
     "addressesPerRequest": 1
+  },
+  "cosmos": {
+    "label": "Cosmos",
+    "asset": "ATOM",
+    "atomicUnit": "uatom",
+    "decimals": 6,
+    "api": "cosmos-rest",
+    "endpoint": "https://cosmos-rest.publicnode.com",
+    "batch": 20,
+    "addressesPerRequest": 1
+  },
+  "injective": {
+    "label": "Injective",
+    "asset": "INJ",
+    "atomicUnit": "inj",
+    "decimals": 18,
+    "api": "injective-rest",
+    "endpoint": "https://injective-rest.publicnode.com",
+    "batch": 20,
+    "addressesPerRequest": 1
+  },
+  "hedera": {
+    "label": "Hedera",
+    "asset": "HBAR",
+    "atomicUnit": "tinybar",
+    "decimals": 8,
+    "api": "hedera-mirror",
+    "endpoint": "https://mainnet.mirrornode.hedera.com",
+    "batch": 20,
+    "addressesPerRequest": 1,
+    "numberedAccounts": true
+  },
+  "ton": {
+    "label": "TON",
+    "asset": "TON",
+    "atomicUnit": "nanoton",
+    "decimals": 9,
+    "api": "toncenter",
+    "endpoint": "https://toncenter.com",
+    "batch": 10,
+    "addressesPerRequest": 1,
+    "pace": 1100
   }
 }

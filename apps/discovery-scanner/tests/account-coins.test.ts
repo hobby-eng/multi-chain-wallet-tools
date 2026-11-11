@@ -32,6 +32,24 @@ const COINS = {
     "https://free.rpc.fastnear.com",
   ],
   tron: ["TUEZSdKsoDHQMeZwihtdoBiN46zxhGWYdH", "1 TRX", "https://api.trongrid.io"],
+  cosmos: [
+    "cosmos19rl4cm2hmr8afy4kldpxz3fka4jguq0auqdal4",
+    "1 ATOM",
+    "https://cosmos-rest.publicnode.com",
+  ],
+  injective: [
+    "inj1npvwllfr9dqr8erajqqr6s0vxnk2ak55re90dz",
+    "1 INJ",
+    "https://injective-rest.publicnode.com",
+  ],
+  // The alias of the first Ed25519 key, as the Deriver shows it.
+  hedera: [
+    "0.0.302a300506032b657003210010fcec8c5db29aeab62272a08be39b1ec75eba50624351fba9948ff5d3d78ecf",
+    "1 HBAR",
+    "https://mainnet.mirrornode.hedera.com",
+  ],
+  // Trust Wallet's first v4R2 address.
+  ton: ["UQAzWZa6nM5mJev91wGc7VCSfBoIsYRqKJpV78N8Add9-RKY", "1 TON", "https://toncenter.com"],
 } as const;
 // One unit of each coin in its atomic units.
 const ONE: Readonly<Record<string, string>> = {
@@ -40,7 +58,22 @@ const ONE: Readonly<Record<string, string>> = {
   stellar: "10000000",
   near: "1000000000000000000000000",
   tron: "1000000",
+  cosmos: "1000000",
+  injective: "1000000000000000000",
+  hedera: "100000000",
+  ton: "1000000000",
 };
+/**
+ * The accounts the provider gives a used Hedera key: the two the network gave the phrase's first,
+ * their balances one HBAR together.
+ */
+const HEDERA_ACCOUNTS = [
+  { id: "0.0.163372", balance: "99999999" },
+  { id: "0.0.629081", balance: "1" },
+];
+/** The first ECDSA key's alias of the phrase (m/44'/3030'/0'/0/0), its public key in DER. */
+const HEDERA_ECDSA =
+  "0.0.302d300706052b8104000a032200021de0d6f31872bbda0cfd1680e41a5a88af2646b8d1d015c5e1541ab21a0f4499";
 
 const adapter = (id: string): RecoveryCoinAdapter => {
   const found = ACCOUNT_COIN_RECOVERY_ADAPTERS.find((candidate) => candidate.id === id);
@@ -72,6 +105,8 @@ function accountStates(used: (address: string) => boolean = () => false) {
         used: active,
         balance: active ? (ONE[coin] ?? "0") : "0",
         sequence: active && coin === "xrp" ? "3" : null,
+        // Hedera numbers the accounts an address finds, and the vault checks their list.
+        ...(coin === "hedera" ? { accounts: active ? HEDERA_ACCOUNTS : [] } : {}),
       };
     }),
   }));
@@ -147,6 +182,69 @@ describe("account coins of the Discovery Scanner", () => {
     });
   });
 
+  it("names the accounts a Hedera key finds, whose balances its finding sums", async () => {
+    const result = await adapter("hedera").scan(
+      seed("seed-1"),
+      config,
+      context(accountStates((address) => address === COINS.hedera[0])),
+    );
+    const fields = result.sections[0]?.findings[0]?.fields;
+    expect(fields).toContainEqual({
+      label: "Account IDs",
+      value: "0.0.163372, 0.0.629081",
+      copyable: true,
+    });
+    expect(fields).toContainEqual({
+      label: "Account balances",
+      value: "0.0.163372: 0.99999999 HBAR, 0.0.629081: 0.00000001 HBAR",
+    });
+  });
+
+  it("counts a Hedera account that two of the seed's keys reach once in the totals", async () => {
+    // A key changed to another key of the seed: the first Ed25519 key's account is also the
+    // account of the first ECDSA key's alias.
+    const shared = { id: "0.0.163372", balance: "500000000" };
+    const states = vi.fn<AccountStates>(async (coin, _network, addresses) => ({
+      coin,
+      height: null,
+      entries: addresses.map((address) => {
+        const reached = address === COINS.hedera[0] || address === HEDERA_ECDSA;
+        return {
+          address,
+          exists: reached,
+          used: reached,
+          balance: reached ? shared.balance : "0",
+          sequence: null,
+          accounts: reached ? [shared] : [],
+        };
+      }),
+    }));
+    const result = await adapter("hedera").scan(
+      seed("seed-1"),
+      { ...config, includeUsedZeroBalance: true },
+      context(states),
+    );
+    expect(overview(result, "Total located value")).toBe("5 HBAR");
+    const [first, second] = result.sections[0]?.findings ?? [];
+    expect(first).toMatchObject({ title: COINS.hedera[0], balanceAtomic: 500000000n });
+    expect(second).toMatchObject({ title: HEDERA_ECDSA, balanceAtomic: 0n });
+    expect(second?.fields).toContainEqual({
+      label: "Counted with an earlier address",
+      value: "5 HBAR of these accounts, which an earlier address found too",
+    });
+  });
+
+  it("says in the scan note what TON's and Hedera's layouts cannot reach", () => {
+    const note = (id: string) => adapter(id).standardScan?.note ?? "";
+    expect(note("ton")).toContain("The Telegram wallet (W5) is not scanned");
+    expect(note("ton")).toContain("Only each key's v4R2 wallet is read");
+    expect(note("ton")).toContain("Trust Wallet · m/44'/607'/i'; Ledger · m/44'/607'/0'/0'/i'/0'");
+    expect(note("hedera")).toContain("with the numbers of the accounts it finds");
+    expect(note("hedera")).toContain("key list or a threshold key");
+    expect(note("cosmos")).toContain("Ledger Live accounts · m/44'/118'/i'/0/0");
+    expect(note("xrp")).not.toContain("Telegram");
+  });
+
   it("extends each layout's post-use gap and asks each address once", async () => {
     const xrpStates = accountStates((address) => address === COINS.xrp[0]);
     const xrp = await adapter("xrp").scan(seed("seed-1"), config, context(xrpStates));
@@ -219,6 +317,9 @@ describe("account coins of the Discovery Scanner", () => {
     expect(seedLookupsPerPhrase([adapter("xrp")], settings)).toBe(40);
     expect(seedLookupsPerPhrase([adapter("solana")], settings)).toBe(4);
     expect(seedLookupsPerPhrase([adapter("stellar")], settings)).toBe(20);
+    // Two layouts each, one address a request; TON's requests are paced, not batched.
+    for (const id of ["cosmos", "injective", "hedera", "ton"])
+      expect(seedLookupsPerPhrase([adapter(id)], settings)).toBe(40);
   });
 });
 

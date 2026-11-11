@@ -1,7 +1,7 @@
 import { bech32 } from "@scure/base";
 import { BIP32_MAINNET_VERSIONS } from "@ckd/core/networks.js";
 import { field } from "@ckd/core/types.js";
-import { bip44CoinDerivation, type Bip44CoinKeys } from "../bip44-coin.js";
+import { bip44CoinAddresses, bip44CoinDerivation, type Bip44CoinKeys } from "../bip44-coin.js";
 import { evmAddressOfKey, keccakAccount } from "../keccak-account.js";
 import { INJECTIVE_HRP, INJECTIVE_PROFILES } from "./profiles.js";
 
@@ -25,3 +25,9 @@ export const INJECTIVE_KEYS: Bip44CoinKeys = {
 export function injectiveDerivation(id: string) {
   return bip44CoinDerivation(INJECTIVE_PROFILES, () => INJECTIVE_KEYS, id);
 }
+
+/**
+ * Injective's public inj1… addresses for the connected tools, as the rows show them: the address
+ * index and Ledger Live's account index m/44'/60'/i'/0/0.
+ */
+export const INJECTIVE_ADDRESSES = bip44CoinAddresses(INJECTIVE_PROFILES, INJECTIVE_KEYS);

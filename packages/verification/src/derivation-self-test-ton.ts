@@ -9,7 +9,7 @@ import { hexToBytes } from "@ckd/core/crypto.js";
 import { passesTonCheck } from "@ckd/core/ton-mnemonic.js";
 import { TON_COIN_ADAPTERS } from "@ckd/coins/adapters/ton.js";
 import { tonWalletAddress, type TonWalletVersion } from "@ckd/coins/ton/contracts.js";
-import { tonDerivation } from "@ckd/coins/ton/index.js";
+import { TON_ADDRESSES, tonDerivation } from "@ckd/coins/ton/index.js";
 import { TON_STANDARD_PATH } from "@ckd/coins/ton/profiles.js";
 import { singleKeyCoinSelfTest } from "./single-key-coin-self-test.js";
 
@@ -51,6 +51,7 @@ export const runTonDerivationSelfTest = singleKeyCoinSelfTest({
   group: "TON",
   adapters: TON_COIN_ADAPTERS,
   derivation: tonDerivation,
+  addresses: TON_ADDRESSES,
   otherPaths: [["ton", TON_STANDARD_PATH]],
   vectors: [
     {

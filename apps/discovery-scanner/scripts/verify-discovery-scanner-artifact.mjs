@@ -292,7 +292,7 @@ for (const marker of [
 // run at startup with the rest (AUD-023-BLD007).
 if (
   !html.includes(
-    "Public-input guard refuses phrases, WIF, extended private keys, Ed25519 secret keys and secret seeds",
+    "Public-input guard refuses phrases, WIF, extended private keys, Ed25519 secret keys, DER private keys and secret seeds",
   )
 )
   throw new Error("Discovery Scanner artifact lacks the public-input guard's startup check.");

@@ -19,14 +19,15 @@ function addressFormSelfTest(reader: AccountStatesReader): readonly string[] {
   return [name];
 }
 
-/** The line of an account coin's sequence, which XRP's and Stellar's accounts have. */
+/** The line of an account coin's sequence: XRP's, Stellar's and Cosmos SDK accounts', TON's seqno. */
 const SEQUENCE_LABEL = "Account sequence";
 
 /**
  * The public-address activity of an account coin (a row of the account coin table, read by
- * `reader`): its balance, its account sequence where the coin has one and the height the provider
- * read, from `accounts`; Mainnet only, its history unsupported. A person types the coin's typed
- * form (NEAR's public key), and the account it names is read.
+ * `reader`): its balance, its account sequence where the coin has one, the accounts it found where
+ * the network numbers them (Hedera) and the height the provider read, from `accounts`; Mainnet
+ * only, its history unsupported. A person types one of the coin's typed forms (NEAR's public key,
+ * Hedera's account ID, a TON raw address), and the account it names is read.
  */
 export function createAccountActivityAdapter(
   reader: AccountStatesReader,
@@ -67,6 +68,11 @@ export function createAccountActivityAdapter(
         balanceAtomic: BigInt(state.balance),
         nonce: state.sequence === null ? null : BigInt(state.sequence),
         blockHeight: view.height === null ? null : BigInt(view.height),
+        ...(state.accounts === undefined
+          ? {}
+          : {
+              accounts: state.accounts.map(({ id, balance }) => ({ id, balance: BigInt(balance) })),
+            }),
         history: balanceOnlyHistory(
           accountAmountUnit(facts),
           label,

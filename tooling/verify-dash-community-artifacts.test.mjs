@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   findDashArtifactViolations,
+  findDashConnectedToolViolations,
   findDashInspectorArtifactViolations,
 } from "./verify-dash-community-artifacts.mjs";
 
@@ -50,6 +51,19 @@ describe("Dash Community artifact exclusion rules", () => {
       "single-key coin",
     ]);
     expect(findDashArtifactViolations(`${pad(600)} NEAR`)).toEqual(["single-key coin"]);
+  });
+
+  it("rejects TON by name in the connected tools, outside embedded binary runs", () => {
+    const pad = (length) => "A".repeat(length);
+    expect(findDashConnectedToolViolations("TON · https://toncenter.com")).toEqual([
+      "account coin endpoint",
+      "account coin TON",
+    ]);
+    expect(findDashConnectedToolViolations(`x ${pad(300)}+TON/${pad(300)} y`)).toEqual([]);
+    expect(findDashConnectedToolViolations("BUTTON · Cotton")).toEqual([]);
+    expect(findDashConnectedToolViolations("Hedera · Cosmos · Injective")).toEqual([
+      "single-key coin",
+    ]);
   });
 
   it("rejects Silent Payments labels outside the Inspector's refusal text", () => {

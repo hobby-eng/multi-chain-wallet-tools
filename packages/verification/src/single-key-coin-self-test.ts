@@ -17,6 +17,8 @@ export interface SingleKeyVector {
   readonly accountXpub?: string;
   /** The master extended public key, where the coin serializes it under its own version. */
   readonly masterXpub?: string;
+  /** What the coin's public addresses look up for this vector where it is not `address`. */
+  readonly publicLookup?: string;
 }
 
 interface SingleKeySelfTestSpec {
@@ -62,7 +64,7 @@ export function singleKeyCoinSelfTest(
     ]);
     const { addresses } = spec;
     const vectors: DerivationVector[] = spec.vectors.map((vector) => {
-      const { adapterId, address, accountXpub, masterXpub } = vector;
+      const { adapterId, address, accountXpub, masterXpub, publicLookup } = vector;
       const adapter = spec.adapters.find(({ id }) => id === adapterId);
       const derive = spec.derivation(adapterId);
       if (adapter === undefined || derive === undefined)
@@ -73,6 +75,7 @@ export function singleKeyCoinSelfTest(
         address,
         ...(accountXpub === undefined ? {} : { accountXpub }),
         ...(masterXpub === undefined ? {} : { masterXpub }),
+        ...(publicLookup === undefined ? {} : { publicLookup }),
         ...(addresses === undefined
           ? {}
           : {
