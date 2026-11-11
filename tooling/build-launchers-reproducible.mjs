@@ -1,10 +1,15 @@
-import { spawnSync } from "node:child_process";
 import { copyFileSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { BUILD_PROFILES } from "./build-profiles.mjs";
-import { CONTAINER_PLATFORMS, findLaunchers, launcherName } from "./key-derivation-launchers.mjs";
+import {
+  CONTAINER_PLATFORMS,
+  findLaunchers,
+  launcherName,
+  removeLegacyLaunchers,
+} from "./key-derivation-launchers.mjs";
+import { runCommand } from "./run-script.mjs";
 
 // Builds the Linux and Windows executables of the Key Derivation Tool in Dockerfile.launchers,
 // around the Deriver pages already in dist/ from `pnpm build:reproducible`, puts them next to those
@@ -15,15 +20,8 @@ const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const dist = resolve(root, "dist");
 const temporary = mkdtempSync(join(tmpdir(), "multi-chain-wallet-tools-launchers-"));
 
-function run(command, args) {
-  const result = spawnSync(command, args, { cwd: root, stdio: "inherit" });
-  if (result.error !== undefined) throw result.error;
-  if (result.status !== 0)
-    throw new Error(`${command} ${args.join(" ")} failed (exit ${result.status ?? "signal"}).`);
-}
-
 try {
-  run("docker", [
+  runCommand("docker", [
     "build",
     "--platform",
     "linux/amd64",
@@ -42,18 +40,19 @@ try {
   ]);
   for (const profile of Object.values(BUILD_PROFILES)) {
     const { page } = findLaunchers(dist, profile);
+    removeLegacyLaunchers(page);
     for (const platform of CONTAINER_PLATFORMS) {
       const name = launcherName(basename(page), platform);
       const built = resolve(temporary, "dist", relative(dist, resolve(page, "..")), name);
       copyFileSync(built, resolve(page, "..", name));
       console.log(`Copied ${relative(root, resolve(page, "..", name))}`);
     }
-    run(process.execPath, [
+    runCommand(process.execPath, [
       resolve(root, "tooling/create-github-release-assets.mjs"),
       "--profile",
       profile.id,
     ]);
-    run(process.execPath, [
+    runCommand(process.execPath, [
       resolve(root, "tooling/verify-github-release-assets.mjs"),
       "--profile",
       profile.id,

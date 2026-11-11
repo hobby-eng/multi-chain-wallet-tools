@@ -24,6 +24,13 @@ import {
   type RecoveryFeatureContext,
 } from "./recovery-workspace-shared.js";
 
+/**
+ * How this edition's executable version is got: the Desktop file its releases carry, or that it is
+ * built from source. The Deriver build defines it from desktopVersionNote in
+ * tooling/key-derivation-launchers.mjs, the one source of the MHFE help's sentence too.
+ */
+declare const __DESKTOP_VERSION_NOTE__: string;
+
 /** The one warning of the MHFE panel: what MHFE is, what recovery needs, and how fast this page runs. */
 function renderSpeedNotice(engine: MhfeEngine): void {
   const experimental = leadParagraph(
@@ -40,7 +47,8 @@ function renderSpeedNotice(engine: MhfeEngine): void {
     : leadParagraph(
         "Slow mode:",
         `in this HTML version the browser lets MHFE run the ${FAST_MODE_THREADS} Argon2 lanes one after ` +
-          `another, so ${recovery}. For the fast mode, use the executable version of this tool.`,
+          `another, so ${recovery}. Fast mode needs the executable version of this tool. ` +
+          __DESKTOP_VERSION_NOTE__,
       );
   required<HTMLElement>("#mhfe-mode").replaceChildren(experimental, speed);
   required<HTMLElement>("#mhfe-runtime").textContent = engine.fastMode

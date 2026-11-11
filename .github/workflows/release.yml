@@ -113,7 +113,7 @@ jobs:
           retention-days: 7
 
   # The executable Key Derivation Tool for macOS needs Apple's SDK, so a macOS runner builds it from
-  # the page of the canonical build. It is covered by the SHA256SUMS and attestations below.
+  # the page of the canonical build. It is covered by the one SHA256SUMS and the attestations below.
   macos:
     needs: release
     runs-on: macos-15
@@ -153,7 +153,7 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: macos-launchers
-          path: dist/multi-chain-edition/key-derivation/Wallet_Key_Derivation_Tool-macos-*
+          path: dist/multi-chain-edition/key-derivation/Wallet_Key_Derivation_Tool_Desktop-macos-*
           if-no-files-found: error
           retention-days: 7
 
@@ -204,7 +204,7 @@ jobs:
       # A downloaded artifact loses its executable bit, as a browser download does.
       - name: Allow the executable to run
         if: runner.os != 'Windows'
-        run: chmod +x dist/multi-chain-edition/key-derivation/Wallet_Key_Derivation_Tool-*
+        run: chmod +x dist/multi-chain-edition/key-derivation/Wallet_Key_Derivation_Tool_Desktop-*
 
       - name: Run the executable and check the page it serves
         run: node tooling/verify-key-derivation-launcher.mjs

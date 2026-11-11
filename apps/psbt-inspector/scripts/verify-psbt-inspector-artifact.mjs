@@ -11,11 +11,12 @@ import { parseBuildProfile } from "../../../tooling/build-profiles.mjs";
 
 const root = resolve(fileURLToPath(new URL("../../..", import.meta.url)));
 const profile = parseBuildProfile();
-const {
-  tool,
-  html,
-  checksumPath: sidecar,
-} = currentArtifact(root, profile, "psbt-inspector", "PSBT & Multisig Inspector");
+const { tool, html, pagePath } = currentArtifact(
+  root,
+  profile,
+  "psbt-inspector",
+  "PSBT & Multisig Inspector",
+);
 assertReviewedDynamicCode(html, "psbt-inspector");
 const scriptStart = html.indexOf("<script>");
 const scriptEnd = html.lastIndexOf("</script>");
@@ -225,8 +226,8 @@ try {
 }
 const actual = assertRecordedChecksum(
   html,
-  sidecar,
-  "PSBT & Multisig Inspector",
+  pagePath,
   tool.artifactName,
+  "PSBT & Multisig Inspector",
 );
 console.log(`Verified offline PSBT & Multisig Inspector artifact: ${actual}`);

@@ -18,7 +18,7 @@ import { evmArtifactMarkers } from "../../../tooling/evm-networks.mjs";
 
 const root = resolve(fileURLToPath(new URL("../../..", import.meta.url)));
 const profile = parseBuildProfile();
-const { tool, html, checksumPath } = currentArtifact(root, profile, "activity-viewer", "Viewer");
+const { tool, html, pagePath } = currentArtifact(root, profile, "activity-viewer", "Viewer");
 const orchardWasmPath = resolve(
   root,
   "packages/dash-shielded-wasm/generated/dash_shielded_wasm_bg.wasm",
@@ -286,5 +286,5 @@ assertEvoSdkReadOnly(
   root,
 );
 
-const actual = assertRecordedChecksum(html, checksumPath, "Viewer");
+const actual = assertRecordedChecksum(html, pagePath, tool.artifactName, "Viewer");
 console.log(`Verified separate network-enabled viewer artifact: ${actual}`);

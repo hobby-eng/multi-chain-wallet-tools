@@ -55,7 +55,7 @@ jobs:
             --target launchers \
             --output type=local,dest=launcher-output \
             .
-          cp launcher-output/dist/multi-chain-edition/key-derivation/Wallet_Key_Derivation_Tool-* \
+          cp launcher-output/dist/multi-chain-edition/key-derivation/Wallet_Key_Derivation_Tool_Desktop-* \
             dist/multi-chain-edition/key-derivation/
           sha256sum dist/multi-chain-edition/key-derivation/*
 
@@ -115,7 +115,7 @@ jobs:
       # A downloaded artifact loses its executable bit, as a browser download does.
       - name: Allow the executable to run
         if: runner.os != 'Windows'
-        run: chmod +x dist/multi-chain-edition/key-derivation/Wallet_Key_Derivation_Tool-*
+        run: chmod +x dist/multi-chain-edition/key-derivation/Wallet_Key_Derivation_Tool_Desktop-*
 
       - name: Run the executable and check the page it serves
         run: node tooling/verify-key-derivation-launcher.mjs

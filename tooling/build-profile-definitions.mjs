@@ -81,6 +81,15 @@ export const TOOL_DEFINITIONS = {
   },
 };
 
+/**
+ * The name of a checksum file in the format `sha256sum -c` reads: each edition's manifest, and the
+ * one checksum file of a GitHub release, which lists every other asset of the release.
+ */
+export const CHECKSUM_MANIFEST_NAME = "SHA256SUMS";
+
+/** The name of the verification record, in dist/ and in every release (docs/VERIFICATION.md). */
+export const VERIFICATION_RECORD_NAME = "verification-record.json";
+
 export const BUILD_PROFILES = {
   "multi-chain": {
     id: "multi-chain",
@@ -89,10 +98,13 @@ export const BUILD_PROFILES = {
     // The GitHub repository whose Releases publish this edition (RELEASING.md), as owner/name:
     // the offline pages hold no web address.
     releaseRepository: "hobby-eng/multi-chain-wallet-tools",
+    // Whether this edition has the Deriver's Desktop executables, one for every platform, which its
+    // releases carry and its bundles take; release.yml publishes all five with every release here.
+    desktopExecutables: true,
     capabilities: profileCapabilities["multi-chain"].capabilities,
     themeStylesheet: undefined,
     outputDirectory: "multi-chain-edition",
-    manifestPath: "dist/multi-chain-edition/SHA256SUMS",
+    manifestPath: `dist/multi-chain-edition/${CHECKSUM_MANIFEST_NAME}`,
     releaseDirectory: "dist/multi-chain-edition/release",
   },
   "dash-community": {
@@ -100,10 +112,13 @@ export const BUILD_PROFILES = {
     editionName: "Dash Community Edition",
     brandName: "Dash Community Edition",
     releaseRepository: "hobby-eng/dash-wallet-tools",
+    // The owner's decision of 2026-11-11. The release workflow of hobby-eng/dash-wallet-tools must
+    // carry the Desktop jobs before any Dash release (RELEASING.md).
+    desktopExecutables: true,
     capabilities: profileCapabilities["dash-community"].capabilities,
     themeStylesheet: "packages/shared-ui/styles/dash-community.css",
     outputDirectory: "dash-community-edition",
-    manifestPath: "dist/dash-community-edition/SHA256SUMS",
+    manifestPath: `dist/dash-community-edition/${CHECKSUM_MANIFEST_NAME}`,
     releaseDirectory: "dist/dash-community-edition/release",
   },
 };

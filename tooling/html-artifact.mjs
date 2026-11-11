@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { transform } from "esbuild";
+import { writeSidecar } from "./page-sidecar.mjs";
 
 /** The esbuild settings of every browser bundle; a script adds its entry, plugins and defines. */
 export const BROWSER_BUNDLE = Object.freeze({
@@ -108,7 +109,7 @@ export function writeToolArtifact(root, tool, customArtifact, html, displayName)
   mkdirSync(resolve(artifact, ".."), { recursive: true });
   writeFileSync(artifact, html);
   const checksum = createHash("sha256").update(html).digest("hex");
-  writeFileSync(`${artifact}.sha256`, `${checksum}  ${displayName(artifact)}\n`);
+  writeSidecar(artifact, checksum, displayName(artifact));
   console.log(
     `Built ${customArtifact === undefined ? `dist/${tool.artifactRelativePath}` : artifact} (${Buffer.byteLength(html).toLocaleString()} bytes)`,
   );

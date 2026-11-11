@@ -12,10 +12,11 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseBuildProfile } from "../../../tooling/build-profiles.mjs";
 import { vendoredMnemoCodeVersion } from "../../../tooling/key-derivation-features.mjs";
+import { assertDesktopVersionNote } from "../../../tooling/key-derivation-launchers.mjs";
 
 const root = resolve(fileURLToPath(new URL("../../..", import.meta.url)));
 const profile = parseBuildProfile();
-const { tool, html, checksumPath } = currentArtifact(root, profile, "key-derivation", "Standalone");
+const { tool, html, pagePath } = currentArtifact(root, profile, "key-derivation", "Standalone");
 const wasmPaths = [
   ["Orchard", resolve(root, "packages/dash-shielded-wasm/generated/dash_shielded_wasm_bg.wasm")],
   [
@@ -491,5 +492,6 @@ for (const deceptiveWipe of [".repeat(mnemonicLength)", ".repeat(passphraseLengt
     throw new Error("Artifact contains a misleading JavaScript string-overwrite pattern.");
 }
 
-const actual = assertRecordedChecksum(html, checksumPath, "Standalone artifact");
+assertDesktopVersionNote(html, profile);
+const actual = assertRecordedChecksum(html, pagePath, tool.artifactName, "Standalone artifact");
 console.log(`Verified standalone offline artifact: ${actual}`);

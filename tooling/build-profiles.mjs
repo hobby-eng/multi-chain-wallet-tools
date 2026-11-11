@@ -1,6 +1,10 @@
 import { BUILD_PROFILES, TOOL_DEFINITIONS } from "./build-profile-definitions.mjs";
 import { mnemocodeWasmFiles } from "./sync-mnemocode-wasm.mjs";
-export { BUILD_PROFILES } from "./build-profile-definitions.mjs";
+export {
+  BUILD_PROFILES,
+  CHECKSUM_MANIFEST_NAME,
+  VERIFICATION_RECORD_NAME,
+} from "./build-profile-definitions.mjs";
 
 export function parseBuildProfile(args = process.argv.slice(2)) {
   const inline = args.find((arg) => arg.startsWith("--profile="));
@@ -28,7 +32,6 @@ export function getToolBuild(profile, toolId) {
     ...tool,
     buildScript: definitions.buildScript,
     artifactRelativePath: `${tool.artifactDirectory}/${tool.artifactName}`,
-    checksumFile: `${tool.artifactName}.sha256`,
   };
 }
 

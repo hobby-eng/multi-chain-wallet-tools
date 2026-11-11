@@ -6,7 +6,9 @@ import { dirname, posix, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { BUILD_PROFILES, getToolBuild, profileToolIds } from "./build-profiles.mjs";
 import { parseKeyDerivationFeatures } from "./key-derivation-features.mjs";
-import { readReleaseMetadata } from "./project-metadata.mjs";
+import { desktopVersionNote } from "./key-derivation-launchers.mjs";
+import { formatEnglishList, readReleaseMetadata } from "./project-metadata.mjs";
+import { RELEASE_LEGAL_NAMES } from "./release-legal-documents.mjs";
 import { TOOL_MANIFESTS } from "./tool-manifests.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -29,6 +31,11 @@ export function renderDashDistributionDocs(sourceRoot, sourceSha) {
     RELEASE_DATE: release.releaseDate,
     SOURCE_SHA: sourceSha,
     MODULE_TABLE: ["| Tool | Build modules |", "| --- | --- |", ...modules].join("\n"),
+    // The licence and notice files every release carries, from the list the bundle scripts copy.
+    RELEASE_LEGAL_FILES: formatEnglishList(RELEASE_LEGAL_NAMES.map((name) => `\`${name}\``)),
+    // What the Dash Deriver page itself says about getting its executable version, its file name
+    // as code, so that Markdown keeps <platform> as text.
+    DESKTOP_VERSION_NOTE: desktopVersionNote(profile).markdown,
   };
   const files = new Map();
   for (const name of ["README.md", "SECURITY.md"]) {

@@ -20,6 +20,17 @@ export function runNodeScript(script, args = [], { throwOnFailure = false } = {}
   process.exit(result.status ?? 1);
 }
 
+/**
+ * Runs the program `command` with `args` from the repository root, its output shown, and throws when
+ * it cannot start or exits with a failure, so that the caller can clean up first.
+ */
+export function runCommand(command, args) {
+  const result = spawnSync(command, args, { cwd: root, stdio: "inherit" });
+  if (result.error !== undefined) throw result.error;
+  if (result.status !== 0)
+    throw new Error(`${command} ${args.join(" ")} failed (exit ${result.status ?? "signal"}).`);
+}
+
 /** Whether the module at `moduleUrl` (its import.meta.url) is the script Node was started with. */
 export function isMainScript(moduleUrl) {
   return process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(moduleUrl);

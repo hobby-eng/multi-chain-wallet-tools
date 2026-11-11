@@ -301,7 +301,7 @@ crypto-common 0.2.2             digest 0.11.3                 hybrid-array 0.4.1
 libc 0.2.190                    sha2 0.11.0                   typenum 1.20.1
 ```
 
-Each executable also contains the standard library of Rust 1.99.0, licensed MIT OR Apache-2.0; its notices are released as `Rust-library-NOTICE.html`. The Linux and Windows executables are linked in `Dockerfile.launchers` with the GNU toolchains of its pinned Ubuntu snapshot (`gcc-aarch64-linux-gnu`, MinGW-w64 `gcc-mingw-w64-x86-64`), the macOS executables with Apple's toolchain on the release runner.
+Each executable also contains the Rust standard library of the pinned toolchain, licensed MIT OR Apache-2.0; its version is given under [the licence texts of the linked Rust crates](#licence-texts-of-the-linked-rust-crates) below, and its notices are released as `Rust-library-NOTICE.html`. The Linux and Windows executables are linked in `Dockerfile.launchers` with the GNU toolchains of its pinned Ubuntu snapshot (`gcc-aarch64-linux-gnu`, MinGW-w64 `gcc-mingw-w64-x86-64`), the macOS executables with Apple's toolchain on the release runner.
 
 ## Reproduced notices for Recovery and QR components
 

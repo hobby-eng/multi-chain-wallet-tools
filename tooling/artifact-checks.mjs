@@ -6,6 +6,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createBuildInfo } from "./build-metadata.mjs";
 import { getToolBuild } from "./build-profiles.mjs";
+import { sidecarRecords } from "./page-sidecar.mjs";
 
 /** How often `marker` occurs in `value`. */
 export function occurrences(value, marker) {
@@ -78,16 +79,12 @@ export function sourceFiles(directory) {
 export function currentArtifact(root, profile, toolId, label) {
   const tool = getToolBuild(profile, toolId);
   const html = readFileSync(resolve(root, "dist", tool.artifactRelativePath), "utf8");
-  const expectedFingerprint = createBuildInfo(root, tool.checksumFile, profile).fingerprint;
+  const expectedFingerprint = createBuildInfo(root, profile).fingerprint;
   if (!html.includes(expectedFingerprint))
     throw new Error(
       `${label} artifact does not contain the fingerprint of the current source tree.`,
     );
-  return {
-    tool,
-    html,
-    checksumPath: resolve(root, "dist", tool.artifactDirectory, tool.checksumFile),
-  };
+  return { tool, html, pagePath: resolve(root, "dist", tool.artifactRelativePath) };
 }
 
 /** Refuses a page that is not exactly one HTML document with one style and one script element. */
@@ -115,13 +112,12 @@ export function uniqueIds(markup, label) {
 }
 
 /**
- * The SHA-256 of the page, refused unless the checksum file next to it records the same; a
- * checksum file that names the page must name it as `fileName`.
+ * The SHA-256 of the page at `pagePath`, whose text is `html`, refused unless the checksum file next
+ * to it records the same SHA-256 under the page's release name `name`.
  */
-export function assertRecordedChecksum(html, checksumPath, label, fileName) {
+export function assertRecordedChecksum(html, pagePath, name, label) {
   const actual = createHash("sha256").update(html).digest("hex");
-  const [recorded, name] = readFileSync(checksumPath, "utf8").trim().split(/\s+/u);
-  if (recorded !== actual || (fileName !== undefined && name !== fileName))
+  if (!sidecarRecords(pagePath, actual, name))
     throw new Error(`${label} SHA-256 checksum file does not match its HTML.`);
   return actual;
 }

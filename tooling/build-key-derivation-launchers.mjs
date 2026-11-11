@@ -5,6 +5,7 @@ import { copyFileSync, existsSync, readFileSync } from "node:fs";
 import { basename, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseBuildProfile } from "./build-profiles.mjs";
+import { sidecarPath, sidecarRecords } from "./page-sidecar.mjs";
 import {
   assertLauncherFileEmbedsPage,
   CONTAINER_PLATFORMS,
@@ -12,6 +13,7 @@ import {
   hostPlatform,
   LAUNCHER_PLATFORMS,
   launcherName,
+  removeLegacyLaunchers,
 } from "./key-derivation-launchers.mjs";
 
 // Builds the executable Key Derivation Tool for a profile's deriver page, which must already be
@@ -46,13 +48,13 @@ function requestedPlatforms() {
 
 /** The page's SHA-256, after checking it against the sidecar the HTML build wrote. */
 function verifiedPageDigest(page) {
-  if (!existsSync(page) || !existsSync(`${page}.sha256`)) {
+  if (!existsSync(page) || !existsSync(sidecarPath(page))) {
     throw new Error(
       `${relative(root, page)} or its .sha256 file is missing. Build the HTML first.`,
     );
   }
   const digest = createHash("sha256").update(readFileSync(page)).digest("hex");
-  if (readFileSync(`${page}.sha256`, "utf8").trim() !== `${digest}  ${basename(page)}`) {
+  if (!sidecarRecords(page, digest, basename(page))) {
     throw new Error(`The .sha256 file next to ${relative(root, page)} does not match the page.`);
   }
   return digest;
@@ -60,6 +62,7 @@ function verifiedPageDigest(page) {
 
 const { page } = findLaunchers(dist, profile);
 const digest = verifiedPageDigest(page);
+removeLegacyLaunchers(page);
 const { cargo, environment } = resolveRustToolchain(root);
 for (const platform of requestedPlatforms()) {
   const { target, extension } = LAUNCHER_PLATFORMS[platform];
