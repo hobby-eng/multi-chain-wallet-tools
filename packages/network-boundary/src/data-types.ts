@@ -48,6 +48,18 @@ export interface AccountStateView {
   balance: string;
   /** The account's sequence number as decimal text, where the coin has one; null otherwise. */
   sequence: string | null;
+  /**
+   * Where the network numbers its accounts apart from the address (Hedera's 0.0.N): the accounts
+   * the address finds, in ascending order of their numbers, each with its balance in atomic units
+   * (`balance` is their sum), so that a total counts an account that two addresses find once;
+   * absent on other coins.
+   */
+  accounts?: NumberedAccountView[];
+}
+/** An account a network numbers (Hedera's 0.0.N) and its balance in atomic units, as decimal text. */
+export interface NumberedAccountView {
+  id: string;
+  balance: string;
 }
 export interface AccountStatesView {
   /** The account coin's id, such as "solana". */

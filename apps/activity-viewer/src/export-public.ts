@@ -42,6 +42,7 @@ export class PublicActivityReport {
         "last_seen",
         "source",
         "note",
+        "account_ids",
       ],
       ...state.results.map((result) => [
         state.coin,
@@ -62,6 +63,9 @@ export class PublicActivityReport {
         result.history.lastSeen,
         result.history.source,
         result.history.note,
+        // The accounts a Hedera lookup found, by number; null where the coin has none apart from
+        // the address.
+        result.accounts?.map(({ id }) => id).join(" ") ?? null,
       ]),
     ];
   }

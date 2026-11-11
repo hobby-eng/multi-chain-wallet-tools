@@ -9,6 +9,7 @@ export type {
   AccountStateView,
   EvmAccountBatchView,
   EvmAccountView,
+  NumberedAccountView,
   RecoveryHistory,
   UtxoAddressView,
 } from "./data-types.js";

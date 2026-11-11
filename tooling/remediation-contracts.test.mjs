@@ -2,7 +2,11 @@ import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { build } from "esbuild";
 import { describe, expect, it } from "vitest";
-import { assertReviewedDynamicCode, dynamicCodeCounts } from "./artifact-checks.mjs";
+import {
+  assertReviewedDynamicCode,
+  dynamicCodeCounts,
+  sdkDebugFunctionTexts,
+} from "./artifact-checks.mjs";
 import { assertCanonicalManifestWriter, CANONICAL_WORKSPACE } from "./verify-wasm-integrity.mjs";
 import { ToolProtocolFooter } from "./tool-protocol-footer.mjs";
 import { MhfeIntegrationModules } from "./mhfe-integration.mjs";
@@ -14,6 +18,20 @@ const root = resolve(".");
 const read = (path) => readFileSync(resolve(root, path), "utf8");
 
 describe("AUD-026 build admission and shared owners", () => {
+  it("counts the Evo SDK's debug text by its shape, whatever the minifier names its variable", () => {
+    for (const name of ["o", "s", "$e", "_long9"])
+      expect(sdkDebugFunctionTexts(`x=\`Function(\${${name}})\``)).toBe(1);
+    expect(sdkDebugFunctionTexts("`Function(${o})` + `Function(${s})`")).toBe(2);
+    for (const other of [
+      "Function(o)",
+      "new Function(o)",
+      "Function(${o}+1)",
+      "Function(${1o})",
+      "Function(${})",
+    ])
+      expect(sdkDebugFunctionTexts(other)).toBe(0);
+  });
+
   it("rejects added bare, qualified, bracket and optional constructors and eval", () => {
     const reviewed = 'Function("binder", "return binder")';
     expect(() => assertReviewedDynamicCode(reviewed, "key-derivation")).not.toThrow();

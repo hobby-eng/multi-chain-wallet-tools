@@ -22,6 +22,11 @@ export interface AddressResult {
   balanceAtomic: bigint;
   nonce: bigint | null;
   blockHeight: bigint | null;
+  /**
+   * Where the network numbers its accounts apart from the address (Hedera's 0.0.N): the accounts the
+   * address found with their balances, which `balanceAtomic` sums; absent on other coins.
+   */
+  accounts?: readonly { readonly id: string; readonly balance: bigint }[];
   history: RecoveryHistory;
 }
 
@@ -92,6 +97,32 @@ function lookupProof(
   return adapter.readsHistory
     ? "Confirmed history"
     : "Current provider state; the provider reports no height";
+}
+
+/**
+ * The current balance of `loaded` lookups: their sum, except that an account two lookups reached
+ * (a Hedera account by its number and by its key, say) counts once, with its latest balance read.
+ * How many distinct accounts more than one loaded lookup reached comes with it.
+ */
+function loadedBalance(loaded: readonly Pick<AddressResult, "balanceAtomic" | "accounts">[]): {
+  balance: bigint;
+  repeated: number;
+} {
+  const accounts = new Map<string, bigint>();
+  const repeats = new Set<string>();
+  let balance = 0n;
+  for (const result of loaded) {
+    if (result.accounts === undefined) {
+      balance += result.balanceAtomic;
+      continue;
+    }
+    for (const { id, balance: held } of result.accounts) {
+      if (accounts.has(id)) repeats.add(id);
+      accounts.set(id, held);
+    }
+  }
+  for (const held of accounts.values()) balance += held;
+  return { balance, repeated: repeats.size };
 }
 
 /**
@@ -199,6 +230,26 @@ function resultCard(
     ],
     ["First seen", formatDate(result.history.firstSeen)],
     ["Last seen", formatDate(result.history.lastSeen)],
+    ...(result.accounts === undefined
+      ? []
+      : [
+          [
+            "Account IDs",
+            result.accounts.length === 0
+              ? "None on the network"
+              : result.accounts.map(({ id }) => id).join(", "),
+          ] as const,
+        ]),
+    ...(result.accounts === undefined || result.accounts.length < 2
+      ? []
+      : [
+          [
+            "Account balances",
+            result.accounts
+              .map(({ id, balance }) => `${id}: ${formatAtomic(balance, asset, decimals)}`)
+              .join(", "),
+          ] as const,
+        ]),
     ...(result.nonce === null || metadata.nonceLabel === undefined
       ? []
       : [[metadata.nonceLabel, result.nonce.toLocaleString()] as const]),
@@ -434,7 +485,7 @@ export function installExternalActivity(
             loaded.push(result);
           }
           const metadata = selected;
-          const balance = loaded.reduce((total, item) => total + item.balanceAtomic, 0n);
+          const { balance, repeated } = loadedBalance(loaded);
           const received = loaded.every(({ history }) => history.totalReceivedAtomic !== null)
             ? loaded.reduce((total, item) => total + BigInt(item.history.totalReceivedAtomic!), 0n)
             : null;
@@ -474,10 +525,16 @@ export function installExternalActivity(
           );
           ledgerTitle.textContent = "Address history summaries";
           ledgerOrder.textContent = `${loaded.length.toLocaleString()} loaded`;
-          resultHelp.textContent = loaded
-            .map(({ history }) => history.note)
-            .filter((value, index, all) => all.indexOf(value) === index)
-            .join(" ");
+          resultHelp.textContent = [
+            ...loaded
+              .map(({ history }) => history.note)
+              .filter((value, index, all) => all.indexOf(value) === index),
+            ...(repeated === 0
+              ? []
+              : [
+                  `${repeated.toLocaleString()} account${repeated === 1 ? " was" : "s were"} reached by more than one lookup and ${repeated === 1 ? "counts" : "count"} once in the current balance.`,
+                ]),
+          ].join(" ");
           completeness.textContent = loaded.every(({ history }) => history.status === "complete")
             ? "Complete provider history was read for every address."
             : loaded.every(({ history }) => history.status === "unsupported")

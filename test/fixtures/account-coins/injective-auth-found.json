@@ -1,0 +1,1 @@
+{"account":{"@type":"/injective.types.v1beta1.EthAccount","base_account":{"address":"inj1npvwllfr9dqr8erajqqr6s0vxnk2ak55re90dz","pub_key":{"@type":"/injective.crypto.v1beta1.ethsecp256k1.PubKey","key":"Ajewu3qCiNOO1JpSS13JjP8+tcqCTJ+dwN/bPZzWAPKZ"},"account_number":"1680321","sequence":"2"},"code_hash":"xdJGAYb3IzySfn2y3McDwOUAtlPKgic7e/rYBF2FpHA="}}

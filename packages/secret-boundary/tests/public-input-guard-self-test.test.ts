@@ -4,7 +4,7 @@ import { runPublicInputGuardSelfTest } from "../src/public-input-guard-self-test
 describe("the public-input guard self-test", () => {
   it("passes: secrets refused, public values accepted", () => {
     expect(runPublicInputGuardSelfTest()).toEqual([
-      "Public-input guard refuses phrases, WIF, extended private keys, Ed25519 secret keys and secret seeds",
+      "Public-input guard refuses phrases, WIF, extended private keys, Ed25519 secret keys, DER private keys and secret seeds",
     ]);
   });
 });

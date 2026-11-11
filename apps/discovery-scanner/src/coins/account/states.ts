@@ -18,6 +18,10 @@ export class AccountStates implements AddressSource<AccountStateView> {
   readonly #signal: AbortSignal;
   #lowest: bigint | null = null;
   #highest: bigint | null = null;
+  /** The numbered accounts (Hedera's) whose balances this scan has counted, by number. */
+  readonly #counted = new Set<string>();
+  /** Each state's balance as this scan counts it, fixed the first time it is asked. */
+  readonly #balances = new WeakMap<AccountStateView, bigint>();
 
   constructor(gateway: RecoveryNetworkGateway, facts: AccountCoinFacts, signal: AbortSignal) {
     this.#gateway = gateway;
@@ -43,8 +47,26 @@ export class AccountStates implements AddressSource<AccountStateView> {
     return view.entries;
   }
 
+  /**
+   * The balance `state` adds to the scan's total: its own, or on a coin that numbers its accounts
+   * the balances of the accounts no address before it found, so that an account two addresses
+   * reach counts once. Two keys of one seed reach one account only after a key was changed to
+   * another key of the seed (an alias account's key, say); the address book asks for each state's
+   * balance first in lookup order, and the answer is kept for every later question.
+   */
   balance(state: AccountStateView): bigint {
-    return BigInt(state.balance);
+    const { accounts } = state;
+    if (accounts === undefined) return BigInt(state.balance);
+    const held = this.#balances.get(state);
+    if (held !== undefined) return held;
+    let counted = 0n;
+    for (const { id, balance } of accounts) {
+      if (this.#counted.has(id)) continue;
+      this.#counted.add(id);
+      counted += BigInt(balance);
+    }
+    this.#balances.set(state, counted);
+    return counted;
   }
 
   /** An address is used once its account exists or the provider shows a transaction of it. */

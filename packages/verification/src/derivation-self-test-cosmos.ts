@@ -1,5 +1,5 @@
 import { COSMOS_COIN_ADAPTERS } from "@ckd/coins/adapters/cosmos.js";
-import { cosmosDerivation } from "@ckd/coins/cosmos/index.js";
+import { COSMOS_ADDRESSES, cosmosDerivation } from "@ckd/coins/cosmos/index.js";
 import { singleKeyCoinSelfTest } from "./single-key-coin-self-test.js";
 
 // The first addresses of the public phrase, which MnemoCode's own Rust derivation finds at the same
@@ -11,6 +11,7 @@ export const runCosmosDerivationSelfTest = singleKeyCoinSelfTest({
   group: "Cosmos",
   adapters: COSMOS_COIN_ADAPTERS,
   derivation: cosmosDerivation,
+  addresses: COSMOS_ADDRESSES,
   vectors: [
     {
       adapterId: "cosmos",

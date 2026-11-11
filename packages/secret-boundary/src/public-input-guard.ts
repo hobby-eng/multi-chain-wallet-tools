@@ -12,7 +12,9 @@ import { wordlist as portugueseWordlist } from "@scure/bip39/wordlists/portugues
 import { wordlist as simplifiedChineseWordlist } from "@scure/bip39/wordlists/simplified-chinese.js";
 import { wordlist as spanishWordlist } from "@scure/bip39/wordlists/spanish.js";
 import { wordlist as traditionalChineseWordlist } from "@scure/bip39/wordlists/traditional-chinese.js";
-import { sha256, wipe } from "@ckd/core/crypto.js";
+import { ed25519 } from "@noble/curves/ed25519.js";
+import { equalBytes } from "@noble/curves/utils.js";
+import { hexToBytes, sha256, wipe } from "@ckd/core/crypto.js";
 import { decodeRippleBase58Check } from "@ckd/core/ripple-base58check.js";
 import { STRKEY_SECRET_SEED, strKeyVersion } from "@ckd/core/strkey.js";
 
@@ -45,6 +47,23 @@ const KEYPAIR_ARRAY_PATTERN = new RegExp(
   "u",
 );
 const BYTE_MAX = 0xff;
+/**
+ * The same 64-byte keypair in hex, the 32-byte seed then its public key, as wallets write a "64-byte
+ * secret key" (TON's tools among them). Other values of 64 bytes in hex are public input (Dash's
+ * Orchard incoming viewing key), so the value is refused only when its second half is the Ed25519
+ * public key of its first half.
+ */
+const KEYPAIR_HEX_PATTERN = /^(?:0x)?([0-9a-f]{128})$/iu;
+const ED25519_SEED_BYTES = 32;
+/**
+ * A private key in DER, written in hex as wallets and SDKs export one (Hedera's): a PKCS#8
+ * PrivateKeyInfo or a SEC1 ECPrivateKey, a SEQUENCE whose first element is the one-byte INTEGER
+ * version 0 or 1, its length matching the text. A public key's DER (SubjectPublicKeyInfo) opens its
+ * SEQUENCE with another SEQUENCE, so it passes. The SEQUENCE holds at least a 32-byte key.
+ */
+const DER_PRIVATE_KEY_PATTERN =
+  /^(?:0x)?30(?:([0-7][0-9a-f])|81([0-9a-f]{2})|82([0-9a-f]{4}))(02010[01](?:[0-9a-f]{2})*)$/iu;
+const DER_PRIVATE_KEY_SMALLEST_BODY = 3 + 32;
 /**
  * The XRP Ledger's family seed ("s…"): Base58Check in Ripple's alphabet of a version and 16 seed
  * bytes. The version is 0x21 for a secp256k1 seed and 01 E1 4B for an Ed25519 seed ("sEd…"). Its
@@ -181,6 +200,31 @@ function looksLikeKeypairArray(value: string): boolean {
   );
 }
 
+function looksLikeKeypairHex(value: string): boolean {
+  const body = KEYPAIR_HEX_PATTERN.exec(value)?.[1];
+  if (body === undefined) return false;
+  let bytes: Uint8Array | undefined;
+  let publicKey: Uint8Array | undefined;
+  try {
+    bytes = hexToBytes(body.toLowerCase());
+    publicKey = ed25519.getPublicKey(bytes.subarray(0, ED25519_SEED_BYTES));
+    return equalBytes(publicKey, bytes.subarray(ED25519_SEED_BYTES));
+  } catch {
+    return false;
+  } finally {
+    wipe(bytes);
+    wipe(publicKey);
+  }
+}
+
+function looksLikeDerPrivateKey(value: string): boolean {
+  const match = DER_PRIVATE_KEY_PATTERN.exec(value);
+  if (match === null) return false;
+  const [, short, oneByte, twoBytes, body = ""] = match;
+  const length = Number.parseInt(short ?? oneByte ?? twoBytes ?? "", 16);
+  return length >= DER_PRIVATE_KEY_SMALLEST_BODY && body.length === length * 2;
+}
+
 function looksLikeFamilySeed(value: string): boolean {
   if (!FAMILY_SEED_PATTERN.test(value)) return false;
   const payload = decodeRippleBase58Check(value);
@@ -227,6 +271,8 @@ export function assertPublicLookupInput(value: string): void {
     looksLikeWif(input) ||
     looksLikeEd25519Keypair(input) ||
     looksLikeKeypairArray(input) ||
+    looksLikeKeypairHex(input) ||
+    looksLikeDerPrivateKey(input) ||
     looksLikeFamilySeed(input) ||
     // A StrKey secret seed (S…), as Stellar wallets show it; checked without its checksum, since a
     // seed with a typo is just as secret.

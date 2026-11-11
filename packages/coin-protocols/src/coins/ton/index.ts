@@ -9,7 +9,11 @@ import {
   type ResultField,
 } from "@ckd/core/types.js";
 import type { VariantDerivation } from "../coin-variant.js";
-import { ed25519CoinDerivation, type Ed25519CoinKeys } from "../ed25519-coin.js";
+import {
+  ed25519CoinAddresses,
+  ed25519CoinDerivation,
+  type Ed25519CoinKeys,
+} from "../ed25519-coin.js";
 import { tonFriendlyAddress } from "./address.js";
 import { tonWalletAccountId, type TonWalletVersion } from "./contracts.js";
 import { TON_BIP39_PROFILES, TON_STANDARD_ADAPTER, TON_STANDARD_PATH } from "./profiles.js";
@@ -122,3 +126,20 @@ export function tonDerivation(id: string): VariantDerivation | undefined {
   if (id === TON_STANDARD_ADAPTER) return deriveTonStandard;
   return ed25519CoinDerivation(TON_BIP39_PROFILES, TON_BIP39_KEYS, id);
 }
+
+/** The v4R2 wallet address of a key, non-bounceable (UQ…), as the BIP39 variants' rows show it first. */
+function tonV4R2Address(publicKey: Uint8Array): string {
+  return tonFriendlyAddress(tonWalletAccountId("v4r2", publicKey));
+}
+
+/**
+ * TON's public v4R2 wallet addresses of a BIP39 seed for the connected tools, Trust Wallet's and
+ * Ledger's keys, as the rows show them first; the same keys' W5 and v3R2 wallets are not looked up.
+ * The Telegram wallet's key comes from a TON phrase, which is not a BIP39 phrase, so no layout
+ * reaches it.
+ */
+export const TON_ADDRESSES = ed25519CoinAddresses(
+  TON_BIP39_PROFILES,
+  tonV4R2Address,
+  "Only each key's v4R2 wallet is read: the W5 and v3R2 wallets of the same key, which the Deriver also shows, are not looked up. The Telegram wallet (W5) is not scanned: its key comes from a TON phrase, which is not a BIP39 phrase; the Deriver derives a TON phrase's key and the Activity Viewer reads its address.",
+);

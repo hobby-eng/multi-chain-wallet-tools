@@ -30,3 +30,9 @@ export const HEDERA_ECDSA_PROFILES: readonly Bip44CoinProfile[] = Object.freeze(
 
 /** The DER prefix of an Ed25519 SubjectPublicKeyInfo, as the Hiero SDK writes a public key. */
 export const HEDERA_ED25519_PUBLIC_DER = "302a300506032b6570032100";
+
+/**
+ * The DER prefix of a compressed secp256k1 SubjectPublicKeyInfo, as the Hiero SDK writes an ECDSA
+ * public key.
+ */
+export const HEDERA_ECDSA_PUBLIC_DER = "302d300706052b8104000a032200";

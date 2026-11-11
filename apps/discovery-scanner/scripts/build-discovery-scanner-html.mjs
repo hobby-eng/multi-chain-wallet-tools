@@ -14,6 +14,7 @@ import {
   writeToolArtifact,
 } from "../../../tooling/html-artifact.mjs";
 import { createBuildInfo } from "../../../tooling/build-metadata.mjs";
+import { sdkDebugFunctionTexts } from "../../../tooling/artifact-checks.mjs";
 import {
   applyDiscoveryFeatureTemplate,
   assertDiscoveryComposition,
@@ -83,7 +84,7 @@ function dynamicCodeSurface(javascript) {
     functionConstructors: (javascript.match(/(?:^|[^.\w])(?:new\s+)?Function\s*\(/gu) ?? []).length,
     newFunctionConstructors: (javascript.match(/(?:^|[^.\w])new\s+Function\s*\(/gu) ?? []).length,
     evalCalls: (javascript.match(/(?:^|[^.\w])eval\s*\(/gu) ?? []).length,
-    knownDiagnosticLiterals: javascript.split("Function(${o})").length - 1,
+    knownDiagnosticLiterals: sdkDebugFunctionTexts(javascript),
   };
 }
 const networkBundle = await build({

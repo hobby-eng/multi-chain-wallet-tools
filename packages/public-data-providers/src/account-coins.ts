@@ -1,9 +1,13 @@
 import table from "./account-coins.json";
 import type { AccountCoinFacts } from "./account-coin-facts.js";
 import { AccountStatesReader, type AccountProvider } from "./account-states-service.js";
+import { COSMOS_REST_PROVIDER } from "./account-coins/cosmos-rest.js";
+import { HEDERA_MIRROR_PROVIDER } from "./account-coins/hedera-mirror.js";
 import { HORIZON_PROVIDER } from "./account-coins/horizon.js";
+import { INJECTIVE_REST_PROVIDER } from "./account-coins/injective-rest.js";
 import { NEAR_RPC_PROVIDER } from "./account-coins/near-rpc.js";
 import { SOLANA_RPC_PROVIDER } from "./account-coins/solana-rpc.js";
+import { TONCENTER_PROVIDER } from "./account-coins/toncenter.js";
 import { TRONGRID_PROVIDER } from "./account-coins/trongrid.js";
 import { XRPL_PROVIDER } from "./account-coins/xrpl.js";
 
@@ -15,7 +19,10 @@ import { XRPL_PROVIDER } from "./account-coins/xrpl.js";
  *
  * Endpoint provenance (2026-11-10, probed with Origin: null as the Network Worker sends it): every
  * endpoint allowed that origin and answered the reads its provider makes. PublicNode's Solana
- * endpoint admits 10 accounts per getMultipleAccounts, hence Solana's batch of 10.
+ * endpoint admits 10 accounts per getMultipleAccounts, hence Solana's batch of 10. TON Center
+ * answers 429 to a second request within a second from a client without a key, hence TON's pace of
+ * 1.1 seconds from the end of one request to the start of the next and its batch of 10, a little
+ * over eleven seconds a lookup.
  */
 export const ACCOUNT_COINS: readonly AccountCoinFacts[] = Object.freeze(
   Object.entries(table).map(([id, row]) => Object.freeze({ id, ...row })),
@@ -32,6 +39,10 @@ const PROVIDERS: Readonly<Record<string, AccountProvider>> = {
   horizon: HORIZON_PROVIDER,
   "near-rpc": NEAR_RPC_PROVIDER,
   trongrid: TRONGRID_PROVIDER,
+  "cosmos-rest": COSMOS_REST_PROVIDER,
+  "injective-rest": INJECTIVE_REST_PROVIDER,
+  "hedera-mirror": HEDERA_MIRROR_PROVIDER,
+  toncenter: TONCENTER_PROVIDER,
 };
 
 /** The row of the account coin `id`; refuses an id the table does not hold. */

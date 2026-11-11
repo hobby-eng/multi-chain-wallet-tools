@@ -38,7 +38,7 @@ export function accountCoinFacts(
     standardScan: {
       receiveLabel: `${label} address minimum`,
       coverage: `Scan ${profiles} ${label} wallet path profile${profiles === 1 ? "" : "s"}.`,
-      note: `${label} discovery checks ${addresses.layouts.map((layout) => layout.label).join("; ")}, extending each through a ${ADDRESS_DISCOVERY_GAP}-address post-use gap; a is the Account setting, and account indexes i' start at it. It reads each address's ${facts.asset} balance and whether the network holds its account; tokens, staking and transaction history are outside this scan, and custom paths are not offered. ${ACCOUNT_COIN_PRIVACY}`,
+      note: `${label} discovery checks ${addresses.layouts.map((layout) => layout.label).join("; ")}, extending each through a ${ADDRESS_DISCOVERY_GAP}-address post-use gap; a is the Account setting, and account indexes i' start at it. It reads each address's ${facts.asset} balance and whether the network holds its account${facts.numberedAccounts === true ? ", with the numbers of the accounts it finds" : ""}; tokens, staking and transaction history are outside this scan, and custom paths are not offered.${addresses.notCovered === undefined ? "" : ` ${addresses.notCovered}`} ${ACCOUNT_COIN_PRIVACY}`,
       startLabel: `Scan ${label} holdings`,
       estimate: (receiveCount, _changeCount, estimate) =>
         accountScanEstimate(label, profiles, receiveCount, estimate),

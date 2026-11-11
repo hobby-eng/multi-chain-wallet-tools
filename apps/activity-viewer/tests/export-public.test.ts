@@ -51,4 +51,40 @@ describe("public activity export", () => {
     expect(text).toContain("' =unsafe".replace(" ", ""));
     expect(text).toContain("42");
   });
+
+  it("names the Hedera accounts a lookup found in its last column, empty for other coins", async () => {
+    const [result] = state.results;
+    if (result === undefined) throw new Error("No result.");
+    const hedera = {
+      ...state,
+      coin: "hedera",
+      results: [
+        {
+          ...result,
+          coin: "hedera",
+          address: "0.0.163372",
+          accounts: [
+            { id: "0.0.163372", balance: 14285n },
+            { id: "0.0.629081", balance: 1n },
+          ],
+        },
+      ],
+    };
+    const rows = publicActivityRows(hedera);
+    expect(rows[0]?.at(-1)).toBe("account_ids");
+    expect(rows[1]?.at(-1)).toBe("0.0.163372 0.0.629081");
+    expect(publicActivityRows(state)[1]?.at(-1)).toBeNull();
+    const file = await createPublicActivityExport(hedera, "json", new Date("2026-01-02T03:04:05Z"));
+    const json = JSON.parse(await file.blob.text()) as {
+      results: { accounts?: { id: string; balance: string }[] }[];
+    };
+    // Exact integers as text, as every other amount of the export.
+    expect(json.results[0]?.accounts).toEqual([
+      { id: "0.0.163372", balance: "14285" },
+      { id: "0.0.629081", balance: "1" },
+    ]);
+    const csv = await (await createPublicActivityExport(hedera, "csv")).blob.text();
+    // The CSV encoder ends its lines with CRLF.
+    expect(csv.split("\r\n")[0]?.endsWith(",account_ids")).toBe(true);
+  });
 });

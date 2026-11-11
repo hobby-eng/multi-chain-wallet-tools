@@ -1,6 +1,7 @@
 // The account.states operation: the balances and states of an account coin's addresses, each coin
 // read by the provider of its api (account-coins/<api>.ts). The readers come from the caller (a
 // composed build passes those of its selected rows), so this module names no coin and no endpoint.
+import { networkCancelledError } from "@ckd/core/error-handling.js";
 import { exactNetworkPayload } from "@ckd/network-boundary/request-validation.js";
 import type { AccountStatesView, AccountStateView } from "@ckd/network-boundary/data-types.js";
 import {
@@ -14,8 +15,8 @@ import type { PublicDataNetwork } from "./types.js";
 
 /**
  * The longest value read as an address before its coin's own check: well above every account
- * coin's address (NEAR's implicit account, 64 hex digits, is the longest), so that a decoder never
- * sees an unbounded string.
+ * coin's address (Hedera's ECDSA alias, 0.0. and a DER public key of 94 hex digits, 98
+ * characters, is the longest), so that a decoder never sees an unbounded string.
  */
 const MAX_ADDRESS_LENGTH = 128;
 
@@ -31,11 +32,107 @@ export interface AddressFormVectors {
   readonly refused: string;
 }
 
-/** What a provider reads with: the coin's row, its answer checks and the caller's abort signal. */
+/**
+ * What a provider reads with: the coin's row, its answer checks, the caller's abort signal, and
+ * the row's pace.
+ */
 export interface ProviderRead {
   readonly facts: AccountCoinFacts;
   readonly checks: AccountAnswerChecks;
   readonly signal: AbortSignal | undefined;
+  /**
+   * Runs `request` (one address's read) in its turn: on a row with a pace, alone and at least the
+   * pace after the end of the reader's previous paced read; a lookup cancelled while it waits
+   * leaves its place at once. Rejects as cancelled when the signal aborts before `request` starts.
+   */
+  paced<T>(request: () => Promise<T>): Promise<T>;
+  /** Waits one pace (none on a row without one), as before a retry; rejects when cancelled. */
+  rest(): Promise<void>;
+}
+
+/** Resolves after `delay` milliseconds, or rejects as cancelled once `signal` aborts. */
+function waitFor(delay: number, signal: AbortSignal | undefined): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(networkCancelledError());
+      return;
+    }
+    if (delay <= 0) {
+      resolve();
+      return;
+    }
+    const cancel = (): void => {
+      clearTimeout(timer);
+      reject(networkCancelledError());
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", cancel);
+      resolve();
+    }, delay);
+    signal?.addEventListener("abort", cancel, { once: true });
+  });
+}
+
+/**
+ * The pace of one provider: one read at a time, each starting at least `pace` milliseconds after
+ * the previous one ended (a monotonic clock), since a provider's limit counts the requests that
+ * reach it, and a slow connection must not bring two of them closer. Reads wait their turn in
+ * order; one cancelled while it waits leaves the queue without delaying the others.
+ */
+class Pacer {
+  readonly #pace: number;
+  #busy = false;
+  readonly #queue: (() => void)[] = [];
+  #lastEnd = Number.NEGATIVE_INFINITY;
+
+  constructor(pace: number) {
+    this.#pace = pace;
+  }
+
+  async run<T>(request: () => Promise<T>, signal: AbortSignal | undefined): Promise<T> {
+    await this.#acquire(signal);
+    let started = false;
+    try {
+      await waitFor(this.#lastEnd + this.#pace - performance.now(), signal);
+      started = true;
+      return await request();
+    } finally {
+      if (started) this.#lastEnd = performance.now();
+      this.#release();
+    }
+  }
+
+  rest(signal: AbortSignal | undefined): Promise<void> {
+    return waitFor(this.#pace, signal);
+  }
+
+  #acquire(signal: AbortSignal | undefined): Promise<void> {
+    if (signal?.aborted) return Promise.reject(networkCancelledError());
+    if (!this.#busy) {
+      this.#busy = true;
+      return Promise.resolve();
+    }
+    return new Promise((resolve, reject) => {
+      const grant = (): void => {
+        signal?.removeEventListener("abort", cancel);
+        resolve();
+      };
+      const cancel = (): void => {
+        const at = this.#queue.indexOf(grant);
+        if (at >= 0) this.#queue.splice(at, 1);
+        reject(networkCancelledError());
+      };
+      this.#queue.push(grant);
+      signal?.addEventListener("abort", cancel, { once: true });
+    });
+  }
+
+  /** Hands the turn to the next waiting read, if any. */
+  #release(): void {
+    const next = this.#queue.shift();
+    if (next === undefined) this.#busy = false;
+    else next();
+  }
 }
 
 /** What one api's module brings (account-coins/<api>.ts): its coin's address form and its reads. */
@@ -43,7 +140,10 @@ export interface AccountProvider {
   /** The typed form's short name in placeholders, such as "r…". */
   readonly addressForm: string;
   readonly addressVectors: AddressFormVectors;
-  /** Whether the coin's accounts have a sequence number (XRP, Stellar), which a read returns. */
+  /**
+   * Whether the coin's accounts have a sequence number (XRP, Stellar, the Cosmos SDK chains, TON's
+   * wallets), which a read returns.
+   */
   readonly sequence: boolean;
   /** What a person types where it is not the account's address, such as "account public key". */
   readonly typedName?: string;
@@ -66,16 +166,23 @@ export interface AccountProvider {
   read(addresses: readonly string[], read: ProviderRead): Promise<AccountStatesView>;
 }
 
-/** One account coin as the connected tools read it: its row of the table and its api's provider. */
+/**
+ * One account coin as the connected tools read it: its row of the table and its api's provider.
+ * The reader keeps the row's pace across all of its reads, since a provider's limit counts every
+ * request of the client, whichever lookup sent it.
+ */
 export class AccountStatesReader {
   readonly facts: AccountCoinFacts;
   readonly #provider: AccountProvider;
   readonly #checks: AccountAnswerChecks;
+  /** The row's pace, kept across every read of this reader; none where the row has none. */
+  readonly #pacer: Pacer | null;
 
   constructor(facts: AccountCoinFacts, provider: AccountProvider) {
     this.facts = facts;
     this.#provider = provider;
     this.#checks = accountAnswerChecks(facts);
+    this.#pacer = facts.pace === undefined ? null : new Pacer(facts.pace);
   }
 
   /** The typed form's short name in placeholders, such as "r…". */
@@ -116,7 +223,17 @@ export class AccountStatesReader {
 
   /** The states of `addresses` from the coin's endpoint; a malformed or failed answer fails. */
   read(addresses: readonly string[], signal?: AbortSignal): Promise<AccountStatesView> {
-    return this.#provider.read(addresses, { facts: this.facts, checks: this.#checks, signal });
+    const pacer = this.#pacer;
+    return this.#provider.read(addresses, {
+      facts: this.facts,
+      checks: this.#checks,
+      signal,
+      paced: (request) => {
+        if (pacer !== null) return pacer.run(request, signal);
+        return signal?.aborted ? Promise.reject(networkCancelledError()) : request();
+      },
+      rest: () => (pacer === null ? Promise.resolve() : pacer.rest(signal)),
+    });
   }
 }
 
@@ -136,9 +253,10 @@ export const NO_ACCOUNT = (address: string): AccountStateView => ({
 });
 
 /**
- * The view of a provider asked one address at a time: `one` runs for each address in order, so
- * that a public provider sees one request at a time; each request honours the read's abort signal
- * (fetchJson refuses an aborted one). The height is the latest one read.
+ * The view of a provider asked one address at a time: `one` runs for each address in order, each
+ * in its turn under the row's pace, so that a public provider sees one request at a time; each
+ * request honours the read's abort signal (fetchJson refuses an aborted one, and so does a wait
+ * for a turn). The height is the latest one read.
  */
 export async function readOneByOne(
   addresses: readonly string[],
@@ -148,7 +266,7 @@ export async function readOneByOne(
   const entries: AccountStateView[] = [];
   let height: bigint | null = null;
   for (const address of addresses) {
-    const found = await one(address, read);
+    const found = await read.paced(() => one(address, read));
     entries.push(found.state);
     if (found.height !== null && (height === null || found.height > height)) height = found.height;
   }

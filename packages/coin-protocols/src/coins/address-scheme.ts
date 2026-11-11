@@ -1,7 +1,8 @@
 // What the connected tools (the Discovery Scanner) derive of a single-key coin: its public addresses
 // under the layouts its wallets use, each address derived as the Deriver derives its row but
 // without any private key form, so that no private key string is ever made. Crypto-free: each kind
-// of coin (bip44-coin.ts, ed25519-coin.ts) builds its scheme.
+// of coin (bip44-coin.ts, ed25519-coin.ts) builds its scheme, and a coin with both kinds of keys
+// combines them.
 
 /** One way a coin's wallets lay out its addresses, from index 0 on. */
 export interface AddressLayout {
@@ -26,6 +27,50 @@ export interface SeedAddresses {
 /** A coin's address layouts and the derivation of a seed's addresses under them. */
 export interface CoinAddressScheme {
   readonly layouts: readonly AddressLayout[];
+  /**
+   * What the coin's wallets hold that these layouts cannot reach from a BIP39 seed, said where a
+   * scan of them is described (TON's Telegram wallet, whose phrase is not a BIP39 phrase).
+   */
+  readonly notCovered?: string;
   /** The addresses of `seed`, which the caller keeps alive while they are used and then wipes. */
   open(seed: Uint8Array): SeedAddresses;
+}
+
+/**
+ * One scheme of several, for a coin whose variants derive in different ways (Hedera's Ed25519 and
+ * ECDSA keys): their layouts in order, each address derived by the scheme that owns its layout, and
+ * every scheme opened on the seed wiped together. `notCovered` says what none of them reaches.
+ */
+export function combinedAddressScheme(
+  schemes: readonly CoinAddressScheme[],
+  notCovered?: string,
+): CoinAddressScheme {
+  const owner = new Map(
+    schemes.flatMap((scheme, at) => scheme.layouts.map((layout) => [layout, at] as const)),
+  );
+  return Object.freeze({
+    layouts: Object.freeze([...owner.keys()]),
+    ...(notCovered === undefined ? {} : { notCovered }),
+    open(seed: Uint8Array): SeedAddresses {
+      const opened: SeedAddresses[] = [];
+      try {
+        for (const scheme of schemes) opened.push(scheme.open(seed));
+      } catch (cause) {
+        for (const addresses of opened) addresses.wipe();
+        throw cause;
+      }
+      return {
+        address(layout, account, index) {
+          const at = owner.get(layout);
+          const addresses = at === undefined ? undefined : opened[at];
+          if (addresses === undefined)
+            throw new Error(`${layout.id} is not a layout of this coin.`);
+          return addresses.address(layout, account, index);
+        },
+        wipe() {
+          for (const addresses of opened) addresses.wipe();
+        },
+      };
+    },
+  });
 }

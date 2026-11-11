@@ -1,5 +1,5 @@
 import { INJECTIVE_COIN_ADAPTERS } from "@ckd/coins/adapters/injective.js";
-import { injectiveDerivation } from "@ckd/coins/injective/index.js";
+import { INJECTIVE_ADDRESSES, injectiveDerivation } from "@ckd/coins/injective/index.js";
 import { singleKeyCoinSelfTest } from "./single-key-coin-self-test.js";
 
 // The first addresses of the public phrase, which MnemoCode's own Rust derivation finds at the same
@@ -12,6 +12,7 @@ export const runInjectiveDerivationSelfTest = singleKeyCoinSelfTest({
   group: "Injective",
   adapters: INJECTIVE_COIN_ADAPTERS,
   derivation: injectiveDerivation,
+  addresses: INJECTIVE_ADDRESSES,
   vectors: [
     {
       adapterId: "injective",

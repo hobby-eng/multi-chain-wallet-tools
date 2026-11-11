@@ -12,7 +12,21 @@ const NEAR = "5510e2b44cae6eb807e3e0e45d579dda058c274abcba15e5cb84636f5d1ee412";
 // Its public key, as the Deriver's NEAR row shows it.
 const NEAR_PUBLIC_KEY = "ed25519:6j4b6zUaty6fD1awqcGCCU9JYGCWYUgdJhQrzfZhqE25";
 
-/** An account states reader that holds every address with 2 units of atomic balance. */
+// Hedera's first Ed25519 key of the phrase as the Deriver shows it (DER and its alias), and the
+// accounts the network gave it (probed 2026-11-10); TON's first Trust Wallet address and its raw form.
+const HEDERA_DER =
+  "302a300506032b657003210010fcec8c5db29aeab62272a08be39b1ec75eba50624351fba9948ff5d3d78ecf";
+const HEDERA_ACCOUNTS = [
+  { id: "0.0.163372", balance: "1" },
+  { id: "0.0.629081", balance: "1" },
+];
+const TON = "UQAzWZa6nM5mJev91wGc7VCSfBoIsYRqKJpV78N8Add9-RKY";
+const TON_RAW = "0:335996ba9cce6625ebfdd7019ced50927c1a08b1846a289a55efc37c01d77df9";
+
+/**
+ * An account states reader that holds every address with 2 units of atomic balance, and on Hedera
+ * gives each address the accounts above.
+ */
 function states(height: string | null, sequence: string | null) {
   return {
     states: vi.fn(async (coin: string, _network: string, addresses: string[]) => ({
@@ -24,6 +38,7 @@ function states(height: string | null, sequence: string | null) {
         used: true,
         balance: "2",
         sequence,
+        ...(coin === "hedera" ? { accounts: HEDERA_ACCOUNTS } : {}),
       })),
     })),
   };
@@ -87,10 +102,49 @@ describe("account coin activity", () => {
       );
   });
 
+  it("reads what a Hedera user has as the account it names, and returns the accounts found", async () => {
+    const hedera = adapterOf("hedera", states(null, null));
+    expect(hedera).toMatchObject({
+      inputName: "account",
+      singlePlaceholder: "Paste one Hedera account (0.0.N, 0x… or DER public key)",
+    });
+    expect(hedera.privateMaterialHint).toMatch(/public key in DER form \(302a… or 302d…\)/u);
+    expect(hedera.normalize("0.0.163372-giukq", "mainnet")).toBe("0.0.163372");
+    expect(hedera.normalize(HEDERA_DER, "mainnet")).toBe(`0.0.${HEDERA_DER}`);
+    expect(hedera.normalize("0xc283f34adafdb758a557304c5f5e4c1e0a554713", "mainnet")).toBe(
+      "0xC283f34aDafdB758a557304C5F5e4c1E0A554713",
+    );
+    for (const value of ["0.0.163372-pwfrz", HEDERA_DER.slice(24), "0.0.01"])
+      expect(() => hedera.normalize(value, "mainnet")).toThrow(
+        "Enter Hedera accounts only (0.0.N, 0x… or DER public key, with a valid form).",
+      );
+    const result = await hedera.query(`0.0.${HEDERA_DER}`, "mainnet", new AbortController().signal);
+    expect(result).toMatchObject({
+      balanceAtomic: 2n,
+      nonce: null,
+      accounts: [
+        { id: "0.0.163372", balance: 1n },
+        { id: "0.0.629081", balance: 1n },
+      ],
+    });
+    // A coin that does not number its accounts reports none.
+    const xrp = await adapterOf("xrp").query(XRP, "mainnet", new AbortController().signal);
+    expect("accounts" in xrp).toBe(false);
+  });
+
+  it("reads TON's raw and bounceable forms and Injective's EVM address as the canonical account", () => {
+    expect(adapterOf("ton").normalize(TON_RAW, "mainnet")).toBe(TON);
+    expect(
+      adapterOf("injective").normalize("0x9858EfFD232B4033E47d90003D41EC34EcaEda94", "mainnet"),
+    ).toBe("inj1npvwllfr9dqr8erajqqr6s0vxnk2ak55re90dz");
+    expect(adapterOf("cosmos").singlePlaceholder).toBe("Paste one Cosmos address (cosmos1…)");
+  });
+
   it("labels the sequence line only for the coins whose accounts have a sequence", () => {
-    expect(adapterOf("xrp").nonceLabel).toBe("Account sequence");
-    expect(adapterOf("stellar").nonceLabel).toBe("Account sequence");
-    for (const id of ["solana", "near", "tron"]) expect(adapterOf(id).nonceLabel).toBeUndefined();
+    for (const id of ["xrp", "stellar", "cosmos", "injective", "ton"])
+      expect(adapterOf(id).nonceLabel).toBe("Account sequence");
+    for (const id of ["solana", "near", "tron", "hedera"])
+      expect(adapterOf(id).nonceLabel).toBeUndefined();
   });
 
   it("passes each account coin's address form known answers at startup", () => {
@@ -104,6 +158,10 @@ describe("account coin activity", () => {
       "Stellar StrKey account ID checksum",
       "NEAR public key form",
       "Tron base58check address checksum",
+      "Cosmos bech32 address checksum",
+      "Injective bech32 and EVM address forms",
+      "Hedera account ID checksum (HIP-15)",
+      "TON address forms and checksum",
     ]);
   });
 });

@@ -12,6 +12,15 @@ export function occurrences(value, marker) {
   return value.split(marker).length - 1;
 }
 
+/**
+ * How often the Evo SDK's reviewed debug text `Function(${name})` appears: a template literal that
+ * names a function's type, not a constructor. The minifier names its variable, so another change
+ * of the bundle can rename it (o, s, …); the text is counted by its shape, not by that name.
+ */
+export function sdkDebugFunctionTexts(text) {
+  return (text.match(/Function\(\$\{[A-Za-z_$][\w$]*\}\)/gu) ?? []).length;
+}
+
 /** Count direct spellings conservatively, including qualified, bracket and optional calls. */
 export function dynamicCodeCounts(source) {
   return {
@@ -29,7 +38,7 @@ export function dynamicCodeCounts(source) {
 export function assertReviewedDynamicCode(html, toolId) {
   const expected = {
     "key-derivation": html.includes('Function("binder",') ? 1 : 0, // Argon2 compatibility fallback.
-    "activity-viewer": html.includes('return import("node:zlib")') ? 3 : 0, // Two CSP-blocked SDK constructors and its debug Function(${o}) text.
+    "activity-viewer": html.includes('return import("node:zlib")') ? 3 : 0, // Two CSP-blocked SDK constructors and its debug Function(${…}) text.
     "discovery-scanner": html.includes('return import("node:zlib")') ? 3 : 0, // The same two SDK constructors and debug text.
     "psbt-inspector": 0,
   }[toolId];
@@ -45,7 +54,7 @@ export function assertReviewedDynamicCode(html, toolId) {
     expected > 0 &&
     ["activity-viewer", "discovery-scanner"].includes(toolId) &&
     (occurrences(html, "new Function") !== 2 ||
-      occurrences(html, "Function(${o})") !== 1 ||
+      sdkDebugFunctionTexts(html) !== 1 ||
       !html.includes('return import("node:zlib")'))
   )
     throw new Error(`${toolId} changed the reviewed, CSP-blocked SDK glue paths.`);

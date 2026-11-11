@@ -90,6 +90,42 @@ const variants = [
     },
   },
   {
+    // Hedera's Ed25519 and ECDSA keys in one scheme, and TON's paced provider: their group, their
+    // derivation self-tests with the public addresses pinned.
+    id: "discovery-hedera-ton",
+    script: "apps/discovery-scanner/scripts/build-discovery-scanner-html.mjs",
+    args: ["--coins", "hedera,ton", "--features", "seed-discovery"],
+    selfTest: "#recovery-crypto-self-test-status.passed",
+    fingerprint: "#recovery-build-fingerprint",
+    frame: "#recovery-secret-vault",
+    inspect: async (scope) => {
+      assert.deepEqual(
+        await scope
+          .locator('#recovery-coin optgroup[label="Other networks"] option')
+          .allTextContents(),
+        ["Hedera", "TON"],
+      );
+      const details = await scope.locator("#recovery-crypto-self-test-details").textContent();
+      assert.match(details, /Hedera/u);
+      assert.match(details, /TON/u);
+    },
+  },
+  {
+    // Injective alone: the Cosmos SDK reader it shares with the Cosmos Hub, without the Hub's.
+    id: "activity-injective",
+    script: "apps/activity-viewer/scripts/build-activity-viewer-html.mjs",
+    args: ["--coins", "injective"],
+    selfTest: "#viewer-crypto-self-test-status.pass, #viewer-crypto-self-test-status.passed",
+    fingerprint: "#viewer-build-fingerprint",
+    inspect: async (page) => {
+      assert.deepEqual(await page.locator("#viewer-coin option").allTextContents(), ["Injective"]);
+      assert.match(
+        await page.locator("#viewer-external-self-test").textContent(),
+        /Injective bech32 and EVM address forms/u,
+      );
+    },
+  },
+  {
     id: "discovery-seed-without-custom-paths",
     script: "apps/discovery-scanner/scripts/build-discovery-scanner-html.mjs",
     args: ["--coins", "bitcoin", "--features", "seed-discovery"],

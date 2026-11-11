@@ -83,6 +83,66 @@ describe("public-input private-material boundary", () => {
     expect(() => assertPublicLookupInput(`${seed.slice(0, -1)}a`)).not.toThrow();
   });
 
+  // Hedera's private keys of the public "abandon … about" phrase as DER in hex: the Ed25519 key's
+  // PKCS#8 as the Deriver shows it (m/44'/3030'/0'/0'/0'), and the ECDSA key (m/44'/3030'/0'/0/0)
+  // in the Hiero SDK's PKCS#8 form and in SEC1's ECPrivateKey with a public key.
+  const HEDERA_ED25519_PRIVATE =
+    "302e020100300506032b657004220420523f9ff611ac02e8e188617750e7e50feabd2ef9ee9b218a5c8ce2693275361d";
+  const HEDERA_ECDSA_KEY = "2d08cac6b0640a3afe45acd9e3ec1c879626944f8812e05ce86ff4295ff3c097";
+  const SOME_POINT =
+    "0437b0bb7a8288d38ed49a524b5dc98cff3eb5ca824c9f9dc0dfdb3d9cd600f299a6179912b7451c09896c4098eca7ce6b2e58330672795e847c4d6af44e024230";
+
+  it.each([
+    ["an Ed25519 PKCS#8 key", HEDERA_ED25519_PRIVATE],
+    ["the same key with 0x in upper case", `0x${HEDERA_ED25519_PRIVATE.toUpperCase()}`],
+    [
+      "an ECDSA key in the Hiero SDK's PKCS#8 form",
+      `3030020100300706052b8104000a04220420${HEDERA_ECDSA_KEY}`,
+    ],
+    [
+      "an ECDSA key in SEC1 with its public key",
+      `30740201010420${HEDERA_ECDSA_KEY}a00706052b8104000aa144034200${SOME_POINT}`,
+    ],
+    [
+      "an ECDSA key in SEC1 without its public key",
+      `302e0201010420${HEDERA_ECDSA_KEY}a00706052b8104000a`,
+    ],
+  ])("rejects %s, a private key in DER", (_, secret) => {
+    expect(() => assertPublicLookupInput(secret)).toThrow(PrivateMaterialError);
+  });
+
+  it("accepts public keys in DER and short values that open like a private key's DER", () => {
+    for (const publicValue of [
+      "302a300506032b657003210010fcec8c5db29aeab62272a08be39b1ec75eba50624351fba9948ff5d3d78ecf",
+      "302d300706052b8104000a032200021de0d6f31872bbda0cfd1680e41a5a88af2646b8d1d015c5e1541ab21a0f4499",
+      "0.0.302a300506032b657003210010fcec8c5db29aeab62272a08be39b1ec75eba50624351fba9948ff5d3d78ecf",
+      // An EVM address may open with the same bytes; its 20 bytes hold no 32-byte key.
+      "0x3012020100aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    ])
+      expect(() => assertPublicLookupInput(publicValue)).not.toThrow();
+  });
+
+  // TON's secret key of the phrase's first Trust Wallet key (m/44'/607'/0'), as the Deriver shows it:
+  // the 32-byte seed, then its public key.
+  const TON_SECRET =
+    "b477ef5ed17fb8a2b8faddd7a9835a227243a82c70b190c7af4896155aa7df9f7952e94118f34607c75e23258dd9220d66ccac5a3ee074125c25068e8107bfbf";
+
+  it("rejects an Ed25519 keypair in hex, in any case and with 0x", () => {
+    for (const secret of [TON_SECRET, TON_SECRET.toUpperCase(), `0x${TON_SECRET}`])
+      expect(() => assertPublicLookupInput(secret)).toThrow(PrivateMaterialError);
+  });
+
+  it("accepts 64 bytes in hex that are not a keypair, as Dash's Orchard viewing keys are not", () => {
+    for (const publicValue of [
+      SOME_POINT.slice(2),
+      `${TON_SECRET.slice(0, -2)}00`,
+      `${TON_SECRET.slice(64)}${TON_SECRET.slice(0, 64)}`,
+    ]) {
+      expect(() => assertPublicLookupInput(publicValue)).not.toThrow();
+      expect(() => assertPublicBatchLookupInput(`${publicValue}\n${publicValue}`)).not.toThrow();
+    }
+  });
+
   // The BIP32 master key of the public "abandon … about" phrase (BIP84's and BIP49's published root,
   // as xprv) in every private prefix of BIP32 and SLIP-132.
   const ABOUT_XPRV =
