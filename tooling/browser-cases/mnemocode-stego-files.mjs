@@ -53,7 +53,19 @@ export class MnemoCodeStegoFilesCase {
     await this.#opened(page, lastSaved, PASSWORD, MESSAGE, waitText);
     assert.equal(await page.locator(`${PREFIX}-open-result .share-secret`).count(), 1);
     assert.ok((await page.locator(`${PREFIX}-hide-result button`).count()) > 0);
+    // Back on the hide task, the last saved carrier's notice is still in view after Open.
+    await page.locator(`${PREFIX}-task-hide`).check();
+    const keepSourcePrivate = page
+      .locator(`${PREFIX}-hide-result`)
+      .getByText(/^Keep each source file private: /u);
+    assert.equal(
+      await keepSourcePrivate.isVisible(),
+      true,
+      "The last saved carrier's notice stands.",
+    );
     await this.#clear(page);
+    // Clear all drops the written result, and the notice with it.
+    assert.equal(await keepSourcePrivate.count(), 0);
     assert.deepEqual(run.requests, []);
     run.checks.push("Clear removes stego secret fields, selected files and obsolete save actions.");
   }
@@ -81,10 +93,14 @@ export class MnemoCodeStegoFilesCase {
     await waitText(page, `${PREFIX}-hide-status`, /Hidden in /u);
     const result = page.locator(`${PREFIX}-hide-result`);
     assert.match(await result.innerText(), /exact password-authenticated readback/u);
+    const keepSourcePrivate = result.getByText(/^Keep each source file private: /u);
+    assert.equal(await keepSourcePrivate.isVisible(), false, "Nothing is saved yet.");
     const [download] = await Promise.all([
       page.waitForEvent("download"),
       result.getByRole("button", { name: /^Save /u }).click(),
     ]);
+    // After the save, MnemoCode's notice to keep the source private stays in view.
+    assert.equal(await keepSourcePrivate.isVisible(), true);
     const path = await download.path();
     assert.ok(path);
     const buffer = readFileSync(path);

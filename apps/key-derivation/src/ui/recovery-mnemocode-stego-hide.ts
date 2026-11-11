@@ -18,6 +18,7 @@ import {
   STEGO_CLEAN_SOURCE,
   STEGO_DECOY_PASSWORDS_DIFFER,
   STEGO_DENSITY_QUESTION,
+  STEGO_KEEP_SOURCE_PRIVATE,
   STEGO_PASSWORDS_DIFFER,
   STEGO_UNAVAILABLE_LEVELS,
   stegoBytesText,
@@ -457,6 +458,10 @@ export class MnemoCodeStegoHide {
         "field-note",
       ),
     );
+    // Once a carrier is saved, its source must stay private; the notice stays while this result does,
+    // until an input changes or the next hide replaces it.
+    const keepSourcePrivate = paragraph(STEGO_KEEP_SOURCE_PRIVATE, "warning-callout");
+    keepSourcePrivate.hidden = true;
     hidden.files.forEach((file, index) => {
       const name = set ? setMemberName(index, file.name) : file.name;
       const button = document.createElement("button");
@@ -464,7 +469,9 @@ export class MnemoCodeStegoHide {
       button.className = "secondary compact";
       button.textContent = `Save ${name}`;
       button.addEventListener("click", () => {
-        if (this.#written === hidden) MnemoCodeDownload.blob(file.blob, name);
+        if (this.#written !== hidden) return;
+        MnemoCodeDownload.blob(file.blob, name);
+        keepSourcePrivate.hidden = false;
       });
       this.#result.append(button);
       for (const code of file.notices)
@@ -472,9 +479,10 @@ export class MnemoCodeStegoHide {
     });
     this.#result.append(
       paragraph(
-        "A browser download is not a check of the disk: keep the original of each file apart, and open the saved files again before you rely on them.",
+        "A browser download is not a check of the disk: open the saved files again before you rely on them.",
         "field-note",
       ),
+      keepSourcePrivate,
     );
   }
 }

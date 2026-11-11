@@ -5,6 +5,13 @@ import type { StegoPairCheck, StegoProgress } from "./mnemocode-stego.js";
 /** Said before a file is chosen, as MnemoCode's menu says it. */
 export const STEGO_CLEAN_SOURCE =
   "Choose a clean original. The new file holds only what you hide now; the source file is not overwritten.";
+/**
+ * Shown after a carrier is saved and kept in view, as MnemoCode's stego command says it after "Saved:"
+ * (its docs/STEGANOGRAPHY.md, "Keep the source private"): a source and its saved file differ only
+ * by the record's changes, so whoever has both can find them.
+ */
+export const STEGO_KEEP_SOURCE_PRIVATE =
+  "Keep each source file private: anyone who has a source and its saved file can compare them and find the hidden changes. To hide in a source again, keep it encrypted, for example on an encrypted drive; otherwise delete it together with its copies in cloud backups and synced photo libraries.";
 export const STEGO_EXACT_COPIES =
   "Keep exact file copies. Recompression, resizing or audio conversion destroys the hidden record. Statistical invisibility is not established.";
 /** Under the capacity table. */
