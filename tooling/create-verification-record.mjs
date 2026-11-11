@@ -3,8 +3,14 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { BUILD_PROFILES, getToolBuild, profileToolIds } from "./build-profiles.mjs";
+import {
+  BUILD_PROFILES,
+  getToolBuild,
+  profileToolIds,
+  VERIFICATION_RECORD_NAME,
+} from "./build-profiles.mjs";
 import { createBuildInfo } from "./build-metadata.mjs";
+import { sidecarRecords } from "./page-sidecar.mjs";
 import { readReleaseMetadata } from "./project-metadata.mjs";
 import { TOOLCHAIN_PINS } from "./toolchain-pins.mjs";
 import { VendoredMhfePackage } from "./vendored-mhfe-package.mjs";
@@ -28,10 +34,7 @@ for (const profile of Object.values(BUILD_PROFILES)) {
     if (!existsSync(resolve(root, path)))
       throw new Error(`Cannot record missing artifact: ${path}`);
     const sha256 = digest(path);
-    if (
-      readFileSync(resolve(root, `${path}.sha256`), "utf8").trim() !==
-      `${sha256}  ${tool.artifactName}`
-    ) {
+    if (!sidecarRecords(resolve(root, path), sha256, tool.artifactName)) {
       throw new Error(`Cannot record artifact with an invalid sidecar: ${path}`);
     }
     artifacts.push({
@@ -95,11 +98,7 @@ const record = {
   sourceDate: release.releaseDate,
   commit,
   dirty,
-  sourceFingerprint: createBuildInfo(
-    root,
-    getToolBuild(BUILD_PROFILES["multi-chain"], "key-derivation").checksumFile,
-    BUILD_PROFILES["multi-chain"],
-  ).fingerprint,
+  sourceFingerprint: createBuildInfo(root, BUILD_PROFILES["multi-chain"]).fingerprint,
   verification: {
     command:
       mode === "full" ? "pnpm verify" : mode === "ci" ? "pnpm verify:ci" : "pnpm release:bundle",
@@ -139,7 +138,7 @@ const record = {
       "GitHub Actions build-provenance attestation (OIDC) over published release assets",
   },
 };
-const target = resolve(root, "dist/verification-record.json");
+const target = resolve(root, "dist", VERIFICATION_RECORD_NAME);
 writeFileSync(target, `${JSON.stringify(record, null, 2)}\n`);
 console.log(
   `Created ${basename(target)} for ${artifacts.length} HTML artifacts and ${wasm.length} generated WASM files.`,

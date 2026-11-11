@@ -1,4 +1,4 @@
-import { BUILD_PROFILES } from "./build-profiles.mjs";
+import { BUILD_PROFILES, CHECKSUM_MANIFEST_NAME } from "./build-profiles.mjs";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -93,7 +93,7 @@ try {
   } else {
     const destination = resolve(root, "dist");
     const manifests = Object.values(BUILD_PROFILES).map(
-      (profile) => `${profile.outputDirectory}/release/SHA256SUMS`,
+      (profile) => `${profile.outputDirectory}/release/${CHECKSUM_MANIFEST_NAME}`,
     );
     if (manifests.some((path) => !existsSync(resolve(exported, path)))) {
       throw new Error("The reproducible build did not contain the verified release bundle.");

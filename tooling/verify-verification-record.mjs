@@ -2,10 +2,14 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { BUILD_PROFILES } from "./build-profiles.mjs";
+import {
+  BUILD_PROFILES,
+  CHECKSUM_MANIFEST_NAME,
+  VERIFICATION_RECORD_NAME,
+} from "./build-profiles.mjs";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
-const recordPath = resolve(root, "dist/verification-record.json");
+const recordPath = resolve(root, "dist", VERIFICATION_RECORD_NAME);
 const bytes = readFileSync(recordPath);
 const record = JSON.parse(bytes);
 if (
@@ -35,12 +39,13 @@ for (const entry of [...record.artifacts, ...record.wasm]) {
 const recordHash = createHash("sha256").update(bytes).digest("hex");
 for (const profile of Object.values(BUILD_PROFILES)) {
   const release = resolve(root, profile.releaseDirectory);
-  if (!readFileSync(resolve(release, "verification-record.json")).equals(bytes)) {
+  if (!readFileSync(resolve(release, VERIFICATION_RECORD_NAME)).equals(bytes)) {
     throw new Error(`${profile.editionName} release contains a different verification record.`);
   }
-  const line = `${recordHash}  verification-record.json`;
-  if (!readFileSync(resolve(release, "SHA256SUMS"), "utf8").trim().split("\n").includes(line)) {
+  const line = `${recordHash}  ${VERIFICATION_RECORD_NAME}`;
+  const manifest = readFileSync(resolve(release, CHECKSUM_MANIFEST_NAME), "utf8");
+  if (!manifest.trim().split("\n").includes(line)) {
     throw new Error(`${profile.editionName} release manifest omits the verification record.`);
   }
 }
-console.log(`Verified verification-record.json: ${recordHash}`);
+console.log(`Verified ${VERIFICATION_RECORD_NAME}: ${recordHash}`);

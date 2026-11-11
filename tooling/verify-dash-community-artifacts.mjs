@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { BUILD_PROFILES, getToolBuild, profileToolIds } from "./build-profiles.mjs";
+import { sidecarRecords } from "./page-sidecar.mjs";
 import { ACCOUNT_COIN_GROUP, ACCOUNT_COINS, accountProviderHost } from "./account-coins.mjs";
 import { EVM_NETWORKS, evmProviderHosts } from "./evm-networks.mjs";
 
@@ -229,8 +230,7 @@ function verifyDashCommunityArtifacts(projectRoot = root) {
       );
     }
     const digest = createHash("sha256").update(html).digest("hex");
-    const sidecar = readFileSync(`${path}.sha256`, "utf8").trim();
-    if (sidecar !== `${digest}  ${tool.artifactName}`) {
+    if (!sidecarRecords(path, digest, tool.artifactName)) {
       throw new Error(
         `${tool.artifactName} metadata sidecar does not use the Dash Community filename.`,
       );

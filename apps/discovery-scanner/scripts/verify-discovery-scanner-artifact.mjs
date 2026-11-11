@@ -16,7 +16,7 @@ import { evmArtifactMarkers } from "../../../tooling/evm-networks.mjs";
 
 const root = resolve(fileURLToPath(new URL("../../..", import.meta.url)));
 const profile = parseBuildProfile();
-const { tool, html, checksumPath } = currentArtifact(
+const { tool, html, pagePath } = currentArtifact(
   root,
   profile,
   "discovery-scanner",
@@ -531,5 +531,5 @@ assertEvoSdkReadOnly(
   root,
 );
 
-const actual = assertRecordedChecksum(html, checksumPath, "Recovery");
+const actual = assertRecordedChecksum(html, pagePath, tool.artifactName, "Recovery");
 console.log(`Verified sandboxed Discovery Scanner artifact: ${actual}`);

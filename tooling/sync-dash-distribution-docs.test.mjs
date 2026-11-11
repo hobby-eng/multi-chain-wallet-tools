@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { RELEASE_LEGAL_NAMES } from "./release-legal-documents.mjs";
 import { renderDashDistributionDocs } from "./sync-dash-distribution-docs.mjs";
 
 const root = resolve(import.meta.dirname, "..");
@@ -20,6 +21,23 @@ describe("Dash distribution documentation", () => {
     expect(files.get("LICENSE")).toBe(readFileSync(resolve(root, "LICENSE"), "utf8"));
     for (const content of files.values()) expect(content).not.toMatch(/\{\{[A-Z_]+\}\}/u);
     expect([...renderDashDistributionDocs(root, sha)]).toEqual([...files]);
+  });
+
+  it("names exactly the licence and notice files a release carries", () => {
+    const readme = renderDashDistributionDocs(root, sha).get("README.md");
+    for (const name of RELEASE_LEGAL_NAMES) expect(readme).toContain(`\`${name}\``);
+    // Notices an earlier MnemoCode intake named, which no release carries.
+    for (const stale of ["DejaVuSans-NOTICE", "NaturalEarth-NOTICE", "CardArtwork-NOTICE"])
+      expect(readme).not.toContain(stale);
+  });
+
+  it("names the Dash Desktop file as code, as the Dash Deriver page names it", () => {
+    const security = renderDashDistributionDocs(root, sha).get("SECURITY.md");
+    expect(security).toContain(
+      "Each release carries it for every platform as `Dash_Community_Key_Derivation_Tool_Desktop-<platform>`.",
+    );
+    // Outside a code span Markdown would read <platform> as an HTML tag and drop it.
+    expect(security.replaceAll(/`[^`]*`/gu, "")).not.toContain("<platform>");
   });
 
   it("records a verifiable source commit and hashes for every generated document", () => {

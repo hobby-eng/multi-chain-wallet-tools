@@ -42,13 +42,18 @@ The available modules below are generated from the actual build configuration:
 
 ## Verify a download
 
-Download the release files into one directory and run:
+Download the files you need into one folder together with `SHA256SUMS`, the release's one checksum file, which lists every other file of the release, and check them there. Every file you downloaded must be reported `OK`; `--ignore-missing` skips the release files you did not download:
 
 ```sh
-sha256sum -c SHA256SUMS
+sha256sum -c SHA256SUMS --ignore-missing        # Linux
+shasum -a 256 -c SHA256SUMS --ignore-missing    # macOS
 ```
 
-Release bundles include `verification-record.json`, `LICENSE`, `ATTRIBUTION.md`, `THIRD_PARTY_NOTICES.md`, and the MHFE and MnemoCode licence and notice files it names (`MHFE-THIRD_PARTY_NOTICES.md`, `MHFE-LICENSE-ARGON2`, `MnemoCode-LICENSE-MIT`, `MnemoCode-LICENSE-APACHE`, `MnemoCode-NOTICE`, `MnemoCode-SSKR-LINKED_LICENSES.txt`, `MnemoCode-DejaVuSans-NOTICE`, `MnemoCode-NaturalEarth-NOTICE` and `MnemoCode-CardArtwork-NOTICE`), the licence texts of the Rust crates linked into each WebAssembly module and executable (`*-LINKED_LICENSES.txt`), and the Rust standard library's notices (`Rust-library-NOTICE.html`). Verify GitHub build-provenance attestations on the computer that downloaded the file, because it needs the network:
+On Windows, run `Get-FileHash <file>` in PowerShell and compare the hash with the file's line in `SHA256SUMS`; `Get-FileHash` prints upper-case hex, so compare without regard to case.
+
+The Key Derivation Tool comes in two forms. `Dash_Community_Key_Derivation_Tool.html` is the page, which you open as a file. `Dash_Community_Key_Derivation_Tool_Desktop-<platform>` is the whole Deriver as well: the same page inside a small program that serves it to this computer only, so that MHFE runs in fast mode. Take the one for your system (`linux-x86_64`, `linux-aarch64`, `windows-x86_64.exe`, `macos-aarch64` or `macos-x86_64`) and, on Linux and macOS, allow it to run with `chmod +x`.
+
+Release bundles include `verification-record.json` and these licence and notice files: {{RELEASE_LEGAL_FILES}}. `THIRD_PARTY_NOTICES.md` names the MHFE and MnemoCode files among them; `MnemoCode-THIRD_PARTY_NOTICES.md` also covers the font subset, map data and card artwork that MnemoCode's WebAssembly embeds. Each `*-LINKED_LICENSES.txt` file holds the licence texts of the Rust crates of one Rust component, and `Rust-library-NOTICE.html` the notices of the Rust standard library. Verify GitHub build-provenance attestations on the computer that downloaded the file, because it needs the network:
 
 ```sh
 gh attestation verify Dash_Community_Key_Derivation_Tool.html -R hobby-eng/dash-wallet-tools

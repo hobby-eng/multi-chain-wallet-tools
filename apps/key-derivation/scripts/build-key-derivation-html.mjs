@@ -29,7 +29,13 @@ import {
   parseKeyDerivationFeatures,
 } from "../../../tooling/key-derivation-features.mjs";
 import { parseRequestedOutput } from "../../../tooling/tool-feature-options.mjs";
-import { LAUNCHER_PLATFORMS, launcherName } from "../../../tooling/key-derivation-launchers.mjs";
+import {
+  DESKTOP_VERSION_MARKER,
+  desktopVersionNote,
+  LAUNCHER_PLATFORMS,
+  launcherName,
+  removeLegacyLaunchers,
+} from "../../../tooling/key-derivation-launchers.mjs";
 import {
   applyProfileTemplate,
   assertDashOnlyGraph,
@@ -58,7 +64,13 @@ const template = applyProfileTemplate(
   tool,
   features,
 );
-const featuredTemplate = applyKeyDerivationFeatureTemplate(template, features);
+// The page says how to get its executable version, from the one note of its edition: in the MHFE
+// help (the template's marker, as HTML) and in the slow-mode notice (a define, as text).
+const desktopNote = desktopVersionNote(profile);
+const featuredTemplate = applyKeyDerivationFeatureTemplate(template, features).replaceAll(
+  DESKTOP_VERSION_MARKER,
+  desktopNote.html,
+);
 const css = await toolCss(root, profile);
 const workerBuild = await build({
   absWorkingDir: root,
@@ -112,7 +124,7 @@ const walletCheckDrawWorker = features.has("mhfe")
 const slip39Worker = features.has("slip39")
   ? await recoveryWorkers.bundle("slip39-worker.ts")
   : { inputs: [], source: "" };
-const buildInfo = createBuildInfo(root, tool.checksumFile, profile, {
+const buildInfo = createBuildInfo(root, profile, {
   coins: features.coins,
   features: features.selected,
 });
@@ -241,6 +253,7 @@ export const installMessageSigningFeature = createMessageSigningInstaller(${poli
     __MHFE_ARGON2_THREADED_SOURCE__: JSON.stringify(mhfeSources.argon2Threaded),
     __MHFE_ARGON2_SINGLE_THREADED_SOURCE__: JSON.stringify(mhfeSources.argon2SingleThreaded),
     __DASH_COMMUNITY__: profile.id === "dash-community" ? "true" : "false",
+    __DESKTOP_VERSION_NOTE__: JSON.stringify(desktopNote.text),
   },
 });
 assertKeyDerivationComposition(features, [
@@ -282,6 +295,7 @@ function removeStaleLaunchers(page) {
   for (const platform of Object.keys(LAUNCHER_PLATFORMS)) {
     rmSync(resolve(page, "..", launcherName(basename(page), platform)), { force: true });
   }
+  removeLegacyLaunchers(page);
   // The Python fast-mode launcher that earlier builds put next to the page is replaced by them.
   for (const name of ["mhfe-fast-mode.py", "mhfe-fast-mode.sha256"])
     rmSync(resolve(page, "..", name), { force: true });

@@ -71,7 +71,7 @@ shellTemplate = applySelectedNetworkCsp(shellTemplate, options);
 if (!options.has("seed-discovery"))
   shellTemplate = shellTemplate.replaceAll("Secret Vault", "Public Input Boundary");
 const css = await toolCss(root, profile, ["apps/discovery-scanner/src/styles.css"]);
-const buildInfo = createBuildInfo(root, tool.checksumFile, profile, {
+const buildInfo = createBuildInfo(root, profile, {
   coins: options.coins,
   features: options.selected,
 });

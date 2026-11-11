@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { CHECKSUM_MANIFEST_NAME } from "./build-profile-definitions.mjs";
 import { readReleaseMetadata } from "./project-metadata.mjs";
 
 const ignoredDirectoryNames = new Set([".git", ".pnpm-store", "node_modules", "target"]);
@@ -17,7 +18,11 @@ function collectFiles(root, relativePath, output) {
   }
 }
 
-export function createBuildInfo(root, checksumFile, profile, composition = {}) {
+/**
+ * The build identity a page shows in its Release passport: the version, the fingerprint of the
+ * source tree, the edition, and the release's checksum file that lists the page's SHA-256.
+ */
+export function createBuildInfo(root, profile, composition = {}) {
   const release = readReleaseMetadata(root);
   const files = [];
   for (const path of [
@@ -47,7 +52,7 @@ export function createBuildInfo(root, checksumFile, profile, composition = {}) {
     version: release.version,
     releaseDate: release.releaseDate,
     fingerprint: hash.digest("hex"),
-    checksumFile,
+    checksumFile: CHECKSUM_MANIFEST_NAME,
     profile: profile.id,
     edition: profile.editionName,
     releaseRepository: profile.releaseRepository,

@@ -170,26 +170,29 @@ For Bitcoin and Dash Core, change normally uses branch `/1`. Dash Platform's opt
 
 ## Download and verify
 
-Download Multi-Chain HTML files and their `.sha256` sidecars from [GitHub Releases](https://github.com/hobby-eng/multi-chain-wallet-tools/releases). [Dash Community releases](https://github.com/hobby-eng/dash-wallet-tools/releases) are built from this same canonical source tree and distributed separately.
+Download the Multi-Chain files you need from [GitHub Releases](https://github.com/hobby-eng/multi-chain-wallet-tools/releases), together with `SHA256SUMS`, the release's one checksum file, which lists every other file of the release. [Dash Community releases](https://github.com/hobby-eng/dash-wallet-tools/releases) are built from this same canonical source tree and distributed separately.
 
-On Linux, verify the Multi-Chain files you downloaded:
+The Key Derivation Tool comes in two forms. `Wallet_Key_Derivation_Tool.html` is the page, which you open as a file. `Wallet_Key_Derivation_Tool_Desktop-<platform>`, such as `Wallet_Key_Derivation_Tool_Desktop-linux-x86_64` or `Wallet_Key_Derivation_Tool_Desktop-windows-x86_64.exe`, is the whole Deriver as well: the same page inside a small program that serves it to this computer only, so that MHFE runs in fast mode. Take the one for your system (`linux-x86_64`, `linux-aarch64`, `windows-x86_64.exe`, `macos-aarch64` or `macos-x86_64`).
+
+Check the files you downloaded in the folder that holds them together with `SHA256SUMS`. Each one must be reported `OK`; `--ignore-missing` skips the release files you did not download:
 
 ```bash
-sha256sum -c Wallet_Key_Derivation_Tool.html.sha256
-sha256sum -c Wallet_Activity_Viewer.html.sha256
-sha256sum -c Wallet_Discovery_Scanner.html.sha256
-sha256sum -c PSBT_Multisig_Inspector.html.sha256
+sha256sum -c SHA256SUMS --ignore-missing        # Linux
+shasum -a 256 -c SHA256SUMS --ignore-missing    # macOS
 ```
+
+On Windows, run `Get-FileHash <file>` in PowerShell and compare the hash with the file's line in `SHA256SUMS`; `Get-FileHash` prints upper-case hex, so compare without regard to case.
 
 Then check that GitHub built the file from this repository. Run it on the computer that downloaded the file, because it needs the network:
 
 ```bash
 gh attestation verify Wallet_Key_Derivation_Tool.html --repo hobby-eng/multi-chain-wallet-tools
+gh attestation verify Wallet_Key_Derivation_Tool_Desktop-linux-x86_64 --repo hobby-eng/multi-chain-wallet-tools
 ```
 
-The Deriver also comes as an executable for each platform, such as `Wallet_Key_Derivation_Tool-linux-x86_64` or `Wallet_Key_Derivation_Tool-windows-x86_64.exe`. It is the same page inside a small program that serves it to this computer only, so that MHFE runs in fast mode. Check it the same way before running it (`sha256sum -c Wallet_Key_Derivation_Tool-linux-x86_64.sha256`), and ideally also with `gh attestation verify`. On Linux and macOS, allow it to run with `chmod +x`. The macOS versions are not signed by Apple: the first time, open them with a right click and **Open**. The Linux and Windows versions are built reproducibly in a pinned container (`Dockerfile.launchers`) around the canonical HTML page; the macOS versions are built by the release workflow on GitHub's macOS runners and are covered by the same `SHA256SUMS` and attestations.
+On Linux and macOS, allow the Desktop file to run with `chmod +x`. The macOS versions are not signed by Apple: the first time, open them with a right click and **Open**. The Linux and Windows versions are built reproducibly in a pinned container (`Dockerfile.launchers`) around the canonical HTML page; the macOS versions are built by the release workflow on GitHub's macOS runners and are covered by the same `SHA256SUMS` and attestations.
 
-`SHA256SUMS` covers the complete release asset set. The **Source/build fingerprint** inside an HTML Release passport identifies its source and embedded build inputs; it is not that HTML file's checksum. Release provenance attestations and `verification-record.json` connect the GitHub Actions build to its source revision and artifact hashes.
+The **Source/build fingerprint** inside an HTML Release passport identifies its source and embedded build inputs; it is not that HTML file's checksum. Release provenance attestations and `verification-record.json` connect the GitHub Actions build to its source revision and artifact hashes.
 
 ## Documentation map
 

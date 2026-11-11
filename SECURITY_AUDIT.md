@@ -133,7 +133,7 @@ A compromised browser, extension, operating system, firmware, build host, or alr
 7. **Dash Orchard WASM panic cleanup is incomplete.** The release uses `panic=abort`; Rust destructors do not run after an internal panic, so derived bytes may remain in that module's linear memory until its instance is discarded.
 8. **Secret egress pattern matching is incomplete by design.** A transformed, encrypted, compressed, or meaningfully re-encoded secret may evade the guard. Security depends on the network-denied vault and fixed protocol boundary, not the pattern matcher alone.
 9. **Embedding protection depends on delivery.** A CSP supplied through `<meta>` cannot enforce `frame-ancestors`. An HTTP host must send `Content-Security-Policy: frame-ancestors 'none'`, preferably with `X-Frame-Options: DENY`.
-10. **Checksum sidecars do not establish authenticity.** A `.sha256` file distributed beside an HTML file detects transfer corruption. GitHub provenance attestations or a separately trusted signature bind artifacts to a publisher/build identity, but do not prove the software is safe.
+10. **Checksums do not establish authenticity.** The release's `SHA256SUMS` detects transfer corruption of the files it lists. GitHub provenance attestations or a separately trusted signature bind artifacts to a publisher/build identity, but do not prove the software is safe.
 11. **Standards and providers can change.** Proposed Platform specifications, SDK behavior, endpoint contracts, and browser security behavior require review when dependencies or protocols are upgraded.
 12. **No independent cryptography-specialist audit has been completed.** Tests and cross-implementation vectors reduce integration risk; they do not prove absence of implementation or supply-chain vulnerabilities.
 
@@ -149,8 +149,8 @@ The canonical release build is defined by `Dockerfile.reproducible`: Linux/amd64
 
 ## Release checklist
 
-- Run `./tooling/build-reproducible.sh` from a clean checkout and compare `dist/multi-chain-edition/release/SHA256SUMS` with the published release manifest.
-- Verify every downloaded HTML file against `SHA256SUMS`. Verify GitHub provenance attestations when the release pipeline produced them; do not describe manually uploaded artifacts as attested.
+- Run `./tooling/build-reproducible.sh` from a clean checkout and compare `dist/multi-chain-edition/release/SHA256SUMS` with the published release manifest. The local bundle has no Desktop executables (the macOS ones are built only on GitHub's macOS runners), so its manifest lacks their lines; both files are sorted by file name, so a comparison shows just those lines.
+- Verify every downloaded file against `SHA256SUMS`. Verify GitHub provenance attestations when the release pipeline produced them; do not describe manually uploaded artifacts as attested.
 - Use only the Wallet Key Derivation Tool on the offline device. Open the Wallet Activity Viewer and Wallet Discovery Scanner on a clean connected device.
 - Exercise Bitcoin, Ethereum, the other EVM networks, and Dash selection in every Multi-Chain application where supported, and each single-key coin in the Key Derivation Tool. Confirm Bitcoin remains the default coin and that Dash Community artifacts expose only Dash workflows.
 - Test derivation, cancellation, receive/change separation, known-address matching, reveal gates, selection, paging, copy, and exports in the offline tool.

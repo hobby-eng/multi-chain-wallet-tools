@@ -57,7 +57,7 @@ const template = applyPsbtCompositionTemplate(
   options,
 );
 const css = await toolCss(root, profile, ["apps/psbt-inspector/src/styles.css"]);
-const buildInfo = createBuildInfo(root, tool.checksumFile, profile, {
+const buildInfo = createBuildInfo(root, profile, {
   coins: options.coins,
   features: options.selected,
 });
