@@ -2767,6 +2767,11 @@ footer p {
   font-family: inherit;
 }
 
+/* The visible text of a decoy QR, such as a contact card, with its lines as a scanner shows them. */
+.decoy-text {
+  white-space: pre-wrap;
+}
+
 /* Codes shown apart beside their joined text (appendApartCodes), also outside a card. */
 .apart-codes {
   overflow-wrap: anywhere;
@@ -3702,4 +3707,8 @@ label:has(> input[type="checkbox"]) small {
   gap: 4px;
   margin: 0;
   padding-left: 1.1em;
+}
+/* Points after a callout's paragraph keep the callout's gap between its parts. */
+:is(.warning-callout, .success-callout) > p + .callout-points {
+  margin-top: 6px;
 }

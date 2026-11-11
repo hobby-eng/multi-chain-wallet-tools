@@ -175,6 +175,39 @@ describe("selective bundle graph guards", () => {
       expect(included).toContain('aria-controls="mnemocode-reencode-panel"');
       expect(excluded).not.toContain('aria-controls="mnemocode-reencode-panel"');
     });
+
+    it(`keeps the hidden SeedQR form with seedqr and mnemocode both in ${profileId}`, () => {
+      const hiddenForm = "apps/key-derivation/src/ui/recovery-seedqr-hidden.ts";
+      expect(() => assertKeyDerivationComposition(genericQr, [...pngGraph, hiddenForm])).toThrow(
+        /Hidden SeedQR \(seedqr with mnemocode\) is excluded/u,
+      );
+      const template = readFileSync("apps/key-derivation/src/index.html", "utf8");
+      const included = applyKeyDerivationFeatureTemplate(template, {
+        ...options(coins, ["seedqr", "mnemocode"]),
+        hasRecovery: true,
+      });
+      const excluded = applyKeyDerivationFeatureTemplate(template, {
+        ...genericQr,
+        hasRecovery: true,
+      });
+      for (const id of [
+        "seedqr-qr-form",
+        "seedqr-qr-form-ordinary",
+        "seedqr-qr-form-hidden",
+        "seedqr-decoy",
+        "seedqr-hidden-note",
+        "seedqr-decoy-kind",
+        "seedqr-decoy-fields",
+        "seedqr-hidden-decode-note",
+      ]) {
+        expect(included).toContain(`id="${id}"`);
+        expect(excluded).not.toContain(`id="${id}"`);
+      }
+      // The ordinary SeedQR stays whole: both formats, Create and the import's field.
+      for (const id of ["seedqr-format", "create-seedqr", "seedqr-payload", "restore-seedqr"])
+        expect(excluded).toContain(`id="${id}"`);
+      expect(excluded).toContain('<option value="compact">CompactSeedQR · binary</option>');
+    });
   }
 
   it("requires reencoding IDs and expanded wallet fields in the static artifact gate", () => {

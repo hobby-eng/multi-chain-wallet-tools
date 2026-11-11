@@ -217,6 +217,22 @@ describe("selected worker self-tests", () => {
     }
   });
 
+  it("keeps the decoy text startup row selected only with seedqr and mnemocode both", () => {
+    const row = "runDecoyQrTextSelfTest()";
+    for (const coins of [["dash"], ["bitcoin", "dash", "ethereum"]]) {
+      const both = keySource(
+        options(coins, ["seedqr", "mnemocode"]),
+        "ckd:selected-recovery-self-test",
+      );
+      expect(both).toContain("/self-test-decoy-qr-text.ts");
+      expect(occurrences(both, row)).toBe(1);
+      for (const one of [["seedqr"], ["mnemocode"]])
+        expect(keySource(options(coins, one), "ckd:selected-recovery-self-test")).not.toContain(
+          "runDecoyQrTextSelfTest",
+        );
+    }
+  });
+
   it.each([[["bitcoin"]], [["dash"]], [["ethereum"]], [["bitcoin", "dash"]]])(
     "imports only selected derivation suites for %j",
     (coins) => {

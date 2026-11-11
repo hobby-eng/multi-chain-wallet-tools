@@ -143,6 +143,11 @@ export function applyKeyDerivationFeatureTemplate(template, features) {
     rendered = removeBalancedElement(rendered, "mnemocode-card-share-qr-row");
     rendered = removeBalancedElement(rendered, "mnemocode-forgotten-share");
   }
+  // A SeedQR hidden in a decoy QR keeps its record with MnemoCode's hidden QR: without MnemoCode,
+  // the SeedQR tab makes and reads ordinary SeedQRs only.
+  if (features.has("seedqr") && !features.has("mnemocode"))
+    for (const id of ["seedqr-qr-form", "seedqr-decoy", "seedqr-hidden-decode-note"])
+      rendered = removeBalancedElement(rendered, id);
   // A TON phrase's option and note come with TON (tooling/single-key-coins.mjs TON_PHRASE_MODULES).
   if (!features.hasCoin("ton")) rendered = removeBalancedElement(rendered, "ton-generation");
   // The passport names only what this build contains.

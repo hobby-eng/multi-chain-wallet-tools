@@ -9,6 +9,7 @@ import { MhfeSeveralPasswordsCase } from "./browser-cases/mhfe-several-passwords
 import { DashKeysAndMultisigCase } from "./browser-cases/dash-keys-and-multisig.mjs";
 import { MnemoCodeShareHintsCase } from "./browser-cases/mnemocode-share-hints.mjs";
 import { MnemoCodeSourceHintsCase } from "./browser-cases/mnemocode-source-hints.mjs";
+import { SeedQrHiddenCase } from "./browser-cases/seedqr-hidden.mjs";
 // Synthetic, direct-file integration tests. Never point this at a live browser profile.
 import { CopyFeedbackCase } from "./browser-cases/copy-feedback.mjs";
 import { Bip85ManualStartCase } from "./browser-cases/bip85-manual-start.mjs";
@@ -289,6 +290,18 @@ for (const browserName of (process.env.BROWSER_ENGINES ?? "chromium,firefox").sp
       cases.push({
         name: "recovery-backup-roundtrips",
         execute: (context, run) => recoveryBackupRoundTrips(context, profile, run),
+      });
+      cases.push({
+        name: "seedqr-hidden",
+        execute: (context, run) =>
+          SeedQrHiddenCase.run(
+            context,
+            profile,
+            run,
+            openWithLinkedPhrase,
+            waitText,
+            BrowserHarness.storageSnapshot,
+          ),
       });
       cases.push({
         name: "mnemocode-stego-files",

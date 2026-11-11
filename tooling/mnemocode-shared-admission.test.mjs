@@ -55,6 +55,32 @@ describe("Shared MnemoCode admission boundaries", () => {
     ).toThrow("sskr is excluded");
   });
 
+  it("keeps the hidden SeedQR with seedqr and mnemocode both, and requires it there", () => {
+    const hidden = [
+      "apps/key-derivation/src/ui/recovery-seedqr-hidden.ts",
+      "apps/key-derivation/src/ui/recovery-seedqr-decoy-fields.ts",
+      "packages/recovery-backup/src/hidden-seedqr.ts",
+      "packages/recovery-backup/src/hidden-seedqr-self-test.ts",
+      "packages/recovery-backup/src/decoy-qr-text.ts",
+      "packages/recovery-backup/src/self-test-decoy-qr-text.ts",
+    ];
+    expect(() =>
+      assertKeyDerivationComposition(options(["seedqr", "mnemocode"]), [...hidden, binding]),
+    ).not.toThrow();
+    for (const file of hidden) {
+      for (const enabled of [["seedqr"], ["mnemocode"]])
+        expect(() => assertKeyDerivationComposition(options(enabled), [file])).toThrow(
+          "Hidden SeedQR (seedqr with mnemocode) is excluded",
+        );
+      expect(() =>
+        assertKeyDerivationComposition(
+          options(["seedqr", "mnemocode"]),
+          hidden.filter((other) => other !== file),
+        ),
+      ).toThrow("Hidden SeedQR (seedqr with mnemocode) is selected");
+    }
+  });
+
   it("checks every imported bridge input and its package version", () => {
     expect(new MnemoCodeSskrSource().verify().version).toBe("0.1.9");
   });

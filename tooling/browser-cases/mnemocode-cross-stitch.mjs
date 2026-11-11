@@ -1,53 +1,15 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { deflateSync } from "node:zlib";
 import { BrowserFixtures } from "../browser-regressions/fixtures.mjs";
+import { flatPicture, smoothPicture } from "../../test/support/synthetic-png.mjs";
 
 // The public BIP39 test phrase of the fixtures, MnemoCode's published date example and synthetic
 // pictures only.
 const DATES = "23-09-2026";
 
-function crc32(bytes) {
-  let crc = 0xffffffff;
-  for (const byte of bytes) {
-    crc ^= byte;
-    for (let bit = 0; bit < 8; bit += 1) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
-  }
-  return (crc ^ 0xffffffff) >>> 0;
-}
-
-function chunk(type, data) {
-  const length = Buffer.alloc(4);
-  length.writeUInt32BE(data.length);
-  const body = Buffer.concat([Buffer.from(type, "latin1"), data]);
-  const crc = Buffer.alloc(4);
-  crc.writeUInt32BE(crc32(body));
-  return Buffer.concat([length, body, crc]);
-}
-
-/** An RGB PNG file of 400 by 300 pixels, each coloured by `pixel`. */
-function png(pixel, width = 400, height = 300) {
-  const header = Buffer.alloc(13);
-  header.writeUInt32BE(width, 0);
-  header.writeUInt32BE(height, 4);
-  header.set([8, 2, 0, 0, 0], 8);
-  const rows = Buffer.alloc((width * 3 + 1) * height);
-  for (let y = 0; y < height; y += 1)
-    for (let x = 0; x < width; x += 1) rows.set(pixel(x, y), y * (width * 3 + 1) + 1 + x * 3);
-  return Buffer.concat([
-    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
-    chunk("IHDR", header),
-    chunk("IDAT", deflateSync(rows)),
-    chunk("IEND", Buffer.alloc(0)),
-  ]);
-}
-
-const SMOOTH = png((x, y) => [
-  Math.round((255 * x) / 400),
-  Math.round(128 + 127 * Math.sin(y / 17 + x / 29)),
-  Math.round((255 * y) / 300),
-]);
-const FLAT = png(() => [90, 120, 150]);
+// Pictures of 400 by 300 pixels, as Playwright gives files: in a Buffer.
+const SMOOTH = Buffer.from(smoothPicture());
+const FLAT = Buffer.from(flatPicture());
 
 /**
  * `line` with one row's stitches changed by one: a row of 1000 stitches or more that is not the

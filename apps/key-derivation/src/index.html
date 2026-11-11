@@ -955,11 +955,42 @@
               autocapitalize="none"
               placeholder="Enter 12 or 24 English BIP39 words"
             ></textarea>
+            <fieldset id="seedqr-qr-form" class="choice-group">
+              <legend>QR form</legend>
+              <label class="checkbox-row" for="seedqr-qr-form-ordinary">
+                <input id="seedqr-qr-form-ordinary" type="radio" name="seedqr-qr-form" value="ordinary" checked />
+                Ordinary SeedQR
+              </label>
+              <label class="checkbox-row" for="seedqr-qr-form-hidden">
+                <input id="seedqr-qr-form-hidden" type="radio" name="seedqr-qr-form" value="hidden" />
+                Hidden in a decoy QR
+              </label>
+            </fieldset>
             <label for="seedqr-format">SeedQR format</label>
             <select id="seedqr-format">
               <option value="standard">Standard SeedQR · numeric</option>
               <option value="compact">CompactSeedQR · binary</option>
             </select>
+            <div id="seedqr-decoy" class="operation-block" hidden>
+              <div class="warning-callout">
+                <p id="seedqr-hidden-note"></p>
+                <ul class="callout-points">
+                  <li>
+                    Anyone who reads the record has the phrase, so protect it first: for example, encode the container
+                    phrase of an MHFE backup here instead of the seed phrase.
+                  </li>
+                  <li>
+                    SeedSigner and other wallets cannot read the SeedQR: they show the decoy or reject the code. Only
+                    this Deriver, or MnemoCode's qr-open followed by SeedQR decoding, reads it.
+                  </li>
+                  <li>Some scanners reject the nonstandard padding instead of showing the decoy.</li>
+                  <li>Only Standard SeedQR can be hidden: CompactSeedQR is raw bytes, not text.</li>
+                </ul>
+              </div>
+              <label for="seedqr-decoy-kind">Decoy</label>
+              <select id="seedqr-decoy-kind"></select>
+              <div id="seedqr-decoy-fields" class="operation-block"></div>
+            </div>
             <div class="actions">
               <button class="primary" id="create-seedqr" type="button">Create SeedQR</button>
               <button id="toggle-seedqr-created" class="danger-outline" type="button" aria-pressed="false">
@@ -988,6 +1019,9 @@
               autocapitalize="none"
               placeholder="Paste the numeric payload, or compact bytes as hexadecimal"
             ></textarea>
+            <p id="seedqr-hidden-decode-note" class="field-note">
+              The PNG of a SeedQR hidden in a decoy QR is read by its hidden record, not by the decoy.
+            </p>
             <div class="actions">
               <button class="primary" id="restore-seedqr" type="button">Restore phrase</button>
             </div>

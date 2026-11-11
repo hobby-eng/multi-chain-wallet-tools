@@ -1,6 +1,6 @@
 import { wordlist } from "@scure/bip39/wordlists/english.js";
 import { beforeAll, describe, expect, it } from "vitest";
-import { flatPicture, smoothPicture } from "@ckd/test-support/synthetic-picture.js";
+import { flatPicture, smoothPicture } from "../../../test/support/synthetic-png.mjs";
 import { loadMnemoCode } from "../src/mnemocode-module.js";
 import type { MnemoCodeBinding } from "../src/mnemocode-engine.js";
 import { decodeMnemoCode } from "../src/mnemocode.js";

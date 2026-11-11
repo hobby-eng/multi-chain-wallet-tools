@@ -17,7 +17,12 @@ async function selfTests(context, profile, run) {
   // TON's phrase key, 100,000 PBKDF2 rounds, is checked in the full self-test only.
   if (profile.id === "multi-chain") assert.match(fullResult, /TON phrase key/u);
   else assert.doesNotMatch(fullResult, /TON/u);
-  assert.match(await deriver.locator("#crypto-self-test-details").innerText(), /BIP85/u);
+  const startupChecks = await deriver.locator("#crypto-self-test-details").innerText();
+  assert.match(startupChecks, /BIP85/u);
+  // The decoy texts of a SeedQR hidden in a decoy QR have startup known answers in both editions.
+  assert.match(startupChecks, /Decoy QR texts: vCard and Wi-Fi escaping/u);
+  // MnemoCode's run in the full self-test carries the hidden SeedQR's check of both editions.
+  assert.match(fullResult, /MnemoCode: Hidden SeedQR/u);
 
   const inspector = await open(context, profile, "psbt-inspector", run);
   assert.match(

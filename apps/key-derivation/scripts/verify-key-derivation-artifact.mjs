@@ -341,6 +341,8 @@ for (const marker of [
   // The passport names the locked QR reader; tooling/verify-project-facts.mjs checks the same.
   `qr ${rootPackage.dependencies.qr}`,
   "CompactSeedQR",
+  // A SeedQR hidden in a decoy QR, with MnemoCode in both editions.
+  'id="seedqr-qr-form-hidden"',
   "SLIP-39 mnemonic shares",
   'aria-label="SeedQR operation"',
   'aria-label="SLIP-39 operation"',
@@ -359,6 +361,7 @@ for (const marker of [
   "BIP39 index",
   "Search every supported coin and derivation profile",
   "SeedQR encode/decode",
+  "Decoy QR texts: vCard and Wi-Fi escaping",
   "SLIP-39 official + encode/decode",
   "encode/decode",
   "Codex32 official + entropy encode/decode",
