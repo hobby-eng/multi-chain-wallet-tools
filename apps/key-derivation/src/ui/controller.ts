@@ -1,6 +1,5 @@
 import { BIP39_WORD_COUNTS, type Bip39WordCount } from "@ckd/core/bip39-word-counts.js";
 import { isTabKey, tabIndexAfter } from "@ckd/ui/tabs.js";
-import { isAbortError } from "@ckd/core/error-handling.js";
 import type { CoinAdapter } from "@ckd/coins/registry.js";
 import {
   applySharedDerivationControls,
@@ -27,6 +26,7 @@ import { FieldEdits } from "./field-edits.js";
 import { DerivationResults } from "@ckd/ui/derivation-results.js";
 import { DeriverSource } from "./deriver-source.js";
 import { GenerateButtons } from "./generation-option.js";
+import { PhraseGeneration } from "./phrase-generation.js";
 
 interface KeyDerivationDependencies {
   coinFamilies: typeof import("@ckd/coins/registry.js").COIN_FAMILIES;
@@ -80,6 +80,8 @@ export class KeyDerivationController {
   #tonPhrase:
     ReturnType<NonNullable<KeyDerivationDependencies["installTonPhraseFeature"]>> | undefined;
   readonly #generateButtons: GenerateButtons;
+  /** One press of a Generate button with any combination of the generation options. */
+  readonly #generation: PhraseGeneration;
   #adapterSettings: AdapterSettingsStore;
   #automaticDerivation: AutomaticDerivationScheduler;
   #workspaceTabs: DerivationWorkspaceTabs;
@@ -115,6 +117,14 @@ export class KeyDerivationController {
       this.#invalidateGeneration,
       this.#generateButtons,
     );
+    this.#generation = new PhraseGeneration({
+      progress: this.#view.generationProgress,
+      outlook: this.#view.generationOutlook,
+      generateMnemonic: this.#dependencies.generateMnemonic,
+      chosenWords: this.#dependencies.chosenWords,
+      walletCheck: this.#checkedMnemonic,
+      ton: this.#tonPhrase,
+    });
     this.#adapterSettings = new AdapterSettingsStore(this.#dependencies.getAdapterFamilyId);
     this.#automaticDerivation = new AutomaticDerivationScheduler(window);
     this.#workspaceTabs = new DerivationWorkspaceTabs({
@@ -310,11 +320,9 @@ export class KeyDerivationController {
         showStatus: (message) => this.#view.showStatus(message),
       }) ?? null;
   }
+  /** A generation option or a chosen word changed: what is drawn changed (AUD-024-API002). */
   readonly #invalidateGeneration = (): void => {
-    this.#checkedMnemonic?.cancel();
-    this.#tonPhrase?.cancel();
-    this.#derivation.advance();
-    this.#view.clearMessages();
+    this.#generation.optionsChanged();
   };
   readonly #activateFeature = (feature: Exclude<DerivationFeatureTab, null>): void => {
     this.#cancelAutomaticDerivation();
@@ -448,90 +456,50 @@ export class KeyDerivationController {
   };
   readonly #generatePhrase = async (words: Bip39WordCount): Promise<void> => {
     if (!this.#cryptoReady) {
-      this.#view.showError(SELF_TEST_NOT_PASSED);
+      this.#generation.refuse(SELF_TEST_NOT_PASSED);
       return;
     }
     this.#source.changed();
-    this.#checkedMnemonic?.cancel();
-    this.#tonPhrase?.cancel();
     this.#cancelAutomaticDerivation();
     this.#invalidateAddressSearch();
     this.#derivation.advance();
     this.#resultPanel.clear();
     this.#view.clearMessages();
-    const revision = this.#derivation.revision;
-    const wishes =
-      this.#dependencies.chosenWords?.active() === true ? this.#dependencies.chosenWords : null;
-    const tonFeature = this.#tonPhrase?.active() === true ? this.#tonPhrase : undefined;
-    try {
-      let phrase: string;
-      const checkedFeature = this.#checkedMnemonic;
-      const checked = checkedFeature?.active() === true;
-      if (tonFeature !== undefined) {
-        if (wishes !== null)
-          throw new Error("A phrase the Telegram wallet accepts is drawn without a chosen word.");
-        this.#view.showStatus("Looking for a 24-word BIP39 phrase that is also a TON phrase…");
-        phrase = await tonFeature.generate(() => revision === this.#derivation.revision);
-      } else if (checkedFeature !== undefined && checked) {
-        const request = wishes?.request(words) ?? {
-          wordCount: words,
-          chosen: [],
-          neverUse: [],
-        };
-        phrase = await checkedFeature.generate(
-          words,
-          this.#view.passphrase.value,
-          request,
-          (line) => {
-            if (revision === this.#derivation.revision) this.#view.showStatus(line);
-          },
-        );
-      } else if (wishes === null) {
-        phrase = this.#dependencies.generateMnemonic(words);
-      } else {
-        this.#view.showStatus(
-          `Looking for a random ${words}-word phrase that meets your chosen words…`,
-        );
-        phrase = await wishes.generate(words);
-        // Sampling finished in one synchronous call; a newer input before publication wins.
-        if (revision !== this.#derivation.revision) return;
-      }
-      if (revision !== this.#derivation.revision || !this.#cryptoReady) return;
-      // A new phrase is a new wallet: an ordinary generation starts it without the BIP39
-      // passphrase of the last one, which the field shows only as dots, so that no address of
-      // the new phrase is taken unnoticed from the wallet with that passphrase (owner's
-      // decision, 2026-10-08). The MHFE wallet check keeps it: the phrase was drawn for the
-      // passphrase confirmed there.
-      const passphraseCleared = !checked && this.#view.passphrase.value !== "";
-      if (!checked) this.#view.passphrase.value = "";
-      // Generation replaces the parent without an input event. Revoke its descendants before
-      // publishing the new source (AUD-022-SEC001, AUD-028-API008).
-      this.#invalidateParentFeatures();
-      this.#source.publish(phrase, this.#adapter.defaults.count);
-      this.#rememberCurrentSettings();
-      this.#mnemonicDiagnostic.update();
-      this.#tonPhrase?.show(phrase);
-      // A phrase drawn for the Telegram wallet opens its tab when TON is the coin shown.
-      const standard = tonFeature === undefined ? undefined : this.#tonStandardAdapter();
-      if (
-        standard !== undefined &&
-        this.#adapter !== standard &&
-        this.#dependencies.getAdapterFamilyId(this.#adapter) ===
-          this.#dependencies.getAdapterFamilyId(standard)
-      )
-        this.#resetForAdapter(standard, false);
-      this.#view.showStatus(
-        `Generated a new ${words}-word BIP39 recovery phrase using crypto.getRandomValues()${wishes === null ? "" : ", with your chosen words"}${checked ? ", passing the MHFE wallet check with the BIP39 passphrase you confirmed" : ""}${tonFeature === undefined ? "" : ", which is also a TON phrase the Telegram wallet accepts"}.${passphraseCleared ? " The BIP39 passphrase field was emptied: a new phrase starts without one; type one now if this wallet should use one." : ""} Deriving ${this.#adapter.defaults.count === 1 ? "its key" : `${this.#adapter.defaults.count} results`}…`,
-      );
-      void this.#derivation.run(true);
-    } catch (cause) {
-      // A cancelled search was replaced by a newer action, which reports for itself. A wish that
-      // cannot be met is reported as an error; no ordinary phrase is put in its place.
-      if (isAbortError(cause) || revision !== this.#derivation.revision) return;
-      this.#view.showError(
-        cause instanceof Error ? cause.message : "Secure phrase generation failed.",
-      );
-    }
+    // Only what is drawn stops a draw: the options, the chosen words, the phrase and passphrase
+    // fields, Stop and Clear (PhraseGeneration). Derivation settings and coins may change while a
+    // long draw runs; its phrase is then derived with them (AUD-026-API001).
+    const drawn = await this.#generation.draw(
+      words,
+      this.#view.passphrase.value,
+      this.#view[`generate${words}Button`],
+    );
+    if (drawn === undefined) return;
+    // A new phrase is a new wallet: an ordinary generation starts it without the BIP39
+    // passphrase of the last one, which the field shows only as dots, so that no address of
+    // the new phrase is taken unnoticed from the wallet with that passphrase (owner's
+    // decision, 2026-10-08). The MHFE wallet check keeps it: the phrase was drawn for the
+    // passphrase confirmed there.
+    const passphraseCleared = !drawn.keepsPassphrase && this.#view.passphrase.value !== "";
+    if (!drawn.keepsPassphrase) this.#view.passphrase.value = "";
+    // Generation replaces the parent without an input event. Revoke its descendants before
+    // publishing the new source (AUD-022-SEC001, AUD-028-API008).
+    this.#invalidateParentFeatures();
+    this.#source.publish(drawn.phrase, this.#adapter.defaults.count);
+    this.#rememberCurrentSettings();
+    this.#mnemonicDiagnostic.update();
+    this.#tonPhrase?.show(drawn.phrase);
+    // A phrase drawn for the Telegram wallet opens its tab when TON is the coin shown; one drawn
+    // with the wallet check keeps a passphrase that the Telegram wallet refuses, so it does not.
+    const standard = drawn.forTelegram ? this.#tonStandardAdapter() : undefined;
+    if (
+      standard !== undefined &&
+      this.#adapter !== standard &&
+      this.#dependencies.getAdapterFamilyId(this.#adapter) ===
+        this.#dependencies.getAdapterFamilyId(standard)
+    )
+      this.#resetForAdapter(standard, false);
+    drawn.finish(drawn.keepsPassphrase ? "kept" : passphraseCleared ? "emptied" : "none");
+    void this.#derivation.run(true);
   };
   readonly #clearAll = (): void => {
     this.#releaseOwnedPart(() => this.#source.wipe());
@@ -558,6 +526,7 @@ export class KeyDerivationController {
     this.#dependencies.chosenWords?.clear();
     this.#checkedMnemonic?.clear();
     this.#tonPhrase?.clear();
+    this.#generation.reset();
     this.#mnemonicDiagnostic.reset();
   };
   readonly #concealSensitiveValues = (): void => {
@@ -569,8 +538,6 @@ export class KeyDerivationController {
     if (this.#started) return;
     this.#started = true;
     this.#dependencies.chosenWords?.onChange(this.#invalidateGeneration);
-    if (this.#checkedMnemonic !== undefined)
-      this.#dependencies.chosenWords?.useChecked(this.#checkedMnemonic);
     this.#view.populateCoinSelect();
     this.#adapterSettings.selectVariant(this.#adapter);
     this.#view.configureControls(this.#adapter);
@@ -659,8 +626,6 @@ export class KeyDerivationController {
       ...(this.#view.controls.textControls === undefined ? [] : [this.#view.controls.textControls]),
     ]) {
       const refresh = (): void => {
-        // Changing a derivation setting revokes its generation too; discard the worker now.
-        this.#checkedMnemonic?.cancel();
         this.#view.clearMessages();
         this.#derivation.stop();
         this.#invalidateAddressSearch();
@@ -680,7 +645,8 @@ export class KeyDerivationController {
     for (const input of [this.#view.mnemonic, this.#view.passphrase]) {
       input.addEventListener("input", () => {
         this.#source.changed();
-        this.#checkedMnemonic?.cancel();
+        // A draw would replace what was typed, or empty the passphrase: it stops and says so.
+        this.#generation.sourceChanged();
         this.#derivation.stop();
         this.#invalidateParentFeatures();
         this.#invalidateAddressSearch();

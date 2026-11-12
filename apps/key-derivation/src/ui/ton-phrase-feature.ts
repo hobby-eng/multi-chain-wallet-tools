@@ -3,12 +3,19 @@
 // TON's check (@ckd/core/ton-phrase.js); the Telegram wallet keeps such a phrase, and its key comes
 // from that entropy, not from BIP39's seed. This feature gives the seed of the variant whose
 // seedSource is "ton-phrase", notes what a typed phrase is to TON, and, while its option is ticked,
-// draws BIP39 phrases of 24 words until one is also a TON phrase. It is a generation option and an
-// opposite of the MHFE wallet check, which draws for a BIP39 passphrase that TON does not use.
+// draws BIP39 phrases of 24 words until one is also a TON phrase: on the page, from the chosen-word
+// sampler when a word is chosen, or with the MHFE wallet check on that check's workers, TON's check
+// first (checked-mnemonic-feature.ts). The wallet check draws for a BIP39 passphrase that the
+// Telegram wallet does not use; the page says so.
 import { generateMnemonic } from "@ckd/core/bip39.js";
 import { wipe } from "@ckd/core/crypto.js";
 import { ErrorCatalog } from "@ckd/core/error-catalog.js";
-import { isTonEntropy, passesTonCheck, tonEntropy } from "@ckd/core/ton-mnemonic.js";
+import {
+  isTonEntropy,
+  passesTonCheck,
+  TON_CHECK_BITS,
+  tonEntropy,
+} from "@ckd/core/ton-mnemonic.js";
 import {
   TON_WORD_COUNT,
   tonPhraseKind,
@@ -23,11 +30,23 @@ import {
   type GenerateButtons,
   type GenerationOption,
 } from "./generation-option.js";
+import type { WorkerPrecheck } from "./generation-plan.js";
 
 /** Draws between two turns of the page, so that Stop and typing stay responsive. */
 const DRAWS_PER_TURN = 16;
-/** One BIP39 phrase in about 256 passes TON's check; this many draws all miss with odds below e^-30. */
-const MAX_DRAWS = 8_192;
+/** One phrase in 2^8 passes TON's check; 32 times as many draws all miss with odds about e^-32. */
+const MAX_DRAWS = 32 * 2 ** TON_CHECK_BITS;
+
+/** TON's check as a condition of a drawn phrase, in the words of the page's lines. */
+const CONDITION: WorkerPrecheck = Object.freeze({
+  goal: "the Telegram wallet accepts",
+  name: "TON's check",
+  bits: TON_CHECK_BITS,
+  words: TON_WORD_COUNT,
+  passphraseNote:
+    "The Telegram wallet uses this phrase without the BIP39 passphrase, which therefore does not protect its funds there; to see its address under TON · Telegram wallet, empty the passphrase field.",
+  passes: passesTonCheck,
+});
 
 const ERRORS = new ErrorCatalog("ton.phrase", {
   "not-ton": () =>
@@ -58,7 +77,6 @@ export class TonPhraseFeature implements GenerationOption {
   readonly #box: HTMLInputElement;
   readonly #state: GenerationOptionState;
   readonly #note: HTMLElement;
-  readonly #walletCheck: HTMLInputElement | null;
   readonly #buttons: GenerateButtons;
   /** Draws one random 24-word BIP39 phrase; a test passes a deterministic source (CORE-46). */
   readonly #drawPhrase: () => string;
@@ -73,7 +91,6 @@ export class TonPhraseFeature implements GenerationOption {
   ) {
     this.#box = requireQueryElement<HTMLInputElement>(page, "#ton-generation-enabled");
     this.#note = requireQueryElement<HTMLElement>(page, "#ton-phrase-note");
-    this.#walletCheck = page.querySelector<HTMLInputElement>("#wallet-check-enabled");
     this.#buttons = buttons;
     this.#drawPhrase = drawPhrase;
     this.#state = new GenerationOptionState(
@@ -82,21 +99,16 @@ export class TonPhraseFeature implements GenerationOption {
       () => this.#sync(),
     );
     this.#box.addEventListener("change", () => {
-      // The two options exclude each other; the MHFE one updates its own controls on its change.
-      if (this.#box.checked && this.#walletCheck?.checked === true) {
-        this.#walletCheck.checked = false;
-        this.#walletCheck.dispatchEvent(new Event("change"));
-      }
       this.cancel();
       onChange();
       this.#sync();
     });
-    this.#walletCheck?.addEventListener("change", () => {
-      if (this.#walletCheck?.checked !== true || !this.#box.checked) return;
-      this.#box.checked = false;
-      this.#box.dispatchEvent(new Event("change"));
-    });
     this.#sync();
+  }
+
+  /** TON's check as a condition of the phrase, which the wallet check's workers can try first. */
+  get condition(): WorkerPrecheck {
+    return CONDITION;
   }
 
   // A deliberate copy of CheckedMnemonicFeature's three methods: both implement GenerationOption,
@@ -158,18 +170,31 @@ export class TonPhraseFeature implements GenerationOption {
   }
 
   /**
-   * A BIP39 phrase of 24 words that is also a TON phrase, drawn while `current()` holds. The drawn
-   * phrases that miss are strings, which the page cannot wipe, as with every generated phrase.
+   * A BIP39 phrase of 24 words that is also a TON phrase, drawn while `current()` holds: from
+   * `drawPhrase`, the chosen-word sampler when a word is chosen, else a phrase of 24 random words.
+   * Each draw is fresh and TON's check only rejects, so every phrase that meets both stays equally
+   * likely. `onDraws` gets the phrases tried at every turn of the page. The drawn phrases that miss
+   * are strings, which the page cannot wipe, as with every generated phrase.
    */
-  async generate(current: () => boolean): Promise<string> {
+  async generate(
+    current: () => boolean,
+    onDraws: (draws: number) => void,
+    drawPhrase: () => Promise<string> | string = this.#drawPhrase,
+  ): Promise<string> {
     if (!this.#state.enabled) throw new Error("The cryptographic self-test has not passed.");
     const draw = ++this.#draw;
     for (let count = 0; count < MAX_DRAWS; count += 1) {
-      if (count > 0 && count % DRAWS_PER_TURN === 0) await BrowserTurn.yield();
+      if (count > 0 && count % DRAWS_PER_TURN === 0) {
+        onDraws(count);
+        await BrowserTurn.yield();
+      }
       if (draw !== this.#draw || !current())
         throw new DOMException("Telegram-compatible generation was stopped.", "AbortError");
-      const phrase = this.#drawPhrase();
-      if (passesTonCheck(phrase)) return phrase;
+      const phrase = await drawPhrase();
+      if (passesTonCheck(phrase)) {
+        onDraws(count + 1);
+        return phrase;
+      }
     }
     throw new Error(
       `No phrase the Telegram wallet accepts came up in ${MAX_DRAWS.toLocaleString("en-US")} draws. Try again.`,

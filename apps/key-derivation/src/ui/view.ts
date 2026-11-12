@@ -22,6 +22,8 @@ import { clearRenderedSecrets } from "./secrets.js";
 import type { AddressSearchViewElements } from "./address-search-feature.js";
 import { renderSeedDiagnostic, type SeedDiagnosticPresentation } from "./seed-diagnostic-view.js";
 import { Bip39InputText } from "./bip39-input-text.js";
+import { GenerationOutlook } from "./generation-outlook.js";
+import { GenerationProgress } from "./generation-progress.js";
 
 type DocumentAction =
   | { kind: "bulk"; button: HTMLButtonElement; action: unknown }
@@ -88,6 +90,10 @@ export class KeyDerivationView {
   readonly generate18Button;
   readonly generate21Button;
   readonly generate24Button;
+  /** The lines of a draw under the Generate buttons. */
+  readonly generationProgress: GenerationProgress;
+  /** The lines under the generation options. */
+  readonly generationOutlook: GenerationOutlook;
   readonly cancelDerivationButton;
   readonly expectedAddress;
   readonly searchStart;
@@ -213,6 +219,18 @@ export class KeyDerivationView {
     this.generate18Button = this.required<HTMLButtonElement>("#generate-18");
     this.generate21Button = this.required<HTMLButtonElement>("#generate-21");
     this.generate24Button = this.required<HTMLButtonElement>("#generate-24");
+    this.generationProgress = new GenerationProgress({
+      line: this.required<HTMLElement>("#generation-line"),
+      count: this.required<HTMLElement>("#generation-count"),
+      stop: this.required<HTMLButtonElement>("#generation-stop"),
+      error: this.required<HTMLElement>("#generation-error"),
+    });
+    this.generationOutlook = new GenerationOutlook({
+      box: this.required<HTMLElement>("#generation-outlook"),
+      bits: this.required<HTMLElement>("#generation-bits"),
+      time: this.required<HTMLElement>("#generation-time"),
+      note: this.required<HTMLElement>("#generation-note"),
+    });
     this.cancelDerivationButton = this.required<HTMLButtonElement>("#cancel-derivation");
     this.expectedAddress = this.addressSearch?.expectedAddress ?? null;
     this.searchStart = this.addressSearch?.searchStart ?? null;

@@ -108,32 +108,77 @@ describe("the TON phrase in Generate & Derive", () => {
     ]);
   });
 
-  it("draws until a phrase passes TON's check, across the page's turns", async () => {
+  it("draws until a phrase passes TON's check, across the page's turns, and counts the draws", async () => {
     const source = drawSource(40);
     const { feature, enable } = setup({ draw: source.draw });
     enable();
-    await expect(feature.generate(() => true)).resolves.toBe(BOTH);
+    const tried: number[] = [];
+    await expect(
+      feature.generate(
+        () => true,
+        (draws) => tried.push(draws),
+      ),
+    ).resolves.toBe(BOTH);
     expect(source.drawn()).toBe(41);
+    expect(tried).toEqual([16, 32, 41]);
+  });
+
+  it("draws from the source it is given, such as the chosen-word sampler", async () => {
+    const { feature, enable } = setup({ draw: () => BIP39_ONLY });
+    enable();
+    let drawn = 0;
+    const sampler = async () => (++drawn < 3 ? BIP39_ONLY : BOTH);
+    await expect(
+      feature.generate(
+        () => true,
+        () => undefined,
+        sampler,
+      ),
+    ).resolves.toBe(BOTH);
+    expect(drawn).toBe(3);
+  });
+
+  it("is a condition of 8 bits on 24 words, whose own check the page runs again", () => {
+    const { feature } = setup();
+    expect(feature.condition).toMatchObject({ name: "TON's check", bits: 8, words: 24 });
+    expect(feature.condition.passes(BOTH)).toBe(true);
+    expect(feature.condition.passes(BIP39_ONLY)).toBe(false);
+    expect(feature.condition.passphraseNote).toMatch(/without the BIP39 passphrase/u);
   });
 
   it("stops before its next draw once it is no longer current, and refuses before the self-test", async () => {
     const source = drawSource(0);
     const { feature, enable } = setup({ draw: source.draw });
-    await expect(feature.generate(() => true)).rejects.toThrow(/self-test/u);
+    await expect(
+      feature.generate(
+        () => true,
+        () => undefined,
+      ),
+    ).rejects.toThrow(/self-test/u);
     enable();
-    await expect(feature.generate(() => false)).rejects.toMatchObject({ name: "AbortError" });
+    await expect(
+      feature.generate(
+        () => false,
+        () => undefined,
+      ),
+    ).rejects.toMatchObject({
+      name: "AbortError",
+    });
     expect(source.drawn()).toBe(0);
-    // Stop between two turns: the draw ends at its next turn.
+    // Stop during a draw: the draw ends before its next phrase.
     const slow = drawSource(1_000);
     const stopped = setup({ draw: slow.draw });
     stopped.enable();
-    const pending = stopped.feature.generate(() => true);
+    const pending = stopped.feature.generate(
+      () => true,
+      () => undefined,
+    );
     stopped.feature.cancel();
     await expect(pending).rejects.toMatchObject({ name: "AbortError" });
-    expect(slow.drawn()).toBe(16);
+    expect(slow.drawn()).toBe(1);
   });
 
-  it("limits Generate to 24 words and excludes the MHFE wallet check", () => {
+  it("limits Generate to 24 words and combines with the MHFE wallet check", () => {
     const { feature, element, tick, enable, changes } = setup();
     expect(element("ton-generation-enabled").disabled).toBe(true);
     enable();
@@ -142,11 +187,11 @@ describe("the TON phrase in Generate & Derive", () => {
     expect(feature.active()).toBe(true);
     expect(changes()).toBe(1);
     expect(disabledButtons(element)).toEqual([12, 15, 18, 21]);
-    // Ticking the MHFE option unticks TON's, and the other way round.
+    // Both options may be ticked together (owner, 2026-11-11).
     tick("wallet-check-enabled", true);
-    expect(feature.active()).toBe(false);
+    expect(feature.active()).toBe(true);
     tick("ton-generation-enabled", true);
-    expect(element("wallet-check-enabled").checked).toBe(false);
+    expect(element("wallet-check-enabled").checked).toBe(true);
     feature.clear();
     expect(feature.active()).toBe(false);
     expect(disabledButtons(element)).toEqual([]);

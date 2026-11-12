@@ -228,6 +228,11 @@ export function createKeyDerivationCompositionPlugin(root, features) {
           namespace: "ckd-selection",
         }),
       );
+      // TON's check in the wallet-check draw comes with TON (ton-draw-precheck.ts).
+      if (!features.hasCoin("ton"))
+        build.onResolve({ filter: /^\.\/ton-draw-precheck\.js$/ }, () => ({
+          path: resolve(root, "apps/key-derivation/src/workers/no-ton-draw-precheck.ts"),
+        }));
       // The offered coins: all of MnemoCode's in the full build, otherwise the build's own.
       if (!fullCoins)
         build.onResolve({ filter: /^\.\/mnemocode-offered-coins\.js$/ }, () => ({

@@ -6,12 +6,9 @@
 import type { CryptoSelfTestReport } from "@ckd/self-test-types";
 import { clearDerivationResult } from "@ckd/core/secrets.js";
 import { wipe } from "@ckd/core/crypto.js";
-import { tonEntropy } from "@ckd/core/ton-mnemonic.js";
+import { TON_TEST_PHRASE, tonEntropy } from "@ckd/core/ton-mnemonic.js";
 import { deriveTonStandard } from "@ckd/coins/ton/index.js";
-import {
-  TON_TEST_ADDRESSES,
-  TON_TEST_PHRASE,
-} from "../../../../packages/verification/src/derivation-self-test-ton.js";
+import { TON_TEST_ADDRESSES } from "../../../../packages/verification/src/derivation-self-test-ton.js";
 import { expectEqual, now, resultValue } from "../../../../packages/verification/src/helpers.js";
 
 const TON_TEST_SECRET_KEY =

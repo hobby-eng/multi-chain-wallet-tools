@@ -5,15 +5,11 @@
 // phrases: fresh, uniformly random phrases, the person's wishes met as bip39-chosen-words meets
 // them, until one passes. The first passing draw is taken, by the order of the draws only, which
 // keeps every passing phrase equally likely, as the specification's generation requires.
-import { pbkdf2Async } from "@noble/hashes/pbkdf2.js";
-import { sha256, sha512 } from "@noble/hashes/sha2.js";
+import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex, hexToBytes, utf8ToBytes } from "@noble/hashes/utils.js";
-import {
-  chosenWordsRemainingBits,
-  generateMnemonicWithChosenWords,
-  type ChosenWordsRequest,
-} from "./bip39-chosen-words.js";
+import { generateMnemonicWithChosenWords, type ChosenWordsRequest } from "./bip39-chosen-words.js";
 import { ErrorCatalog } from "./error-catalog.js";
+import { webCryptoPbkdf2Sha512, type Pbkdf2Sha512 } from "./pbkdf2-sha512.js";
 import type { RandomBytes } from "./random-byte-source.js";
 import { secureRandomBytes } from "./secure-random.js";
 import { nfkd } from "./unicode-nfkd.js";
@@ -36,16 +32,11 @@ export const WALLET_CHECK_BITS = 16;
 export const WALLET_CHECK_WORDS = 24;
 /** The draws a passing phrase takes on average: one in 2^16 passes. */
 export const WALLET_CHECK_EXPECTED_DRAWS = 2 ** WALLET_CHECK_BITS;
-/**
- * The random bits the check alone leaves of a 24-word phrase, 240, from which a phrase's randomness
- * is ample and below which wishes make it not recommended, as MHFE rated them before 0.8.0.
- */
-export const RECOMMENDED_RANDOM_BITS = 240;
 /** A draw gives up after this many times the expected draws, as MHFE's own draw did. */
 const DRAW_LIMIT_FACTOR = 64;
-/** How often a draw reports how many phrases it tried. */
-const REPORT_EVERY = 64;
 const BIP39_ITERATIONS = 2048;
+/** BIP39's seed: 512 bits. */
+const SEED_BYTES = 64;
 
 /** T for a 64-byte BIP39 seed. */
 export function walletCheckDigest(seed: Uint8Array): Uint8Array {
@@ -87,46 +78,22 @@ export function passesWalletCheck(seed: Uint8Array): boolean {
 
 /**
  * BIP39's seed of `phrase` and `passphrase`, both normalized by the Deriver's own NFKD of Unicode
- * 18.0.0: PBKDF2-HMAC-SHA512 with 2048 iterations, by WebCrypto where the browser has it (many times
- * faster than JavaScript), else by @noble/hashes.
+ * 18.0.0: PBKDF2-HMAC-SHA512 with 2048 iterations, by `derive`: WebCrypto unless a draw's worker
+ * computes in JavaScript (pbkdf2-sha512.ts).
  */
-export async function bip39Seed(phrase: string, passphrase: string): Promise<Uint8Array> {
+export async function bip39Seed(
+  phrase: string,
+  passphrase: string,
+  derive: Pbkdf2Sha512 = webCryptoPbkdf2Sha512,
+): Promise<Uint8Array> {
   const password = utf8ToBytes(nfkd(phrase));
   const salt = utf8ToBytes(`mnemonic${nfkd(passphrase)}`);
   try {
-    const subtle = globalThis.crypto?.subtle;
-    if (subtle === undefined)
-      return await pbkdf2Async(sha512, password, salt, { c: BIP39_ITERATIONS, dkLen: 64 });
-    const key = await subtle.importKey("raw", password, "PBKDF2", false, ["deriveBits"]);
-    const bits = await subtle.deriveBits(
-      { name: "PBKDF2", hash: "SHA-512", salt, iterations: BIP39_ITERATIONS },
-      key,
-      512,
-    );
-    return new Uint8Array(bits);
+    return await derive(password, salt, BIP39_ITERATIONS, SEED_BYTES);
   } finally {
     password.fill(0);
     salt.fill(0);
   }
-}
-
-/** What a draw keeps of a phrase's randomness, as MHFE rated it for the person before 0.8.0. */
-export interface WalletCheckOdds {
-  /** About; for someone who knows the chosen word. */
-  readonly randomBits: number;
-  readonly randomness: "ample" | "notRecommended";
-  /** A word asked for at a fixed position, where one anywhere would keep more. */
-  readonly fixedPosition: boolean;
-}
-
-/** The odds of a draw with the check and `wishes`, for a 24-word phrase. */
-export function walletCheckOdds(wishes: ChosenWordsRequest): WalletCheckOdds {
-  const randomBits = chosenWordsRemainingBits(wishes) - WALLET_CHECK_BITS;
-  return {
-    randomBits,
-    randomness: randomBits >= RECOMMENDED_RANDOM_BITS - 1e-9 ? "ample" : "notRecommended",
-    fixedPosition: wishes.chosen.some((word) => word.position !== "anywhere"),
-  };
 }
 
 /** Bytes a probe of the random source draws, twice. */
@@ -147,42 +114,73 @@ function assertRandomSourceWorks(randomBytes: RandomBytes): void {
   }
 }
 
+/**
+ * A cheaper condition that a phrase must also pass, tried before its seed is stretched for the
+ * wallet check: TON's check (ton-mnemonic.ts) in the Deriver. It must not depend on the
+ * passphrase, so that the two conditions stay independent.
+ */
+export interface DrawPrecheck {
+  /** Whether `phrase` passes. */
+  readonly passes: (phrase: string) => Promise<boolean>;
+  /** One phrase in this many passes, on average. */
+  readonly expectedDraws: number;
+}
+
 export interface WalletCheckDrawOptions {
   /** Stops the draw between phrases; the promise then rejects with the signal's reason. */
   readonly signal?: AbortSignal;
-  /** Told the phrases tried so far, every few dozen. */
+  /** Told the phrases tried so far after every phrase; the host decides how often to show it. */
   readonly onDraws?: (draws: number) => void;
   /** Only tests pass another source; a real phrase always uses crypto.getRandomValues(). */
   readonly randomBytes?: RandomBytes;
+  /** A condition tried first on every phrase; only a phrase that passes it is checked. */
+  readonly precheck?: DrawPrecheck;
+  /** The engine of the seed's PBKDF2; WebCrypto unless given (pbkdf2-sha512.ts). */
+  readonly derive?: Pbkdf2Sha512;
 }
 
 /**
- * A 24-word phrase that meets `wishes` and passes the wallet check with `passphrase`: phrases are
- * drawn one after another, each fresh and uniformly random among those that meet the wishes, and
- * the first that passes is the answer. Throws when none passed in 64 times the expected draws,
- * which a working generator reaches with odds of about e^-64.
+ * A 24-word phrase that meets `wishes`, passes `precheck` if one is given and passes the wallet
+ * check with `passphrase`: phrases are drawn one after another, each fresh and uniformly random
+ * among those that meet the wishes, and the first that passes every condition is the answer. The
+ * conditions only reject, so every phrase that passes them all stays equally likely. Throws when
+ * none passed in 64 times the expected draws, which a working generator reaches with odds of about
+ * e^-64.
  */
 export async function drawWalletCheckPhrase(
   wishes: ChosenWordsRequest,
   passphrase: string,
-  { signal, onDraws, randomBytes }: WalletCheckDrawOptions = {},
+  { signal, onDraws, randomBytes, precheck, derive }: WalletCheckDrawOptions = {},
 ): Promise<string> {
   if (wishes.wordCount !== WALLET_CHECK_WORDS) throw ERRORS.create("words", []);
   assertRandomSourceWorks(randomBytes ?? secureRandomBytes);
-  const limit = WALLET_CHECK_EXPECTED_DRAWS * DRAW_LIMIT_FACTOR;
+  const limit = WALLET_CHECK_EXPECTED_DRAWS * (precheck?.expectedDraws ?? 1) * DRAW_LIMIT_FACTOR;
   for (let draws = 1; draws <= limit; draws += 1) {
     signal?.throwIfAborted();
-    const phrase = await generateMnemonicWithChosenWords(wishes, {
-      ...(randomBytes === undefined ? {} : { randomBytes }),
-    });
-    const seed = await bip39Seed(phrase, passphrase);
-    const passes = passesWalletCheck(seed);
-    seed.fill(0);
-    if (passes) {
-      onDraws?.(draws);
-      return phrase;
-    }
-    if (draws % REPORT_EVERY === 0) onDraws?.(draws);
+    const phrase = await generateMnemonicWithChosenWords(
+      wishes,
+      randomBytes === undefined ? {} : { randomBytes },
+    );
+    // The precheck first: it is the cheaper condition, and most phrases fail it.
+    const passes =
+      (precheck === undefined || (await precheck.passes(phrase))) &&
+      (await passesWithPassphrase(phrase, passphrase, derive));
+    onDraws?.(draws);
+    if (passes) return phrase;
   }
   throw ERRORS.create("limit", []);
+}
+
+/** Whether `phrase` passes the wallet check with `passphrase`; its seed is cleared afterwards. */
+async function passesWithPassphrase(
+  phrase: string,
+  passphrase: string,
+  derive: Pbkdf2Sha512 | undefined,
+): Promise<boolean> {
+  const seed = await bip39Seed(phrase, passphrase, derive);
+  try {
+    return passesWalletCheck(seed);
+  } finally {
+    seed.fill(0);
+  }
 }

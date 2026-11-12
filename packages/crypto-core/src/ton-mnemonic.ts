@@ -11,12 +11,42 @@ import { pbkdf2 } from "@noble/hashes/pbkdf2.js";
 import { sha512 } from "@noble/hashes/sha2.js";
 import { utf8ToBytes } from "@noble/hashes/utils.js";
 import { wipe } from "./crypto.js";
+import { ErrorCatalog } from "./error-catalog.js";
+import type { Pbkdf2Sha512 } from "./pbkdf2-sha512.js";
 
 /** ton-crypto's PBKDF_ITERATIONS, the cost of the key; the check costs a 256th of it. */
 const KEY_ITERATIONS = 100_000;
 const CHECK_ITERATIONS = Math.max(1, Math.floor(KEY_ITERATIONS / 256));
 const CHECK_SALT = utf8ToBytes("TON seed version");
 const KEY_SALT = utf8ToBytes("TON default seed");
+/** The bytes of PBKDF2's first block that TON's check reads: its first. */
+const CHECK_OUTPUT_BYTES = 1;
+
+/** The bits TON's check takes: its first byte must be zero, so one phrase in 2^8 passes. */
+export const TON_CHECK_BITS = 8;
+
+/**
+ * ton-crypto's test phrase (ton-org/ton-crypto src/mnemonic/mnemonic.spec.ts, read 2026-11-10),
+ * normalized: a TON phrase that is not a BIP39 phrase.
+ */
+export const TON_TEST_PHRASE =
+  "hospital stove relief fringe tongue always charge angry urge sentence again match nerve inquiry senior coconut label tumble carry category beauty bean road solution";
+
+/**
+ * Known answers of TON's check, both ways: ton-crypto's test phrase passes, and the 24-word BIP39
+ * phrase of zero entropy fails (ton-crypto's own check, test/oracles/ton_oracle.py).
+ */
+export const TON_CHECK_KNOWN_ANSWERS: readonly {
+  readonly phrase: string;
+  readonly passes: boolean;
+}[] = Object.freeze([
+  { phrase: TON_TEST_PHRASE, passes: true },
+  { phrase: `${"abandon ".repeat(23)}art`, passes: false },
+]);
+
+const ERRORS = new ErrorCatalog("ton.check", {
+  "self-test": () => "TON's check in the draw differs from its known answers.",
+});
 
 /** The 64-byte TON entropy of normalized `words` (ton-phrase.ts tonWords); the caller wipes it. */
 export function tonEntropy(words: string): Uint8Array {
@@ -46,6 +76,33 @@ export function passesTonCheck(words: string): boolean {
   } finally {
     wipe(entropy);
   }
+}
+
+/**
+ * Whether normalized TON `words` pass TON's check, with the check's PBKDF2 by `derive`: WebCrypto or
+ * @noble/hashes, as the wallet-check draw's worker computes (pbkdf2-sha512.ts). The asynchronous
+ * form of passesTonCheck for the draws that try millions of phrases (CORE-10): ton-mnemonic.test.ts
+ * keeps the two in step on public vectors, and runTonCheckSelfTest checks it before a draw.
+ */
+export async function passesTonCheckBy(words: string, derive: Pbkdf2Sha512): Promise<boolean> {
+  const entropy = tonEntropy(words);
+  try {
+    // PBKDF2's first block gives the same first byte whatever the length asked for.
+    const check = await derive(entropy, CHECK_SALT, CHECK_ITERATIONS, CHECK_OUTPUT_BYTES);
+    try {
+      return check[0] === 0;
+    } finally {
+      wipe(check);
+    }
+  } finally {
+    wipe(entropy);
+  }
+}
+
+/** Checks passesTonCheckBy with `derive` against the known answers; throws ton.check.self-test. */
+export async function runTonCheckSelfTest(derive: Pbkdf2Sha512): Promise<void> {
+  for (const { phrase, passes } of TON_CHECK_KNOWN_ANSWERS)
+    if ((await passesTonCheckBy(phrase, derive)) !== passes) throw ERRORS.create("self-test", []);
 }
 
 /** The 32-byte Ed25519 seed of a TON phrase's `entropy`; the caller wipes it. */

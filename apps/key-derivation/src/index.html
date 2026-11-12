@@ -155,6 +155,12 @@
               Copy
             </button>
           </div>
+          <div id="generation-progress" class="generation-progress">
+            <p id="generation-line" class="generation-line" role="status" aria-live="polite" tabindex="-1"></p>
+            <p id="generation-count" class="generation-count" hidden></p>
+            <button id="generation-stop" type="button" class="secondary compact" hidden>Stop</button>
+          </div>
+          <p id="generation-error" class="error generation-error" role="alert"></p>
           <div class="generation-options">
             <div id="wallet-check-generation" class="generation-option">
               <div class="option-heading">
@@ -195,13 +201,20 @@
                   >
                 </div>
                 <small id="wallet-check-description"
-                  >Experimental · 24 words, with a BIP39 passphrase. Can be combined with a chosen word.</small
+                  >Experimental · 24 words, with a BIP39 passphrase. Combines with the other options.</small
                 >
               </div>
               <p id="wallet-check-status" class="field-note" role="status" aria-live="polite" hidden></p>
               <div id="wallet-check-options" hidden>
-                <p id="wallet-check-outlook" class="field-note warning" aria-live="polite" hidden></p>
-                <button id="wallet-check-cancel" type="button" class="secondary compact" hidden>Stop</button>
+                <div class="draw-threads">
+                  <label for="draw-threads">Threads</label>
+                  <select id="draw-threads" aria-describedby="draw-threads-note"></select>
+                </div>
+                <p id="draw-threads-note" class="field-note">
+                  Two threads use the browser&#39;s own cryptography and were the fastest on a laptop. More threads
+                  compute in JavaScript: they add speed only where the computer has power to spare, and they always add
+                  heat. The time below is measured with the threads chosen.
+                </p>
               </div>
             </div>
             <div id="ton-generation" class="generation-option">
@@ -270,6 +283,11 @@
                 >
               </div>
             </div>
+          </div>
+          <div id="generation-outlook" class="generation-outlook" aria-live="polite" hidden>
+            <p id="generation-bits" class="field-note"></p>
+            <p id="generation-time" class="field-note" hidden></p>
+            <p id="generation-note" class="field-note warning" hidden></p>
           </div>
           <div id="chosen-words-panel" class="chosen-words-panel" hidden>
             <p class="field-note chosen-words-warning">

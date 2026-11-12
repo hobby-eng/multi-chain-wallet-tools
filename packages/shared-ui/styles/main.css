@@ -555,6 +555,71 @@ textarea.concealed {
   gap: 8px;
   margin: 0 0 12px;
 }
+/* The lines of a draw right under the Generate buttons (owner, 2026-11-11: a started job must
+   visibly run): the start line from the click, the phrases tried and the time, Stop, and how the
+   draw ended, in the look of a status line. Its refusals sit at the same place, as errors. */
+.generation-progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid #29483a;
+  border-radius: 9px;
+  background: #102019;
+  color: #bce8d1;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.generation-line {
+  flex: 1 1 100%;
+  margin: 0;
+}
+/* With no line the box shows nothing, but stays rendered: its line is a live region, which a screen
+   reader follows only while it is in the page. */
+.generation-progress:has(> .generation-line:empty) {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.generation-count {
+  flex: 1 1 auto;
+  margin: 0;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+/* Above the general .error rule's 16px, which follows it in this file. With no text the alert shows
+   nothing but stays rendered, as the line above does. */
+.error.generation-error {
+  margin: 0 0 12px;
+}
+.error.generation-error:empty {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+/* What a phrase drawn with the options keeps and how long it takes, under the options. */
+.generation-outlook {
+  margin: 0 0 14px;
+}
+.generation-outlook > .field-note:first-child {
+  margin-top: 0;
+}
+/* The threads of the wallet check's draw: a short choice beside its label, its note below. */
+.draw-threads {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.draw-threads label {
+  margin: 0;
+}
+.draw-threads select {
+  width: auto;
+  padding: 6px 10px;
+}
 /* Generate with chosen words, under the Generate buttons of Generate & Derive. */
 .chosen-words-panel {
   display: grid;
