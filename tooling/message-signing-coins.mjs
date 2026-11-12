@@ -13,6 +13,26 @@ export const MESSAGE_SIGNING_COINS = Object.freeze({
     full: ["runBip322FullSelfTest"],
   },
   dash: { prefix: "DASH", startup: ["runDashMessageSigningSelfTest"], full: [] },
+  litecoin: {
+    prefix: "LITECOIN",
+    startup: ["runLitecoinMessageSigningSelfTest"],
+    full: ["runLitecoinMessageSigningFullSelfTest"],
+  },
+  dogecoin: {
+    prefix: "DOGECOIN",
+    startup: ["runDogecoinMessageSigningSelfTest"],
+    full: ["runDogecoinMessageSigningFullSelfTest"],
+  },
+  "bitcoin-cash": {
+    prefix: "BITCOIN_CASH",
+    startup: ["runBitcoinCashMessageSigningSelfTest"],
+    full: ["runBitcoinCashMessageSigningFullSelfTest"],
+  },
+  zcash: {
+    prefix: "ZCASH",
+    startup: ["runZcashMessageSigningSelfTest"],
+    full: ["runZcashMessageSigningFullSelfTest"],
+  },
 });
 
 export const MESSAGE_SIGNING_COIN_IDS = Object.freeze(Object.keys(MESSAGE_SIGNING_COINS));

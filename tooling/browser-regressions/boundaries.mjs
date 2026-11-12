@@ -19,6 +19,12 @@ async function selfTests(context, profile, run) {
   else assert.doesNotMatch(fullResult, /TON/u);
   const startupChecks = await deriver.locator("#crypto-self-test-details").innerText();
   assert.match(startupChecks, /BIP85/u);
+  // Each compact coin's message signing has a startup known answer; Dash Community has Dash's only.
+  for (const coin of ["Litecoin", "Dogecoin", "Bitcoin Cash", "Zcash"]) {
+    const check = new RegExp(`${coin} compact message signature`, "u");
+    if (profile.id === "multi-chain") assert.match(startupChecks, check);
+    else assert.doesNotMatch(startupChecks, check);
+  }
   // The decoy texts of a SeedQR hidden in a decoy QR have startup known answers in both editions.
   assert.match(startupChecks, /Decoy QR texts: vCard and Wi-Fi escaping/u);
   // MnemoCode's run in the full self-test carries the hidden SeedQR's check of both editions.

@@ -59,10 +59,16 @@ Legacy mobile results include **Copy public scan key** and a text-file export fo
 
 The sign icon next to an address opens a dialog that signs a message with that row's key, in the disposable worker, and checks the signature locally before showing it. The same dialog verifies a signature someone pasted, for that address and in the selected format: it sends the worker only the address, the network, the format, the message and the signature, never the seed. The dialog names the format of each address and shows notes about it.
 
-| Coin    | Address types                                            | Formats                                                                                                           | Signature |
-| ------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | --------- |
-| Bitcoin | P2PKH, P2SH-P2WPKH, P2WPKH, P2TR                         | BIP-322 (full for P2PKH and P2SH-P2WPKH, simple for P2WPKH and P2TR); compact BIP137 as a second choice for P2PKH | Base64    |
-| Dash    | P2PKH of the Dash Core, legacy mobile and CoinJoin paths | Dash Core `signmessage` (compact)                                                                                 | Base64    |
+| Coin         | Address types                                            | Formats                                                                                                                        | Signature |
+| ------------ | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | --------- |
+| Bitcoin      | P2PKH, P2SH-P2WPKH, P2WPKH, P2TR                         | BIP-322 (full for P2PKH and P2SH-P2WPKH, simple for P2WPKH and P2TR); compact BIP137 as a second choice for P2PKH              | Base64    |
+| Dash         | P2PKH of the Dash Core, legacy mobile and CoinJoin paths | Dash Core `signmessage` (compact)                                                                                              | Base64    |
+| Litecoin     | P2PKH, P2SH-P2WPKH, P2WPKH                               | Litecoin Core `signmessage` (compact) for P2PKH; the same signature with BIP137's typed header for SegWit, as Trezor writes it | Base64    |
+| Dogecoin     | P2PKH                                                    | Dogecoin Core `signmessage` (compact)                                                                                          | Base64    |
+| Bitcoin Cash | P2PKH, as CashAddr or in its legacy form                 | Bitcoin's compact `signmessage`, as Bitcoin Cash Node, Electron Cash and Trezor write it                                       | Base64    |
+| Zcash        | transparent t1 P2PKH                                     | zcashd's and Zallet's `signmessage` (compact)                                                                                  | Base64    |
+
+Litecoin Core verifies only L… addresses; Trezor and Electrum-LTC verify the SegWit signatures, and Electrum-LTC's own SegWit signatures, without the typed header, verify in the dialog too. A Bitcoin Cash signature is also a valid Bitcoin signature for the legacy 1… address of the same key, and a Bitcoin compact signature is valid for Bitcoin Cash: put the chain's name in the message if that matters. Shielded Zcash addresses have no message-signing standard.
 
 ### Dash multisig cosigner export
 

@@ -199,6 +199,7 @@ export class DerivationWorkerClient {
     adapterId: string,
     input: CoinDerivationInput,
     address: string,
+    addressKey: string,
     message: string,
     format: MessageSigningFormat,
   ): Promise<MessageSignature> {
@@ -210,6 +211,7 @@ export class DerivationWorkerClient {
         adapterId,
         input: { ...input, seed },
         address,
+        addressKey,
         message,
         format,
       },

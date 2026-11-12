@@ -35,6 +35,7 @@ describe("the address owner offers its message-signing formats", () => {
       output: "Base64 signature",
       notes: [
         "BIP-322 is the current general-purpose Bitcoin message-signing standard. Use compact BIP137 only for software that does not support BIP-322.",
+        "Bitcoin Cash uses the same message format: this signature is also valid for the Bitcoin Cash address of the same key. Put the chain's name in the message if that matters.",
       ],
       compact: true,
     });

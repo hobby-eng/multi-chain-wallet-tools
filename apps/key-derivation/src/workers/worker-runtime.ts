@@ -95,14 +95,15 @@ async function withDerivedPrivateKey<T>(
   adapter: RuntimeCoinAdapter,
   input: Parameters<RuntimeCoinAdapter["derive"]>[0],
   address: string,
+  addressKey: string,
   use: (key: DerivedPrivateKey) => T | Promise<T>,
 ): Promise<T> {
   const result = await adapter.derive({ ...input, start: input.start, count: 1 });
-  using key = new DerivedPrivateKey(result, address);
+  using key = new DerivedPrivateKey(result, address, addressKey);
   return await use(key);
 }
 
-/** Signs with the request row's key, which withDerivedPrivateKey binds to its address and wipes. */
+/** Signs with the row's key, which withDerivedPrivateKey binds to the clicked field and wipes. */
 async function signMessage(
   dependencies: WorkerDependencies,
   adapter: RuntimeCoinAdapter,
@@ -110,8 +111,8 @@ async function signMessage(
 ): Promise<MessageSignature> {
   const sign = dependencies.signDerivedMessage;
   if (sign === undefined) throw new Error("Message signing is unavailable in this build profile.");
-  const { format, address, message, input } = request;
-  return await withDerivedPrivateKey(adapter, input, address, (key) =>
+  const { format, address, addressKey, message, input } = request;
+  return await withDerivedPrivateKey(adapter, input, address, addressKey, (key) =>
     sign(key.bytes, { format, address, message, network: input.network }, key.fields),
   );
 }
@@ -230,6 +231,7 @@ export function startDerivationWorker(dependencies: WorkerDependencies): void {
               adapter,
               request.input,
               request.address,
+              "address",
               (key) =>
                 encrypt(key.bytes, request.adapterId, request.input.network, request.passphrase),
             );

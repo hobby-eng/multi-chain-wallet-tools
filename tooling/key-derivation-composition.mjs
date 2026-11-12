@@ -411,7 +411,6 @@ const coinSourceMarkers = {
     "/adapters/bitcoin.ts",
     "derivation-self-test-bitcoin.ts",
     // A coin's self-test vectors come only with the coin (AUD-023-BLD001).
-    ...messageSigningCoinMarkers("bitcoin"),
     "/bip38-self-test-bitcoin.ts",
     "btcutil-js",
     "/wallet-recovery/src/address-targets.ts",
@@ -420,7 +419,6 @@ const coinSourceMarkers = {
     "/coins/dash/",
     "/adapters/dash.ts",
     "derivation-self-test-dash.ts",
-    ...messageSigningCoinMarkers("dash"),
     "/bip38-self-test-dash.ts",
     "/masternode-self-test-dash.ts",
     "dash-shielded-wasm",
@@ -434,6 +432,9 @@ const coinSourceMarkers = {
   ],
   ...Object.fromEntries(SINGLE_KEY_COIN_IDS.map((coin) => [coin, singleKeyCoinMarkers(coin)])),
 };
+// Each signing coin's page policy and known answers come only with the coin.
+for (const coin of Object.keys(MESSAGE_SIGNING_COINS))
+  coinSourceMarkers[coin] = [...coinSourceMarkers[coin], ...messageSigningCoinMarkers(coin)];
 
 const featureSourceMarkers = {
   bip85: [

@@ -13,25 +13,25 @@ export const SINGLE_KEY_COINS = Object.freeze({
     prefix: "LITECOIN",
     derivation: "litecoinDerivation",
     kinds: ["bip44"],
-    shared: ["utxo-address"],
+    shared: ["utxo-address", "message-signing-compact"],
   },
   dogecoin: {
     prefix: "DOGECOIN",
     derivation: "dogecoinDerivation",
     kinds: ["bip44"],
-    shared: ["utxo-address"],
+    shared: ["utxo-address", "message-signing-compact"],
   },
   "bitcoin-cash": {
     prefix: "BITCOIN_CASH",
     derivation: "bitcoinCashDerivation",
     kinds: ["bip44"],
-    shared: ["utxo-address"],
+    shared: ["utxo-address", "message-signing-compact"],
   },
   zcash: {
     prefix: "ZCASH",
     derivation: "zcashDerivation",
     kinds: ["bip44"],
-    shared: ["utxo-address"],
+    shared: ["utxo-address", "message-signing-compact"],
   },
   xrp: { prefix: "XRP", derivation: "xrpDerivation", kinds: ["bip44"], shared: [] },
   tron: {
@@ -156,6 +156,9 @@ export const SHARED_MODULES = Object.freeze({
   "keccak-account": { marker: "/coins/keccak-account.ts", ownCoins: ["ethereum"] },
   "slip10-ed25519": { marker: "/coin-protocols/src/slip10-ed25519.ts", ownCoins: ["dash"] },
   crc16: { marker: "/crypto-core/src/crc16.ts", ownCoins: [] },
+  // The compact message signing of the BIP44 coins that sign as Bitcoin Core does; only with
+  // message-signing, whose "/message-signing-" marker it also carries.
+  "message-signing-compact": { marker: "/coins/message-signing-compact.ts", ownCoins: [] },
 });
 
 /** Whether a build with the coins `hasCoin` admits needs the shared module `name`. */

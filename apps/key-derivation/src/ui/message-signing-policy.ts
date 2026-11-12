@@ -28,6 +28,38 @@ export interface MessageSigningPolicy {
 
 const NONE: readonly MessageSigningFormat[] = Object.freeze([]);
 
+/** One result's offer: the address fields with a signing action, and their formats. */
+export interface MessageSigningOffer {
+  readonly fields: readonly string[];
+  /** The default first. */
+  readonly formats: readonly MessageSigningFormat[];
+}
+
+/** A coin policy given as data: its offers by result id, and the texts of its formats. */
+export class TableMessageSigningPolicy implements MessageSigningPolicy {
+  readonly #offers: Readonly<Record<string, MessageSigningOffer>>;
+  readonly #texts: ReadonlyMap<unknown, MessageFormatText>;
+
+  constructor(
+    offers: Readonly<Record<string, MessageSigningOffer>>,
+    texts: ReadonlyMap<MessageSigningFormat, MessageFormatText>,
+  ) {
+    this.#offers = offers;
+    this.#texts = texts;
+  }
+
+  /** The formats of a result's offered field; none for another field or result. */
+  offer(resultId: string, addressKey: string): readonly MessageSigningFormat[] {
+    const offer = Object.hasOwn(this.#offers, resultId) ? this.#offers[resultId] : undefined;
+    return offer?.fields.includes(addressKey) === true ? offer.formats : NONE;
+  }
+
+  /** Texts only for this coin's formats. */
+  describe(format: unknown): MessageFormatText | undefined {
+    return this.#texts.get(format);
+  }
+}
+
 /** Composes coin-owned offers without interpreting caller strings as format values. */
 export class MessageSigningPolicies implements MessageSigningPolicy {
   readonly #policies: readonly MessageSigningPolicy[];

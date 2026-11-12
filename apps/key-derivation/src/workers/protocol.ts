@@ -28,7 +28,15 @@ export interface AddressSearchResult extends AddressSearchMatch {
 }
 
 export type MessageSigningFormat =
-  "bitcoin-compact" | "dash-compact" | import("@ckd/core/bip322-signing.js").Bip322SigningFormat;
+  | "bitcoin-compact"
+  | "dash-compact"
+  | import("@ckd/core/bip322-signing.js").Bip322SigningFormat
+  | "litecoin-compact-legacy"
+  | "litecoin-compact-nested"
+  | "litecoin-compact-native"
+  | "dogecoin-compact"
+  | "bitcoin-cash-compact"
+  | "zcash-compact";
 
 export type WorkerRequest =
   | { id: number; type: "derive"; adapterId: string; input: CoinDerivationInput }
@@ -56,6 +64,8 @@ export type WorkerRequest =
       adapterId: string;
       input: CoinDerivationInput;
       address: string;
+      /** The key of the row's field that holds `address`, the one the person clicked. */
+      addressKey: string;
       message: string;
       format: MessageSigningFormat;
     }
