@@ -81,7 +81,7 @@ const NO_WISHES = { wordCount: 24, chosen: [], neverUse: [] } as const;
 
 describe("the lines of a draw with the generation options", () => {
   it.each(MATRIX)("starts $start", ({ plan, draws, start }) => {
-    expect(expectedDraws(plan)).toBe(draws);
+    expect(expectedDraws(plan.conditions)).toBe(draws);
     expect(drawStartLine(plan)).toBe(start);
   });
 
@@ -181,8 +181,8 @@ describe("the lines of a draw with the generation options", () => {
   });
 
   it("says how long a phrase takes on this computer, with the tail and the hours it can take", () => {
-    const check = MATRIX[4]!.plan;
-    const both = MATRIX[6]!.plan;
+    const check = MATRIX[4]!.plan.conditions;
+    const both = MATRIX[6]!.plan.conditions;
     expect(timeOutlook({ kind: "measuring", threads: 1 }, check)).toBe(
       "Measuring this computer's speed with 1 thread…",
     );

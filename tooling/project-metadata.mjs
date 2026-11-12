@@ -38,6 +38,9 @@ export class ProjectMetadata {
   }
 }
 
+/** The GitHub repository of this project's sources and documents, for every edition. */
+export const SOURCE_REPOSITORY_URL = "https://github.com/hobby-eng/multi-chain-wallet-tools";
+
 export const PRODUCT_FACTS = Object.freeze({
   // In the order of the coin lists: Bitcoin first, then alphabetical (coin-order.ts).
   multiChainCoins: Object.freeze(["Bitcoin", "Dash", "Ethereum"]),

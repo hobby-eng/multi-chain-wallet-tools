@@ -11,7 +11,7 @@ import {
 } from "./build-profiles.mjs";
 import { createBuildInfo } from "./build-metadata.mjs";
 import { sidecarRecords } from "./page-sidecar.mjs";
-import { readReleaseMetadata } from "./project-metadata.mjs";
+import { SOURCE_REPOSITORY_URL, readReleaseMetadata } from "./project-metadata.mjs";
 import { TOOLCHAIN_PINS } from "./toolchain-pins.mjs";
 import { VendoredMhfePackage } from "./vendored-mhfe-package.mjs";
 import { WASM_MODULES } from "./wasm-modules.mjs";
@@ -90,8 +90,7 @@ const dependencyProvenance = {
   localSources: provenanceReport.localSources,
 };
 const record = {
-  schema:
-    "https://github.com/hobby-eng/multi-chain-wallet-tools/blob/main/docs/verification-record.schema.json",
+  schema: `${SOURCE_REPOSITORY_URL}/blob/main/docs/verification-record.schema.json`,
   schemaVersion: 1,
   project: manifest.name,
   version: release.version,

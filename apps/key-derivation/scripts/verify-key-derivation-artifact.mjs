@@ -11,7 +11,10 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseBuildProfile } from "../../../tooling/build-profiles.mjs";
-import { vendoredMnemoCodeVersion } from "../../../tooling/key-derivation-features.mjs";
+import {
+  TON_PHRASE_SECURITY_URL,
+  vendoredMnemoCodeVersion,
+} from "../../../tooling/key-derivation-features.mjs";
 import { assertDesktopVersionNote } from "../../../tooling/key-derivation-launchers.mjs";
 
 const root = resolve(fileURLToPath(new URL("../../..", import.meta.url)));
@@ -475,6 +478,8 @@ const allowedOpenSourceLinks = [
   "https://github.com/apoelstra/rust-codex32",
   "https://github.com/hobby-eng/mhfe-spec",
   "https://github.com/hobby-eng/mhfe",
+  // The security note that the "?" of the Telegram option links to, only in a build with TON.
+  ...(ids.includes("ton-generation") ? [TON_PHRASE_SECURITY_URL] : []),
 ];
 let securityScanSource = html.replaceAll("http://www.w3.org/2000/svg", "");
 for (const link of allowedOpenSourceLinks) {
