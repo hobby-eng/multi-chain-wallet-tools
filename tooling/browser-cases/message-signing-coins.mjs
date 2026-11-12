@@ -3,7 +3,7 @@ import { MessageVerificationRoundTripCase } from "./message-verification-round-t
 
 const PHRASE = `${"abandon ".repeat(11)}about`;
 
-/** Each compact coin's variant, the form of its first address, and the format the dialog names. */
+/** Each signing coin's variant, the form of its first address, and the format the dialog names. */
 const VARIANTS = [
   ["litecoin", "litecoin-legacy", /^L/u, "Litecoin Core compact P2PKH"],
   ["litecoin", "litecoin-nested-segwit", /^M/u, "Litecoin compact P2SH-P2WPKH (BIP137)"],
@@ -16,6 +16,9 @@ const VARIANTS = [
     "Bitcoin Cash compact P2PKH (Bitcoin's message format)",
   ],
   ["zcash", "zcash", /^t1/u, "Zcash compact t1 P2PKH"],
+  ["ethereum", "ethereum", /^0x/u, "Ethereum personal_sign (EIP-191), every EVM network"],
+  ["ethereum-classic", "ethereum-classic", /^0x/u, "Ethereum Classic personal_sign (EIP-191)"],
+  ["tron", "tron", /^T/u, "Tron signMessageV2 (TIP-191)"],
 ];
 
 /** Signs `message` from the sign icon `selector` and answers the signature and the address. */
@@ -60,7 +63,7 @@ async function bitcoinCashLegacy(page, message, cashAddrSignature) {
   await page.locator("#mode-basic").click();
 }
 
-/** Every compact coin's address signs and verifies its own signature in the Multi-Chain Deriver. */
+/** Every signing coin's address signs and verifies its own signature in the Multi-Chain Deriver. */
 export class MessageSigningCoinsCase {
   static async run(page, message) {
     await page.locator("#crypto-self-test-status.passed").waitFor();
@@ -80,6 +83,6 @@ export class MessageSigningCoinsCase {
       await page.locator("#close-message-signer").click();
       if (adapter === "bitcoin-cash") await bitcoinCashLegacy(page, message, proof.signature);
     }
-    return "Litecoin (three address types), Dogecoin, Bitcoin Cash (CashAddr and legacy, one signature) and Zcash sign and verify their own signatures in the page";
+    return "Litecoin (three address types), Dogecoin, Bitcoin Cash (CashAddr and legacy, one signature), Zcash, Ethereum, Ethereum Classic and Tron sign and verify their own signatures in the page";
   }
 }

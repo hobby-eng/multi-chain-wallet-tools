@@ -44,6 +44,7 @@ describe("the signing dialog verifies a pasted signature from public data alone"
     expect(request).toEqual({
       id: 1,
       type: "verify-message",
+      adapterId: "bitcoin-taproot",
       request: {
         format: "bitcoin-bip322-taproot",
         address: "public fixture address",

@@ -36,7 +36,10 @@ export type MessageSigningFormat =
   | "litecoin-compact-native"
   | "dogecoin-compact"
   | "bitcoin-cash-compact"
-  | "zcash-compact";
+  | "zcash-compact"
+  | "ethereum-eip191"
+  | "ethereum-classic-eip191"
+  | "tron-tip191";
 
 export type WorkerRequest =
   | { id: number; type: "derive"; adapterId: string; input: CoinDerivationInput }
@@ -70,7 +73,14 @@ export type WorkerRequest =
       format: MessageSigningFormat;
     }
   /** Verifies a pasted signature for a row's address: public material only, no seed. */
-  | { id: number; type: "verify-message"; request: MessageSigningRequest; signature: string }
+  | {
+      id: number;
+      type: "verify-message";
+      /** The row's adapter, whose coin must own the request's format. */
+      adapterId: string;
+      request: MessageSigningRequest;
+      signature: string;
+    }
   | {
       id: number;
       type: "silent-payment";

@@ -13,7 +13,9 @@ describe("exhaustive standalone build matrix", () => {
     // them); Ethereum Classic, an EVM network, adds 1 Viewer coin set and 10 Scanner builds.
     // Message signing for Litecoin, Dogecoin, Bitcoin Cash and Zcash adds 4,608 Deriver builds:
     // message-signing with one of them and neither Bitcoin nor Dash, refused before (142,897).
-    expect(plan).toHaveLength(147505);
+    // Ethereum, Ethereum Classic and Tron add 2,304 more: each alone now admits message-signing in
+    // its 768 feature sets (147,505 before).
+    expect(plan).toHaveLength(149809);
     expect(new Set(plan.map(({ relativePath }) => relativePath)).size).toBe(plan.length);
   });
 

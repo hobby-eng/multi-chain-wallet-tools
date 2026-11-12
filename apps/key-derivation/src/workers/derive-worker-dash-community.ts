@@ -20,5 +20,6 @@ startDerivationWorker({
   encryptDerivedP2pkhKey,
   signDerivedMessage: messageSigners.sign,
   verifyDerivedMessage: messageSigners.verify,
+  admitMessageSigning: messageSigners.admit,
   deriveMultisigWallet,
 });

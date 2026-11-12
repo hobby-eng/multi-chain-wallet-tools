@@ -21,6 +21,7 @@ export const LITECOIN_MESSAGE_SIGNING = compactCoinSigning({
     const profile = LITECOIN_PROFILES.find((candidate) => candidate.purpose === PURPOSES[type]);
     return profile === undefined ? undefined : litecoinKeys(profile);
   },
+  adapters: LITECOIN_PROFILES.map((profile) => profile.adapterId),
   formats: {
     "litecoin-compact-legacy": { name: "Litecoin Core signmessage", signingType: "p2pkh" },
     "litecoin-compact-nested": {

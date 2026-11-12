@@ -2,6 +2,8 @@ import type { MessageSigningFormat } from "../workers/protocol.js";
 
 /** The label of a signature written in Base64, as most standards write it. */
 export const BASE64_SIGNATURE = "Base64 signature";
+/** The label of a recoverable signature as Ethereum's and Tron's wallets write it. */
+export const HEX_RSV_SIGNATURE = "Signature (0x hex: r, s, v)";
 
 /** What the page says about one signing format. */
 export interface MessageFormatText {

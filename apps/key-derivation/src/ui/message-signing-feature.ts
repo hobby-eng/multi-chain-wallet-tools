@@ -266,6 +266,7 @@ export class MessageSigningFeature implements Disposable {
     const format = this.#selection();
     const compactAlternative = this.#format.compactAlternative();
     return {
+      adapterId: context.resultId,
       request: { format, address: context.address, message, network: context.network },
       label: this.#format.label(),
       ...(compactAlternative === undefined ? {} : { compactAlternative }),

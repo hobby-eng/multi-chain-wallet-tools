@@ -19,9 +19,17 @@ async function selfTests(context, profile, run) {
   else assert.doesNotMatch(fullResult, /TON/u);
   const startupChecks = await deriver.locator("#crypto-self-test-details").innerText();
   assert.match(startupChecks, /BIP85/u);
-  // Each compact coin's message signing has a startup known answer; Dash Community has Dash's only.
-  for (const coin of ["Litecoin", "Dogecoin", "Bitcoin Cash", "Zcash"]) {
-    const check = new RegExp(`${coin} compact message signature`, "u");
+  // Each signing coin has a startup known answer; Dash Community has Dash's only.
+  for (const name of [
+    "Litecoin compact",
+    "Dogecoin compact",
+    "Bitcoin Cash compact",
+    "Zcash compact",
+    "Ethereum personal_sign",
+    "Ethereum Classic personal_sign",
+    "Tron signMessageV2",
+  ]) {
+    const check = new RegExp(`${name} message signature`, "u");
     if (profile.id === "multi-chain") assert.match(startupChecks, check);
     else assert.doesNotMatch(startupChecks, check);
   }

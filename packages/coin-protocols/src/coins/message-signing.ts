@@ -17,6 +17,13 @@ export interface MessageSigningRequest {
 export interface CoinMessageSigning {
   /** The formats this coin signs and verifies. */
   readonly formats: readonly string[];
+  /** The adapter ids of the coin's rows: no other row is signed or verified in its formats. */
+  readonly adapters: readonly string[];
+  /**
+   * The row field that holds the key as 64 hex digits, such as Ethereum's `privateKey`; absent,
+   * the key is read from `privateKeyHex` or `childPrivateKey` (DerivedPrivateKey).
+   */
+  readonly keyField?: string;
   /**
    * Signs with a borrowed key, which the caller wipes; `fields` are the row's public fields, such
    * as the scripts BIP-322 needs. The result says whether the signature verified locally.
@@ -32,9 +39,10 @@ export interface CoinMessageSigning {
 
 const REFUSALS = {
   UNSUPPORTED_FORMAT: "This build does not sign messages in the selected format.",
+  NOT_FOR_ROW: "This address does not sign messages in the selected format.",
 } as const;
 
-/** The refusal of a format that no coin of the build signs. */
+/** The refusal of a format that no coin of the build signs, or that a row's coin does not use. */
 export class MessageSigningFormatError extends Error {
   readonly code: keyof typeof REFUSALS;
 
@@ -60,6 +68,18 @@ export class MessageSigners {
     fields: readonly ResultField[],
   ): Promise<MessageSignature> => this.#owner(request).sign(privateKey, request, fields);
 
+  /**
+   * Admits `format` for a row of `adapterId` before anything is derived or verified, and answers
+   * the row field that holds the key (undefined for the default). Refuses a format that no coin of
+   * the build signs, and one whose coin does not own the row, so that a coin's signer never reads
+   * another coin's key.
+   */
+  readonly admit = (format: string, adapterId: string): string | undefined => {
+    const owner = this.#owner({ format });
+    if (!owner.adapters.includes(adapterId)) throw new MessageSigningFormatError("NOT_FOR_ROW");
+    return owner.keyField;
+  };
+
   /** Whether `signature` is valid for the request; it needs no key. */
   readonly verify = async (
     request: MessageSigningRequest,
@@ -71,7 +91,7 @@ export class MessageSigners {
     return await owner.verify(request, signature);
   };
 
-  #owner(request: MessageSigningRequest): CoinMessageSigning {
+  #owner(request: Pick<MessageSigningRequest, "format">): CoinMessageSigning {
     const owner = this.#owners.get(request.format);
     if (owner === undefined) throw new MessageSigningFormatError("UNSUPPORTED_FORMAT");
     return owner;

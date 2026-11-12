@@ -9,10 +9,17 @@ export class DerivedPrivateKey implements Disposable {
 
   /**
    * Bind the key to the row's field `addressKey`, which must hold `address`: the row's address, or
-   * another public payment-address form of it, such as Bitcoin Cash's legacy one. The consumed
-   * result is retired before the key is lent.
+   * another public payment-address form of it, such as Bitcoin Cash's legacy one. The key is read
+   * from the secret field `keyField` that the coin names, such as Ethereum's `privateKey` (32 bytes
+   * in hex), or else from `privateKeyHex` or `childPrivateKey`. The consumed result is retired
+   * before the key is lent.
    */
-  constructor(result: DerivationResult, address: string, addressKey = "address") {
+  constructor(
+    result: DerivationResult,
+    address: string,
+    addressKey = "address",
+    keyField?: string,
+  ) {
     this.#fields = [];
     let failure: DerivationSecretsError | undefined;
     try {
@@ -27,8 +34,10 @@ export class DerivedPrivateKey implements Disposable {
           field.value === address,
       );
       if (!bound) throw new DerivationSecretsError("derivation.key.address");
-      const privateField = fields.find(
-        (field) => field.key === "privateKeyHex" || field.key === "childPrivateKey",
+      const privateField = fields.find((field) =>
+        keyField === undefined
+          ? field.key === "privateKeyHex" || field.key === "childPrivateKey"
+          : field.key === keyField,
       );
       if (privateField === undefined)
         throw new DerivationSecretsError("derivation.key.unavailable");

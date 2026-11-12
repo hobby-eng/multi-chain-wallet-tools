@@ -31,6 +31,8 @@ export interface CompactCoinFacts {
   keys(type: CompactScriptType): Bip44CoinKeys | undefined;
   /** The coin's formats, by the format id its page policy offers. */
   readonly formats: Readonly<Record<string, CompactFormat>>;
+  /** The adapter ids of the coin's rows (CoinMessageSigning.adapters). */
+  readonly adapters: readonly string[];
   /**
    * The keys of the other address forms a signature proves, among the encoders' payment details
    * (Bitcoin Cash's "legacyAddress"); none by default, so that, for example, Litecoin's old 3… form
@@ -74,6 +76,7 @@ export function compactCoinSigning(facts: CompactCoinFacts): CoinMessageSigning 
   };
   return Object.freeze({
     formats: Object.freeze(Object.keys(facts.formats)),
+    adapters: Object.freeze([...facts.adapters]),
     sign: (privateKey: Uint8Array, request: MessageSigningRequest) =>
       signCompactMessage(privateKey, request.address, request.message, parameters(request.format)),
     verify: (request: MessageSigningRequest, signature: string) =>

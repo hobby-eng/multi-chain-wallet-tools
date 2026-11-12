@@ -46,6 +46,11 @@ interface WorkerDependencies {
     request: MessageSigningRequest,
     fields: readonly ResultField[],
   ): Promise<MessageSignature>;
+  /**
+   * Admits a format for a row of an adapter, refusing one whose coin does not own it, and answers
+   * the row field that holds the key (MessageSigners.admit).
+   */
+  admitMessageSigning?(this: void, format: string, adapterId: string): string | undefined;
   /** Verifies a signature from public material alone (MessageSigners.verify). */
   verifyDerivedMessage?(
     this: void,
@@ -96,23 +101,29 @@ async function withDerivedPrivateKey<T>(
   input: Parameters<RuntimeCoinAdapter["derive"]>[0],
   address: string,
   addressKey: string,
+  keyField: string | undefined,
   use: (key: DerivedPrivateKey) => T | Promise<T>,
 ): Promise<T> {
   const result = await adapter.derive({ ...input, start: input.start, count: 1 });
-  using key = new DerivedPrivateKey(result, address, addressKey);
+  using key = new DerivedPrivateKey(result, address, addressKey, keyField);
   return await use(key);
 }
 
-/** Signs with the row's key, which withDerivedPrivateKey binds to the clicked field and wipes. */
+/**
+ * Signs with the row's key, which withDerivedPrivateKey binds to the clicked field and wipes; the
+ * format is admitted for the row's adapter first, so that nothing is derived for another coin's.
+ */
 async function signMessage(
   dependencies: WorkerDependencies,
   adapter: RuntimeCoinAdapter,
   request: Extract<WorkerRequest, { type: "sign-message" }>,
 ): Promise<MessageSignature> {
-  const sign = dependencies.signDerivedMessage;
-  if (sign === undefined) throw new Error("Message signing is unavailable in this build profile.");
+  const { signDerivedMessage: sign, admitMessageSigning: admit } = dependencies;
+  if (sign === undefined || admit === undefined)
+    throw new Error("Message signing is unavailable in this build profile.");
   const { format, address, addressKey, message, input } = request;
-  return await withDerivedPrivateKey(adapter, input, address, addressKey, (key) =>
+  const keyField = admit(format, request.adapterId);
+  return await withDerivedPrivateKey(adapter, input, address, addressKey, keyField, (key) =>
     sign(key.bytes, { format, address, message, network: input.network }, key.fields),
   );
 }
@@ -122,9 +133,10 @@ async function verifyMessage(
   dependencies: WorkerDependencies,
   request: Extract<WorkerRequest, { type: "verify-message" }>,
 ): Promise<boolean> {
-  const verify = dependencies.verifyDerivedMessage;
-  if (verify === undefined)
+  const { verifyDerivedMessage: verify, admitMessageSigning: admit } = dependencies;
+  if (verify === undefined || admit === undefined)
     throw new Error("Message verification is unavailable in this build profile.");
+  admit(request.request.format, request.adapterId);
   return await verify(request.request, request.signature);
 }
 
@@ -232,6 +244,7 @@ export function startDerivationWorker(dependencies: WorkerDependencies): void {
               request.input,
               request.address,
               "address",
+              undefined,
               (key) =>
                 encrypt(key.bytes, request.adapterId, request.input.network, request.passphrase),
             );
