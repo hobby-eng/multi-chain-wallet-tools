@@ -3,6 +3,7 @@ import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { MNEMOCODE_WASM_DIRECTORY } from "./sync-mnemocode-wasm.mjs";
 import { removeElementById } from "./html-elements.mjs";
+import { SOURCE_REPOSITORY_URL } from "./project-metadata.mjs";
 import { ToolBuildPolicy } from "./tool-build-policy.mjs";
 import { commaOptionValues, requestedArtifact } from "./tool-feature-options.mjs";
 import { TOOL_MANIFESTS } from "./tool-manifests.mjs";
@@ -24,6 +25,19 @@ const RECOVERY_FEATURES = Object.freeze([
 
 const PROJECT_ROOT = fileURLToPath(new URL("..", import.meta.url));
 const MNEMOCODE_VERSION_MARKER = "__MNEMOCODE_VERSION__";
+const TON_PHRASE_SECURITY_MARKER = "__TON_PHRASE_SECURITY_URL__";
+
+/**
+ * The security note that the "?" of the option "Generate a phrase the Telegram wallet accepts" links
+ * to: `path` from the repository root, and `anchor` the id GitHub gives the note's heading.
+ */
+export const TON_PHRASE_SECURITY_NOTE = Object.freeze({
+  path: "apps/key-derivation/SECURITY.md",
+  anchor: "a-phrase-the-telegram-wallet-accepts-protected-with-mhfe",
+});
+
+/** The note on GitHub, on the main branch. */
+export const TON_PHRASE_SECURITY_URL = `${SOURCE_REPOSITORY_URL}/blob/main/${TON_PHRASE_SECURITY_NOTE.path}#${TON_PHRASE_SECURITY_NOTE.anchor}`;
 
 /** The manifest of the multi-chain Deriver's MnemoCode file; every profile has the same version. */
 const MNEMOCODE_MANIFEST = `${MNEMOCODE_WASM_DIRECTORY}/generated/multi-chain/key-derivation/modules.json`;
@@ -88,7 +102,9 @@ function removeButtons(source, attribute, value) {
 }
 
 export function applyKeyDerivationFeatureTemplate(template, features) {
-  let rendered = template.replaceAll(MNEMOCODE_VERSION_MARKER, vendoredMnemoCodeVersion());
+  let rendered = template
+    .replaceAll(MNEMOCODE_VERSION_MARKER, vendoredMnemoCodeVersion())
+    .replaceAll(TON_PHRASE_SECURITY_MARKER, TON_PHRASE_SECURITY_URL);
   for (const coin of ["bitcoin", "dash"]) {
     if (features.hasCoin(coin)) continue;
     rendered = rendered.replace(
@@ -150,7 +166,8 @@ export function applyKeyDerivationFeatureTemplate(template, features) {
   if (features.has("seedqr") && !features.has("mnemocode"))
     for (const id of ["seedqr-qr-form", "seedqr-decoy", "seedqr-hidden-decode-note"])
       rendered = removeBalancedElement(rendered, id);
-  // A TON phrase's option and note come with TON (tooling/single-key-coins.mjs TON_PHRASE_MODULES).
+  // A TON phrase's option and note come with TON (tooling/single-key-coins.mjs TON_PHRASE_MODULES),
+  // and so does the link of its "?".
   if (!features.hasCoin("ton")) rendered = removeBalancedElement(rendered, "ton-generation");
   // The passport names only what this build contains.
   if (!features.has("mhfe")) rendered = removeBalancedElement(rendered, "passport-mhfe-dependency");

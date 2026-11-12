@@ -7,12 +7,15 @@ import { fileURLToPath } from "node:url";
 import { BUILD_PROFILES, getToolBuild, profileToolIds } from "./build-profiles.mjs";
 import { parseKeyDerivationFeatures } from "./key-derivation-features.mjs";
 import { desktopVersionNote } from "./key-derivation-launchers.mjs";
-import { formatEnglishList, readReleaseMetadata } from "./project-metadata.mjs";
+import {
+  SOURCE_REPOSITORY_URL,
+  formatEnglishList,
+  readReleaseMetadata,
+} from "./project-metadata.mjs";
 import { RELEASE_LEGAL_NAMES } from "./release-legal-documents.mjs";
 import { TOOL_MANIFESTS } from "./tool-manifests.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const sourceRepository = "https://github.com/hobby-eng/multi-chain-wallet-tools";
 
 export function renderDashDistributionDocs(sourceRoot, sourceSha) {
   if (!/^[0-9a-f]{40}$/u.test(sourceSha))
@@ -54,12 +57,12 @@ export function renderDashDistributionDocs(sourceRoot, sourceSha) {
     const content = source.replace(/\]\(([^\s)]+)\)/gu, (match, target) => {
       if (target.startsWith("#") || /^[a-z][a-z0-9+.-]*:/iu.test(target)) return match;
       const path = posix.normalize(target);
-      return `](${sourceRepository}/blob/${sourceSha}/${path})`;
+      return `](${SOURCE_REPOSITORY_URL}/blob/${sourceSha}/${path})`;
     });
     files.set(name, content);
   }
   const evidence = {
-    sourceRepository,
+    sourceRepository: SOURCE_REPOSITORY_URL,
     sourceCommit: sourceSha,
     sourceVersion: release.version,
     files: Object.fromEntries(

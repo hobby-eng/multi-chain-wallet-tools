@@ -50,3 +50,15 @@ it.each(["row", "all"] as const)("retires comparison bytes when chosen words cle
     expect.objectContaining({ code: "core.secret-value.wiped" }),
   );
 });
+
+it("counts a word never to use alone as a wish, as MHFE's specification does", () => {
+  const { page, fields } = fixture();
+  page.require("fixture-word-1-clear").click();
+  expect(fields.hasWishes()).toBe(false);
+  const never = page.require("fixture-words-never");
+  never.value = "abandon";
+  never.dispatchEvent(new Event("input", { bubbles: true }));
+  expect(fields.chosen(24)).toEqual([]);
+  expect(fields.neverUse()).toEqual(["abandon"]);
+  expect(fields.hasWishes()).toBe(true);
+});

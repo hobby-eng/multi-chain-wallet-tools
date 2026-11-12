@@ -86,6 +86,11 @@ interface Drawing {
   draws: number;
 }
 
+/** The request of a draw without chosen words. */
+function noWishes(wordCount: Bip39WordCount): ChosenWordsRequest {
+  return { wordCount, chosen: [], neverUse: [] };
+}
+
 export class PhraseGeneration {
   readonly #parts: PhraseGenerationParts;
   #drawing: Drawing | undefined;
@@ -108,7 +113,7 @@ export class PhraseGeneration {
     this.#stopDraws();
     const ton = this.#active(this.#parts.ton);
     const check = this.#active(this.#parts.walletCheck);
-    const wishes = this.#parts.chosenWords?.active() === true ? this.#parts.chosenWords : undefined;
+    const wishes = this.#wishes();
     const plan: GenerationPlan = {
       words,
       wishes: wishes !== undefined,
@@ -117,7 +122,7 @@ export class PhraseGeneration {
         (condition): condition is GenerationCondition => condition !== undefined,
       ),
     };
-    const expected = expectedDraws(plan);
+    const expected = expectedDraws(plan.conditions);
     const drawing: Drawing = {
       run: this.#parts.progress.begin(
         drawStartLine(plan),
@@ -140,7 +145,7 @@ export class PhraseGeneration {
         phrase = await check.generate(
           words,
           passphrase,
-          wishes?.request(words) ?? { wordCount: words, chosen: [], neverUse: [] },
+          wishes?.request(words) ?? noWishes(words),
           ton?.condition,
           onDraws,
         );
@@ -225,6 +230,14 @@ export class PhraseGeneration {
     return option?.active() === true ? option : undefined;
   }
 
+  /**
+   * The chosen-words panel while it shapes the draw: ticked, with a chosen word or a word never to
+   * use. MHFE's specification counts both as wishes that take a phrase outside its analysis.
+   */
+  #wishes(): ChosenWordsFeature | undefined {
+    return this.#parts.chosenWords?.active() === true ? this.#parts.chosenWords : undefined;
+  }
+
   /** The lines under the options while an option that checks the phrase is ticked. */
   #showOutlook(): void {
     const { chosenWords, outlook } = this.#parts;
@@ -241,10 +254,7 @@ export class PhraseGeneration {
       return;
     }
     const words = first.words;
-    const wishes: ChosenWordsRequest =
-      chosenWords?.active() === true
-        ? chosenWords.request(words)
-        : { wordCount: words, chosen: [], neverUse: [] };
+    const wishes: ChosenWordsRequest = this.#wishes()?.request(words) ?? noWishes(words);
     let bits: { readonly text: string; readonly alert: boolean };
     try {
       bits = bitsOutlook(wishes, conditions);
@@ -257,10 +267,9 @@ export class PhraseGeneration {
     }
     // The speed does not depend on the chosen words, which never reach a measurement.
     const speed = check?.speed(ton !== undefined);
-    const plan: GenerationPlan = { words, wishes: wishes.chosen.length > 0, conditions };
     outlook.show({
       bits,
-      time: speed === undefined ? null : timeOutlook(speed, plan),
+      time: speed === undefined ? null : timeOutlook(speed, conditions),
       note: check === undefined ? null : (ton?.condition.passphraseNote ?? null),
     });
   }

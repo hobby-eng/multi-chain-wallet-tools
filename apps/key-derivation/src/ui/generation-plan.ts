@@ -54,9 +54,9 @@ const ONE_IN_TWENTY_FACTOR = Math.log(20);
 /** Draws on average from which a search not measured yet can take hours on a usual computer. */
 const HOURS_LIKELY_DRAWS = 2 ** 20;
 
-/** The draws a phrase takes on average: the conditions' odds multiply. */
-export function expectedDraws(plan: GenerationPlan): number {
-  return 2 ** plan.conditions.reduce((sum, condition) => sum + condition.bits, 0);
+/** The draws a phrase takes on average under `conditions`: their odds multiply. */
+export function expectedDraws(conditions: readonly GenerationCondition[]): number {
+  return 2 ** conditions.reduce((sum, condition) => sum + condition.bits, 0);
 }
 
 /** What the phrase must do: " that meets your chosen words and that the Telegram wallet …". */
@@ -92,7 +92,7 @@ export function drawStartLine(plan: GenerationPlan): string {
   const phrase = `Drawing a new ${plan.words}-word phrase${goals(plan)}`;
   return plan.conditions.length === 0
     ? `${phrase}.`
-    : `${phrase}: about ${count(expectedDraws(plan))} draws.`;
+    : `${phrase}: about ${count(expectedDraws(plan.conditions))} draws.`;
 }
 
 /**
@@ -200,9 +200,15 @@ export function bitsOutlook(
   };
 }
 
-/** How long a phrase takes on this computer, said before the draw starts. */
-export function timeOutlook(speed: DrawSpeedState, plan: GenerationPlan): string {
-  const expected = expectedDraws(plan);
+/**
+ * How long a phrase takes on this computer under `conditions`, said before the draw starts: the
+ * chosen words do not change it.
+ */
+export function timeOutlook(
+  speed: DrawSpeedState,
+  conditions: readonly GenerationCondition[],
+): string {
+  const expected = expectedDraws(conditions);
   if (speed.kind !== "measured") {
     const hours = expected >= HOURS_LIKELY_DRAWS ? " It can take hours." : "";
     return speed.kind === "measuring"

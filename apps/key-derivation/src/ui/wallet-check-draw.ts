@@ -5,8 +5,10 @@
 // thread, which adds speed where the computer has power to spare
 // (packages/crypto-core/src/pbkdf2-sha512.ts has the measurements). Every worker computes the same
 // conditions, so which one finds first depends on how many draws each needed and on its speed,
-// never on the phrase it found: every passing phrase stays equally likely. Stop terminates them
-// all; nothing they held survives. The same workers measure the speed of a draw before one starts.
+// and on the phrase it found only through its byte length (the NFKD and UTF-8 work before PBKDF2
+// takes time per byte), and negligibly (SECURITY.md, "The wallet check and its proof"). Stop
+// terminates them all; nothing they held survives. The same workers measure the speed of a draw
+// before one starts.
 import { wordlist } from "@scure/bip39/wordlists/english.js";
 import type { ChosenWordsRequest } from "@ckd/core/bip39-chosen-words.js";
 import { RecoveryWorker } from "../workers/recovery-worker-client.js";
@@ -23,8 +25,8 @@ import { ErrorCatalog } from "@ckd/core/error-catalog.js";
 declare const __WALLET_CHECK_DRAW_WORKER_SOURCE__: string;
 
 /**
- * The public passphrase of a measurement: the speed of a draw does not depend on the passphrase,
- * and the person's own never reaches a measurement.
+ * The public passphrase of a measurement: the speed of a draw depends on the passphrase barely,
+ * through the salt's length, and the person's own never reaches a measurement.
  */
 const SPEED_PASSPHRASE = "speed check";
 /**
