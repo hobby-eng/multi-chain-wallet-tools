@@ -5,14 +5,16 @@
 // (docs/audits/AUD-023-harnesses/selftests-independent-vectors.mjs). BIP-322 is checked with the
 // specification's own "Hello World" vector: its signature must verify, and the page's signature of
 // the same message, pinned here, must come out and verify too. The two differ only in their nonce:
-// Bitcoin Core grinds for a low R and the signer used here does not; both are valid. Compact
-// signing is quick, so it runs at startup; BIP-322 loads its own library, so it runs in the full
-// self-test only.
+// Bitcoin Core grinds for a low R and the signer used here does not; both are valid. Each check
+// also runs the composed verifier, which must refuse the same signature of another message.
+// Compact signing is quick, so it runs at startup; BIP-322 loads its own library, so it runs in the
+// full self-test only.
 import type { CryptoSelfTestReport } from "@ckd/self-test-types";
+import { hexToBytes } from "@ckd/core/crypto.js";
 import { expectEqual, now } from "../../../../packages/verification/src/helpers.js";
-import { verifyBip322Message } from "./bip322-signer.js";
 import {
   messageSignerOf,
+  messageVerifierOf,
   signingSelfTestKey,
   SIGNING_SELF_TEST_MESSAGE,
 } from "./message-signer-self-test.js";
@@ -41,16 +43,26 @@ export async function runBitcoinMessageSigningSelfTest(
 ): Promise<CryptoSelfTestReport> {
   const started = now();
   const sign = messageSignerOf(features);
-  const signed = await sign(
-    signingSelfTestKey(),
-    COMPACT.address,
-    SIGNING_SELF_TEST_MESSAGE,
-    "mainnet",
-    "bitcoin-compact",
-    [],
-  );
+  const verify = messageVerifierOf(features);
+  const request = {
+    format: "bitcoin-compact",
+    address: COMPACT.address,
+    message: SIGNING_SELF_TEST_MESSAGE,
+    network: "mainnet",
+  } as const;
+  const signed = await sign(signingSelfTestKey(), request, []);
   expectEqual("Bitcoin compact message signature", signed.signature, COMPACT.signature);
   expectEqual("Bitcoin compact message verification", String(signed.verified), "true");
+  expectEqual(
+    "Bitcoin compact message verifier",
+    String(await verify(request, COMPACT.signature)),
+    "true",
+  );
+  expectEqual(
+    "Bitcoin compact refusal of another message",
+    String(await verify({ ...request, message: `${request.message}!` }, COMPACT.signature)),
+    "false",
+  );
   return {
     passed: true,
     checks: ["Bitcoin compact message signature"],
@@ -63,17 +75,19 @@ export async function runBip322FullSelfTest(
 ): Promise<CryptoSelfTestReport> {
   const started = now();
   const sign = messageSignerOf(features);
-  const signed = await sign(
-    BIP322.key,
-    BIP322.address,
-    "Hello World",
-    "mainnet",
-    "bitcoin-bip322-native",
-    [{ key: "scriptPubKey", label: "scriptPubKey", value: BIP322.scriptPubKey, secret: false }],
-  );
+  const verify = messageVerifierOf(features);
+  const request = {
+    format: "bitcoin-bip322-native",
+    address: BIP322.address,
+    message: "Hello World",
+    network: "mainnet",
+  } as const;
+  const signed = await sign(hexToBytes(BIP322.key), request, [
+    { key: "scriptPubKey", label: "scriptPubKey", value: BIP322.scriptPubKey, secret: false },
+  ]);
   expectEqual("BIP-322 simple signature", signed.signature, BIP322.pageSignature);
   const verifies = (message: string, signature: string) =>
-    verifyBip322Message(message, BIP322.address, signature, "mainnet");
+    verify({ ...request, message }, signature);
   expectEqual(
     "BIP-322 specification vector",
     String(await verifies("Hello World", BIP322.signature)),

@@ -17,6 +17,7 @@ import { createBuildInfo } from "../../../tooling/build-metadata.mjs";
 import {
   assertKeyDerivationComposition,
   createKeyDerivationCompositionPlugin,
+  selectedMessageSigningInstaller,
   selectedUiEntry,
   selectedWorkerEntry,
 } from "../../../tooling/key-derivation-composition.mjs";
@@ -53,8 +54,6 @@ const featureProfile = {
     ...profile.capabilities,
     bip85: features.has("bip85"),
     bitcoinSilentPayments: features.has("silent-payments"),
-    bitcoinMessageSigning:
-      profile.capabilities.bitcoinMessageSigning && features.hasCoin("bitcoin"),
   },
 };
 const customArtifact = customKeyDerivationArtifact(root, profile, features, parseRequestedOutput());
@@ -163,27 +162,7 @@ const bundled = await build({
             bip38 = `import { createBip38EncryptionInstaller } from ${JSON.stringify(resolve(root, "apps/key-derivation/src/ui/bip38-encryption-feature.ts"))};
 export const installBip38EncryptionFeature = createBip38EncryptionInstaller(${JSON.stringify(supportedResultIds)});`;
           }
-          let signing = "";
-          if (features.has("message-signing")) {
-            const policyImports = [];
-            const policies = [];
-            if (features.hasCoin("bitcoin")) {
-              policyImports.push(
-                `import { BITCOIN_MESSAGE_SIGNING_POLICY } from ${JSON.stringify(resolve(root, "apps/key-derivation/src/ui/message-signing-policy-bitcoin.ts"))};`,
-              );
-              policies.push("BITCOIN_MESSAGE_SIGNING_POLICY");
-            }
-            if (features.hasCoin("dash")) {
-              policyImports.push(
-                `import { DASH_MESSAGE_SIGNING_POLICY } from ${JSON.stringify(resolve(root, "apps/key-derivation/src/ui/message-signing-policy-dash.ts"))};`,
-              );
-              policies.push("DASH_MESSAGE_SIGNING_POLICY");
-            }
-            signing = `import { createMessageSigningInstaller } from ${JSON.stringify(resolve(root, "apps/key-derivation/src/ui/message-signing-feature.ts"))};
-${policyImports.join("\n")}
-${policies.length > 1 ? `import { combineMessageSigningPolicies } from ${JSON.stringify(resolve(root, "apps/key-derivation/src/ui/message-signing-policy.ts"))};` : ""}
-export const installMessageSigningFeature = createMessageSigningInstaller(${policies.length > 1 ? `combineMessageSigningPolicies(${policies.join(", ")})` : policies[0]});`;
-          }
+          const signing = selectedMessageSigningInstaller(root, features);
           return {
             loader: "ts",
             resolveDir: root,
@@ -256,26 +235,18 @@ export const installMessageSigningFeature = createMessageSigningInstaller(${poli
     __DESKTOP_VERSION_NOTE__: JSON.stringify(desktopNote.text),
   },
 });
-assertKeyDerivationComposition(features, [
+// Every module of the page and of its workers, which the composition checks below judge.
+const graphInputs = [
   ...Object.keys(workerBuild.metafile.inputs),
   ...mnemocodeSearchWorker.inputs,
   ...walletCheckDrawWorker.inputs,
   ...slip39Worker.inputs,
   ...Object.keys(bundled.metafile.inputs),
-]);
+];
+assertKeyDerivationComposition(features, graphInputs);
 const javascript = bundleText(bundled, "Key Derivation Tool");
-if (profile.id === "dash-community") {
-  assertDashOnlyGraph(
-    [
-      ...Object.keys(workerBuild.metafile.inputs),
-      ...mnemocodeSearchWorker.inputs,
-      ...walletCheckDrawWorker.inputs,
-      ...slip39Worker.inputs,
-      ...Object.keys(bundled.metafile.inputs),
-    ],
-    "Dash Community key derivation",
-  );
-}
+if (profile.id === "dash-community")
+  assertDashOnlyGraph(graphInputs, "Dash Community key derivation");
 if (
   !javascript.includes("wallet-key-derivation") ||
   !javascript.includes("The derivation worker stopped unexpectedly.")

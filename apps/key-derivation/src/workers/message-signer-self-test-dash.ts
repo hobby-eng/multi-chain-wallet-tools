@@ -2,11 +2,13 @@
 // before the page signs anything: the signature of the public test key 1, computed with ethers'
 // SigningKey (RFC 6979), which shares @noble/curves with this tool, and reproduced with OpenSSL and
 // plain BigInt arithmetic by AUD-023's independent harness
-// (docs/audits/AUD-023-harnesses/selftests-independent-vectors.mjs).
+// (docs/audits/AUD-023-harnesses/selftests-independent-vectors.mjs). The composed verifier must
+// accept it and refuse the same signature of another message.
 import type { CryptoSelfTestReport } from "@ckd/self-test-types";
 import { expectEqual, now } from "../../../../packages/verification/src/helpers.js";
 import {
   messageSignerOf,
+  messageVerifierOf,
   signingSelfTestKey,
   SIGNING_SELF_TEST_MESSAGE,
 } from "./message-signer-self-test.js";
@@ -21,16 +23,22 @@ export async function runDashMessageSigningSelfTest(
 ): Promise<CryptoSelfTestReport> {
   const started = now();
   const sign = messageSignerOf(features);
-  const signed = await sign(
-    signingSelfTestKey(),
-    ADDRESS,
-    SIGNING_SELF_TEST_MESSAGE,
-    "mainnet",
-    "dash-compact",
-    [],
-  );
+  const verify = messageVerifierOf(features);
+  const request = {
+    format: "dash-compact",
+    address: ADDRESS,
+    message: SIGNING_SELF_TEST_MESSAGE,
+    network: "mainnet",
+  } as const;
+  const signed = await sign(signingSelfTestKey(), request, []);
   expectEqual("Dash compact message signature", signed.signature, SIGNATURE);
   expectEqual("Dash compact message verification", String(signed.verified), "true");
+  expectEqual("Dash compact message verifier", String(await verify(request, SIGNATURE)), "true");
+  expectEqual(
+    "Dash compact refusal of another message",
+    String(await verify({ ...request, message: `${request.message}!` }, SIGNATURE)),
+    "false",
+  );
   return {
     passed: true,
     checks: ["Dash compact message signature"],

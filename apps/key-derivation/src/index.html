@@ -5917,7 +5917,7 @@
         <div class="section-head">
           <div>
             <span class="step">SIGN</span>
-            <h2 id="message-signer-title">Sign message</h2>
+            <h2 id="message-signer-title">Sign or verify a message</h2>
           </div>
           <button class="secondary compact" id="close-message-signer" type="button" aria-label="Close message signer">
             Close
@@ -5925,20 +5925,25 @@
         </div>
         <p class="field-note">
           The private key remains in the local derivation worker. Only the signature is returned to this dialog.
+          Verifying a signature uses no private key.
         </p>
         <div class="signer-context">
           <div><span>Address</span><code id="message-signer-address"></code></div>
           <div><span>Derivation path</span><code id="message-signer-path"></code></div>
           <div><span>Format</span><strong id="message-signer-format"></strong></div>
         </div>
-        __KEY_DERIVATION_SIGNER_FORMAT_FIELD__
+        <div id="message-signer-format-field" hidden>
+          <label for="message-signer-format-select">Signature format</label>
+          <select id="message-signer-format-select"></select>
+        </div>
+        <div id="message-signer-notes" hidden></div>
         <label for="message-signer-message">Message</label>
         <textarea
           id="message-signer-message"
           rows="5"
           autocomplete="off"
           spellcheck="false"
-          placeholder="Enter the exact message to sign"
+          placeholder="Enter the exact message to sign or verify"
           aria-describedby="message-signer-message-help"
         ></textarea>
         <p id="message-signer-message-help" class="help"></p>
@@ -5947,7 +5952,7 @@
         </div>
         <div id="message-signer-error" class="error" role="alert" hidden></div>
         <section id="message-signature-result" hidden>
-          <label for="message-signature-output">Base64 signature</label>
+          <label id="message-signature-output-label" for="message-signature-output">Signature</label>
           <textarea id="message-signature-output" rows="4" readonly></textarea>
           <div class="actions">
             <button class="secondary compact" id="copy-message-signature" type="button" aria-label="Copy signature">
@@ -5955,6 +5960,25 @@
             </button>
           </div>
           <p id="message-signature-verification" class="field-note"></p>
+        </section>
+        <section id="message-verification" aria-labelledby="message-verification-title">
+          <h3 id="message-verification-title">Verify a signature</h3>
+          <p class="field-note">
+            Checks a signature of the message above for this address, in the selected format, from public data alone.
+          </p>
+          <label for="message-verification-signature">Signature to verify</label>
+          <textarea
+            id="message-verification-signature"
+            rows="3"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="Paste the signature"
+          ></textarea>
+          <div class="actions">
+            <button class="secondary" id="verify-message-signature-button" type="button">Verify signature</button>
+          </div>
+          <div id="message-verification-error" class="error" role="alert" hidden></div>
+          <p id="message-verification-result" class="field-note" role="status"></p>
         </section>
       </dialog>
     </main>

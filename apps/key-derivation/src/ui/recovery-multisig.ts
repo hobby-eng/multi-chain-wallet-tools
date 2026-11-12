@@ -265,7 +265,7 @@ class MultisigWallet {
         this.#render();
       },
       onSelectionChange: () => undefined,
-      canSignMessages: false,
+      canSignMessage: () => false,
       onSignMessage: () => undefined,
       encryptedBip38: new Map(),
     });

@@ -400,19 +400,12 @@ describe("selective bundle graph guards", () => {
 
   it("selects signing workers from coins rather than visual edition", () => {
     const profile = { id: "multi-chain" };
-    const dashWorker = selectedWorkerEntry(
-      "/workspace",
-      profile,
-      options(["dash"], ["message-signing"]),
-    );
-    expect(dashWorker).toContain("message-signer-dash.ts");
-    expect(dashWorker).not.toContain("message-signer.ts");
-    const bitcoinWorker = selectedWorkerEntry(
-      "/workspace",
-      profile,
-      options(["bitcoin"], ["message-signing"]),
-    );
-    expect(bitcoinWorker).toContain("message-signer.ts");
+    const signing = ["message-signing"];
+    const dashWorker = selectedWorkerEntry("/workspace", profile, options(["dash"], signing));
+    expect(dashWorker).toContain("new MessageSigners([DASH_MESSAGE_SIGNING])");
+    expect(dashWorker).not.toContain("bitcoin");
+    const bitcoinWorker = selectedWorkerEntry("/workspace", profile, options(["bitcoin"], signing));
+    expect(bitcoinWorker).toContain("new MessageSigners([BITCOIN_MESSAGE_SIGNING])");
   });
 
   it("brings each feature's known answers with the feature, quick ones at startup", () => {

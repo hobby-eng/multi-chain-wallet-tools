@@ -1,7 +1,13 @@
 import { isAccountCoin } from "./account-coins.mjs";
+import { messageSigningCoinsOf } from "./message-signing-coins.mjs";
 import { TOOL_MANIFESTS } from "./tool-manifests.mjs";
 
 class InvalidBuildSelection extends Error {}
+
+/** Whether any of `coins` signs messages (tooling/message-signing-coins.mjs). */
+function signsMessages(coins) {
+  return messageSigningCoinsOf((coin) => coins.includes(coin)).length > 0;
+}
 
 /** Owns profile, coin and feature legality for parsers and matrix planning. */
 export class ToolBuildPolicy {
@@ -69,7 +75,8 @@ export class ToolBuildPolicy {
       if (this.#toolId !== "key-derivation") return true;
       if (feature === "silent-payments")
         return this.#profile.capabilities.bitcoinSilentPayments && coins.includes("bitcoin");
-      if (feature === "bip38-encrypt" || feature === "message-signing" || feature === "multisig")
+      if (feature === "message-signing") return signsMessages(coins);
+      if (feature === "bip38-encrypt" || feature === "multisig")
         return coins.includes("bitcoin") || coins.includes("dash");
       return true;
     });
@@ -144,12 +151,10 @@ export class ToolBuildPolicy {
         refuse(
           'The "silent-payments" feature requires Bitcoin in the general multi-chain profile.',
         );
-      if (
-        (selected.has("bip38-encrypt") || selected.has("message-signing")) &&
-        !coins.includes("bitcoin") &&
-        !coins.includes("dash")
-      )
-        refuse("BIP38 encryption and message signing require Bitcoin or Dash.");
+      if (selected.has("bip38-encrypt") && !coins.includes("bitcoin") && !coins.includes("dash"))
+        refuse("BIP38 encryption requires Bitcoin or Dash.");
+      if (selected.has("message-signing") && !signsMessages(coins))
+        refuse("Message signing needs a coin with a message-signing standard.");
       if (selected.has("multisig") && !coins.includes("bitcoin") && !coins.includes("dash"))
         refuse('The "multisig" feature requires Bitcoin or Dash.');
     }

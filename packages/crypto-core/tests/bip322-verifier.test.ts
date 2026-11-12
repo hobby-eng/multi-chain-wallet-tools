@@ -51,6 +51,48 @@ describe("BIP-322 verification preserves the distinction between a mismatch and 
     },
   );
 
+  it.each([
+    "verify message: error decoding signature as base64: illegal base64 data at input byte 3",
+    "verify message: error parsing signature as witness: EOF",
+    "verify message: error parsing signature as full variant: error parsing transaction: x",
+    "verify message: error parsing signature as pof variant: error parsing packet: x",
+    "verify message: signature too short",
+  ])("refuses unreadable signature text with its own code: %s", async (text) => {
+    native.verify.mockImplementation(() => {
+      throw new Error(text);
+    });
+    await expect(
+      new Bip322Verifier().verify("message", "address", "signature", "mainnet"),
+    ).rejects.toEqual(new Bip322VerificationError("UNREADABLE_SIGNATURE"));
+  });
+
+  it("refuses a simple signature for an address that needs a full one with its own code", async () => {
+    native.verify.mockImplementation(() => {
+      throw new Error(
+        "verify message: only native SegWit outputs (P2WPKH, P2WSH, P2TR) are supported for the simple variant",
+      );
+    });
+    await expect(
+      new Bip322Verifier().verify("message", "address", "signature", "mainnet"),
+    ).rejects.toEqual(new Bip322VerificationError("SIMPLE_FOR_ADDRESS"));
+  });
+
+  it("keeps near misses of those texts a failure of the check", async () => {
+    for (const text of [
+      "verify message: error parsing signature as something new: x",
+      "verify message: signature too short, and more",
+      "verify message: only native SegWit outputs are supported for the simple variant",
+      "decode address: error decoding signature as base64: x",
+    ]) {
+      native.verify.mockImplementation(() => {
+        throw new Error(text);
+      });
+      await expect(
+        new Bip322Verifier().verify("message", "address", "signature", "mainnet"),
+      ).rejects.toEqual(new Bip322VerificationError());
+    }
+  });
+
   it("does not interpret a startup exception as a script outcome", async () => {
     native.init.mockRejectedValue(
       new Error("verify message: invalid signature: err_code=ErrNullFail, err_desc=startup fault"),

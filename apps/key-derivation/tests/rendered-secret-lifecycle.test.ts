@@ -58,7 +58,7 @@ function fixture(mode: DisplayMode, grouped = false) {
       secretsRevealed: revealed,
       windowStart: 0,
       windowSize: 10,
-      canSignMessages: true,
+      canSignMessage: () => true,
       encryptedBip38: new Map([[0, ENCRYPTED]]),
       onWindowChange() {},
       onSelectionChange() {},

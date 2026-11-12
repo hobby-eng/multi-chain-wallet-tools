@@ -46,6 +46,7 @@ const { boundaries, selfTests, selfTestFailure } = BrowserBoundaryCases;
 import { InspectorBrowserCases } from "./browser-regressions/inspector.mjs";
 const { descriptorFollowup, verifierRevision, bip38Lifecycle } = InspectorBrowserCases;
 import { DeriverBrowserCases } from "./browser-regressions/deriver.mjs";
+import { BrowserSigningCases } from "./browser-regressions/signing.mjs";
 const { workerReadiness, coinJoin, bip38, childWallet } = DeriverBrowserCases;
 import { BrowserFixtures } from "./browser-regressions/fixtures.mjs";
 const { mnemonic } = BrowserFixtures;
@@ -303,6 +304,10 @@ for (const browserName of (process.env.BROWSER_ENGINES ?? "chromium,firefox").sp
       cases.push({
         name: "bip38-message",
         execute: (context, run) => bip38(context, profile, run),
+      });
+      cases.push({
+        name: "message-verification-round-trip",
+        execute: (context, run) => BrowserSigningCases.verificationRoundTrip(context, profile, run),
       });
       cases.push({
         name: "recovery-backup-roundtrips",

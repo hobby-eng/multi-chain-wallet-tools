@@ -30,7 +30,7 @@ Recovery-source visibility and derived-secret visibility use independent control
 
 The main UI loads protocol metadata only. All runtime key derivation and the Orchard WASM instance execute in a disposable Blob worker. The offline Recover & Back Up workspace uses separate embedded Codex32, SSKR, and Gordian Envelope WASM modules on the main thread because it does not share derivation-worker state. Message signing, BIP38 encryption, BIP85 child-secret derivation, and BIP352 scan/spend-key derivation use the same disposable-worker boundary. The final HTML has `connect-src 'none'`, no external assets, no storage APIs and no runtime install requirement.
 
-Supported Bitcoin addresses expose local message signing: compact BIP137 for P2PKH and BIP322 for nested SegWit, native SegWit, and Taproot. Dash P2PKH uses Dash Core compact-message framing. BIP38 encryption is offered only for compressed Bitcoin and Dash P2PKH keys because BIP38 carries neither a script type nor a descriptor. It runs the standard scrypt and AES-256-ECB compatibility construction in the worker.
+The coins and address types that sign messages, and their formats, are listed under [Message signing](#message-signing). BIP38 encryption is offered only for compressed Bitcoin and Dash P2PKH keys because BIP38 carries neither a script type nor a descriptor. It runs the standard scrypt and AES-256-ECB compatibility construction in the worker.
 
 Both editions include coin-independent BIP85 child BIP39 derivation for all standard 12/15/18/21/24-word lengths. A child mnemonic opens as an in-memory wallet workspace with the edition’s supported coins, the normal result table, private-key reveal, clipboard controls, and account descriptor export; no URL, storage, popup, or network transport is used. Both editions additionally expose XPRV and hexadecimal BIP85 applications; WIF choices follow the edition (Dash only in Dash Community, Bitcoin and Dash in Multi-Chain). Multi-Chain also includes BIP352 Silent Payment address derivation. Silent Payments show the canonical scan and spend paths, base address, and reserved `m=0` change label. This offline utility does not scan chain history: detecting payments still requires eligible transaction input data and ordered outputs.
 
@@ -54,6 +54,15 @@ For Dash Platform, leave **Also generate change addresses** off to derive receiv
 Legacy mobile Account selects the hardened root `m/account'`; zero remains the historical default. This matches [DashSync’s BIP32 account implementation](https://github.com/dashevo/dashsync-iOS/blob/master/DashSync/shared/Models/Derivation%20Paths/DSFundsDerivationPath.m). Discovery uses the selected account for both receive and change chains, on mainnet and testnet.
 
 Legacy mobile results include **Copy public scan key** and a text-file export for the active branch. Paste the `dash-legacy-xpub:` export into Discovery Scanner; it covers that branch without revealing private keys.
+
+### Message signing
+
+The sign icon next to an address opens a dialog that signs a message with that row's key, in the disposable worker, and checks the signature locally before showing it. The same dialog verifies a signature someone pasted, for that address and in the selected format: it sends the worker only the address, the network, the format, the message and the signature, never the seed. The dialog names the format of each address and shows notes about it.
+
+| Coin    | Address types                                            | Formats                                                                                                           | Signature |
+| ------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | --------- |
+| Bitcoin | P2PKH, P2SH-P2WPKH, P2WPKH, P2TR                         | BIP-322 (full for P2PKH and P2SH-P2WPKH, simple for P2WPKH and P2TR); compact BIP137 as a second choice for P2PKH | Base64    |
+| Dash    | P2PKH of the Dash Core, legacy mobile and CoinJoin paths | Dash Core `signmessage` (compact)                                                                                 | Base64    |
 
 ### Dash multisig cosigner export
 

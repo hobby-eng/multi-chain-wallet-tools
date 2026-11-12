@@ -5,7 +5,6 @@ type EditionId = "multi-chain" | "dash-community";
 interface EditionCapabilities {
   readonly bip85: boolean;
   readonly bitcoinSilentPayments: boolean;
-  readonly bitcoinMessageSigning: boolean;
   readonly advancedPsbt: boolean;
 }
 

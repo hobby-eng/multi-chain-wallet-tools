@@ -4,12 +4,16 @@ import { runDerivationSelfTest } from "@ckd/derivation-self-test";
 import { clearDerivationResult } from "@ckd/core/secrets.js";
 import type { DerivationResult, ResultField } from "@ckd/core/types.js";
 import { startDerivationWorker } from "../src/workers/worker-runtime.js";
-import { signDerivedMessage } from "../src/workers/message-signer.js";
+import { MessageSigners } from "@ckd/coins/message-signing.js";
+import { BITCOIN_MESSAGE_SIGNING } from "@ckd/coins/bitcoin/message-signing.js";
+import { DASH_MESSAGE_SIGNING } from "@ckd/coins/dash/message-signing.js";
 import { DerivationResultFixture } from "@ckd/test-support/derivation-result.js";
 import type { CoinDerivationInput } from "@ckd/coins/registry-base.js";
 import type { WorkerMessage, WorkerRequest } from "../src/workers/protocol.js";
 
 afterEach(() => vi.unstubAllGlobals());
+
+const signers = new MessageSigners([BITCOIN_MESSAGE_SIGNING, DASH_MESSAGE_SIGNING]);
 
 it.each([
   { adapterId: "bitcoin-legacy", format: "bitcoin-compact" },
@@ -61,7 +65,7 @@ it.each([
       },
       runDerivationSelfTest,
       signDerivedMessage: async (...args) => {
-        privateFieldsLoaned = args[5].some((field) => field.secret);
+        privateFieldsLoaned = args[2].some((field) => field.secret);
         const privateField = observedPrivateField;
         if (privateField === undefined)
           throw new Error("The actual adapter must expose this fixture's private field.");
@@ -77,7 +81,7 @@ it.each([
         entered = true;
         await pause;
         // Real signing still runs; the paused adapter observes lifetime at its supplied operation port.
-        return signDerivedMessage(...args);
+        return signers.sign(...args);
       },
     });
     listener?.(
@@ -163,3 +167,61 @@ it.each([false, true])(
     }
   },
 );
+
+/** Starts a worker runtime on a recording `self` and sends it one verify-message request. */
+async function verifyInWorker(
+  dependencies: Omit<Parameters<typeof startDerivationWorker>[0], "runDerivationSelfTest">,
+  message: string,
+) {
+  let listener: ((event: MessageEvent<WorkerRequest>) => void) | undefined;
+  const messages: WorkerMessage[] = [];
+  vi.stubGlobal("self", {
+    addEventListener(_type: string, callback: typeof listener) {
+      listener = callback;
+    },
+    postMessage(posted: WorkerMessage) {
+      messages.push(structuredClone(posted));
+    },
+  });
+  startDerivationWorker({ ...dependencies, runDerivationSelfTest });
+  // The Dash self-test's public key-1 answer (message-signer-self-test-dash.ts).
+  const request = {
+    format: "dash-compact",
+    address: "XmN7PQYWKn5MJFna5fRYgP6mxT2F7xpekE",
+    message,
+    network: "mainnet",
+  } as const;
+  const signature =
+    "H5Oj4LXfIgqbHRLIbCGux6wQGf3ZtC8iQt79foa4M9nkadAXIRsCL4X8sJWAH9iwOpV5w6N8mS1jxrRp+8Nxapc=";
+  listener?.(
+    new MessageEvent("message", { data: { id: 1, type: "verify-message", request, signature } }),
+  );
+  await vi.waitFor(() => expect(messages.some((posted) => "id" in posted)).toBe(true));
+  return messages.find((posted) => "id" in posted);
+}
+
+it.each([
+  ["Offline message signing self-test", true],
+  ["Another message", false],
+])(
+  "verifies %j to %s from public material, without an adapter or a derivation",
+  async (message, valid) => {
+    const getRuntimeCoinAdapter = vi.fn(() => {
+      throw new Error("Verification must not reach a coin adapter.");
+    });
+    const verifyDerivedMessage = vi.fn(signers.verify);
+    const reply = await verifyInWorker({ getRuntimeCoinAdapter, verifyDerivedMessage }, message);
+    expect(reply).toEqual({ id: 1, ok: true, type: "verify-message", result: valid });
+    expect(verifyDerivedMessage).toHaveBeenCalledOnce();
+    expect(getRuntimeCoinAdapter).not.toHaveBeenCalled();
+  },
+);
+
+it("refuses verification in a build that composed no verifier", async () => {
+  const reply = await verifyInWorker({ getRuntimeCoinAdapter }, "public message");
+  expect(reply).toMatchObject({
+    id: 1,
+    ok: false,
+    error: "Message verification is unavailable in this build profile.",
+  });
+});

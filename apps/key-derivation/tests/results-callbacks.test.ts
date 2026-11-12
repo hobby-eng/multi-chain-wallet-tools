@@ -26,7 +26,7 @@ function render(mode: "basic" | "advanced") {
     secretsRevealed: false,
     windowStart: 0,
     windowSize: 1,
-    canSignMessages: true,
+    canSignMessage: () => true,
     encryptedBip38: new Map(),
     onSignMessage(index, address) {
       calls.push({ owner: this, index, address });

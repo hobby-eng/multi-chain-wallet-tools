@@ -528,16 +528,6 @@ export class ProfileTemplate {
       profile.id === "dash-community"
         ? '<option value="dash">Dash Core</option>'
         : '<option value="bitcoin">Bitcoin</option><option value="dash">Dash Core</option>';
-    const signerFormatField = profile.capabilities.bitcoinMessageSigning
-      ? `<div id="message-signer-format-field" hidden>
-          <label for="message-signer-format-select">Signature format</label>
-          <select id="message-signer-format-select">
-            <option value="bitcoin-bip322-legacy">BIP-322 full · recommended</option>
-            <option value="bitcoin-compact">Legacy compact · BIP137 compatibility</option>
-          </select>
-          <p class="field-note">BIP-322 is the current general-purpose Bitcoin message-signing standard. Use compact BIP137 only for software that does not support BIP-322.</p>
-        </div>`
-      : "";
     const psbtNetworkOptions =
       profile.id === "dash-community"
         ? '<option value="mainnet">Mainnet</option><option value="testnet">Testnet</option>'
@@ -560,7 +550,6 @@ export class ProfileTemplate {
       __KEY_DERIVATION_INTRODUCTION__: tool.introduction,
       __KEY_DERIVATION_FOOTER_PROTOCOLS__: footer.render("key-derivation"),
       __DISCOVERY_FOOTER_PROTOCOLS__: footer.render("discovery-scanner"),
-      __KEY_DERIVATION_SIGNER_FORMAT_FIELD__: signerFormatField,
       __DASH_HEADER_BRAND__: dashBrandMark,
       __PROFILE_BRAND_MARK__: profileBrandMark,
       __RECOVERY_COIN_FIELD__: recoveryCoinField,

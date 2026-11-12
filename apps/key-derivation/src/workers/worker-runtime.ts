@@ -7,7 +7,8 @@ import { findDerivedAddress, findDerivedAddresses } from "@ckd/recovery/address-
 import type { WorkerMessage, WorkerRequest } from "./protocol.js";
 import type { SilentPaymentResult } from "./silent-payment.js";
 import type { Bip85RequestOptions, Bip85Result } from "@ckd/core/bip85-parameters.js";
-import type { MessageSigningFormat } from "./protocol.js";
+import type { MessageSigningRequest } from "@ckd/coins/message-signing.js";
+import type { MessageSignature } from "@ckd/core/message-signature.js";
 import type { DerivationResult, ResultField } from "@ckd/core/types.js";
 import type { MultisigWalletOptions } from "@ckd/coins/multisig-wallet.js";
 
@@ -17,13 +18,13 @@ interface WorkerScope {
 }
 
 /**
- * The functions of the optional features that the build composed (the Bitcoin or the Dash-only
- * signer, for example); a feature's known-answer check runs through them, so that it checks the
+ * The functions of the optional features that the build composed (the message signing of its
+ * coins, for example); a feature's known-answer check runs through them, so that it checks the
  * code the worker actually uses.
  */
 export type FeatureFunctions = Pick<
   WorkerDependencies,
-  "signDerivedMessage" | "encryptDerivedP2pkhKey"
+  "signDerivedMessage" | "verifyDerivedMessage" | "encryptDerivedP2pkhKey"
 >;
 
 /** A known-answer check of an optional feature of the build. */
@@ -38,21 +39,19 @@ interface WorkerDependencies {
   startupSelfTests?: readonly FeatureSelfTest[];
   /** The slower checks of those features, run only in the full self-test. */
   fullSelfTests?: readonly FeatureSelfTest[];
+  /** Signs with a borrowed key, which the runtime wipes afterwards (MessageSigners.sign). */
   signDerivedMessage?(
     this: void,
-    privateKeyHex: string,
-    address: string,
-    message: string,
-    network: "mainnet" | "testnet",
-    format: MessageSigningFormat,
+    privateKey: Uint8Array,
+    request: MessageSigningRequest,
     fields: readonly ResultField[],
-  ):
-    | Promise<{ signature: string; format: string; verified: boolean }>
-    | {
-        signature: string;
-        format: string;
-        verified: boolean;
-      };
+  ): Promise<MessageSignature>;
+  /** Verifies a signature from public material alone (MessageSigners.verify). */
+  verifyDerivedMessage?(
+    this: void,
+    request: MessageSigningRequest,
+    signature: unknown,
+  ): Promise<boolean>;
   deriveSilentPayment?(
     seed: Uint8Array,
     network: "mainnet" | "testnet",
@@ -103,6 +102,31 @@ async function withDerivedPrivateKey<T>(
   return await use(key);
 }
 
+/** Signs with the request row's key, which withDerivedPrivateKey binds to its address and wipes. */
+async function signMessage(
+  dependencies: WorkerDependencies,
+  adapter: RuntimeCoinAdapter,
+  request: Extract<WorkerRequest, { type: "sign-message" }>,
+): Promise<MessageSignature> {
+  const sign = dependencies.signDerivedMessage;
+  if (sign === undefined) throw new Error("Message signing is unavailable in this build profile.");
+  const { format, address, message, input } = request;
+  return await withDerivedPrivateKey(adapter, input, address, (key) =>
+    sign(key.bytes, { format, address, message, network: input.network }, key.fields),
+  );
+}
+
+/** Verifies a pasted signature with the composed verifier: public material, no seed or key. */
+async function verifyMessage(
+  dependencies: WorkerDependencies,
+  request: Extract<WorkerRequest, { type: "verify-message" }>,
+): Promise<boolean> {
+  const verify = dependencies.verifyDerivedMessage;
+  if (verify === undefined)
+    throw new Error("Message verification is unavailable in this build profile.");
+  return await verify(request.request, request.signature);
+}
+
 export function startDerivationWorker(dependencies: WorkerDependencies): void {
   const workerScope = self as unknown as WorkerScope;
   workerScope.postMessage({ type: "ready" });
@@ -114,6 +138,11 @@ export function startDerivationWorker(dependencies: WorkerDependencies): void {
         if (request.type === "self-test") {
           const result = await runSelfTests(dependencies, request.full === true);
           workerScope.postMessage({ id: request.id, ok: true, type: "self-test", result });
+          return;
+        }
+        if (request.type === "verify-message") {
+          const result = await verifyMessage(dependencies, request);
+          workerScope.postMessage({ id: request.id, ok: true, type: "verify-message", result });
           return;
         }
         if (request.type === "silent-payment") {
@@ -189,29 +218,8 @@ export function startDerivationWorker(dependencies: WorkerDependencies): void {
             return;
           }
           if (request.type === "sign-message") {
-            const sign = dependencies.signDerivedMessage;
-            if (sign === undefined)
-              throw new Error("Message signing is unavailable in this build profile.");
-            const signed = await withDerivedPrivateKey(
-              adapter,
-              request.input,
-              request.address,
-              (key) =>
-                sign(
-                  key.hex,
-                  request.address,
-                  request.message,
-                  request.input.network,
-                  request.format,
-                  key.fields,
-                ),
-            );
-            workerScope.postMessage({
-              id: request.id,
-              ok: true,
-              type: "sign-message",
-              result: signed,
-            });
+            const result = await signMessage(dependencies, adapter, request);
+            workerScope.postMessage({ id: request.id, ok: true, type: "sign-message", result });
             return;
           }
           if (request.type === "bip38-encrypt") {

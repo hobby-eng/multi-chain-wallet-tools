@@ -4,7 +4,7 @@ import {
   DERIVATION_SELF_TESTS,
   LOCAL_SEARCH_SELF_TEST,
 } from "./derivation-self-tests.mjs";
-import { resolve } from "node:path";
+import { basename, resolve } from "node:path";
 import { COIN_WORDS } from "../packages/recovery-backup/src/mnemocode-offered-coins.ts";
 import {
   hasSingleKeyKind,
@@ -17,6 +17,13 @@ import {
   singleKeyCoinModules,
 } from "./single-key-coins.mjs";
 import { TOOL_MANIFESTS } from "./tool-manifests.mjs";
+import {
+  MESSAGE_SIGNING_COINS,
+  MESSAGE_SIGNING_FEATURE_MARKERS,
+  messageSigningCoinMarkers,
+  messageSigningCoinsOf,
+  messageSigningModules,
+} from "./message-signing-coins.mjs";
 
 const adapterModules = {
   bitcoin: ["BITCOIN_COIN_ADAPTERS", "packages/coin-protocols/src/coins/adapters/bitcoin.ts"],
@@ -267,11 +274,6 @@ export function selectedWorkerEntry(root, profile, features) {
       features.hasCoin("bitcoin") ? "bip38-encrypter.ts" : "bip38-encrypter-dash.ts",
     ],
     [
-      "message-signing",
-      "signDerivedMessage",
-      features.hasCoin("bitcoin") ? "message-signer.ts" : "message-signer-dash.ts",
-    ],
-    [
       "multisig",
       "deriveMultisigWallet",
       // Each coin's schemes come only with the coin.
@@ -288,6 +290,25 @@ export function selectedWorkerEntry(root, profile, features) {
     );
     properties.push("deriveBip85: Bip85.derive");
   }
+  const prelude = [];
+  if (features.has("message-signing")) {
+    // Each coin's signer comes with the coin (tooling/message-signing-coins.mjs).
+    const bindings = messageSigningCoinsOf(features.hasCoin).map(messageSigningModules);
+    imports.push(
+      `import { MessageSigners } from ${JSON.stringify(resolve(root, "packages/coin-protocols/src/coins/message-signing.ts"))};`,
+      ...bindings.map(
+        ({ binding, bindingSymbol }) =>
+          `import { ${bindingSymbol} } from ${JSON.stringify(resolve(root, binding))};`,
+      ),
+    );
+    prelude.push(
+      `const messageSigners = new MessageSigners([${bindings.map(({ bindingSymbol }) => bindingSymbol).join(", ")}]);`,
+    );
+    properties.push(
+      "signDerivedMessage: messageSigners.sign",
+      "verifyDerivedMessage: messageSigners.verify",
+    );
+  }
   for (const [feature, symbol, file] of optional) {
     if (!features.has(feature)) continue;
     imports.push(
@@ -301,27 +322,8 @@ export function selectedWorkerEntry(root, profile, features) {
   const selfTests = [
     ["silent-payments", null, "startup", "runSilentPaymentSelfTest", "silent-payment-self-test.ts"],
     ["bip85", null, "startup", "runBip85SelfTest", "bip85-self-test.ts"],
-    [
-      "message-signing",
-      "bitcoin",
-      "startup",
-      "runBitcoinMessageSigningSelfTest",
-      "message-signer-self-test-bitcoin.ts",
-    ],
-    [
-      "message-signing",
-      "dash",
-      "startup",
-      "runDashMessageSigningSelfTest",
-      "message-signer-self-test-dash.ts",
-    ],
-    [
-      "message-signing",
-      "bitcoin",
-      "full",
-      "runBip322FullSelfTest",
-      "message-signer-self-test-bitcoin.ts",
-    ],
+    ...messageSigningSelfTests("startup"),
+    ...messageSigningSelfTests("full"),
     [
       "bip38-encrypt",
       "bitcoin",
@@ -354,7 +356,46 @@ export function selectedWorkerEntry(root, profile, features) {
     `startupSelfTests: [${startup.join(", ")}]`,
     `fullSelfTests: [${listed("full").join(", ")}]`,
   );
-  return `${imports.join("\n")}\nstartDerivationWorker({ ${properties.join(", ")} });`;
+  return `${[...imports, ...prelude].join("\n")}\nstartDerivationWorker({ ${properties.join(", ")} });`;
+}
+
+/** Each signing coin's known answers of `stage`, as rows of selectedWorkerEntry's table. */
+function messageSigningSelfTests(stage) {
+  return Object.entries(MESSAGE_SIGNING_COINS).flatMap(([coin, checks]) =>
+    checks[stage].map((symbol) => [
+      "message-signing",
+      coin,
+      stage,
+      symbol,
+      basename(messageSigningModules(coin).selfTest),
+    ]),
+  );
+}
+
+/**
+ * The page's message-signing installer: the policies of the build's signing coins, combined when
+ * there are several; empty text when the build has no message signing.
+ */
+export function selectedMessageSigningInstaller(root, features) {
+  if (!features.has("message-signing")) return "";
+  // Each coin's policy comes with the coin (tooling/message-signing-coins.mjs).
+  const modules = messageSigningCoinsOf(features.hasCoin).map(messageSigningModules);
+  const imports = [
+    `import { createMessageSigningInstaller } from ${JSON.stringify(resolve(root, "apps/key-derivation/src/ui/message-signing-feature.ts"))};`,
+    ...modules.map(
+      ({ policy, policySymbol }) =>
+        `import { ${policySymbol} } from ${JSON.stringify(resolve(root, policy))};`,
+    ),
+  ];
+  const policies = modules.map(({ policySymbol }) => policySymbol);
+  if (policies.length > 1)
+    imports.push(
+      `import { combineMessageSigningPolicies } from ${JSON.stringify(resolve(root, "apps/key-derivation/src/ui/message-signing-policy.ts"))};`,
+    );
+  const policy =
+    policies.length > 1 ? `combineMessageSigningPolicies(${policies.join(", ")})` : policies[0];
+  return `${imports.join("\n")}
+export const installMessageSigningFeature = createMessageSigningInstaller(${policy});`;
 }
 
 export function selectedUiEntry(root) {
@@ -370,7 +411,7 @@ const coinSourceMarkers = {
     "/adapters/bitcoin.ts",
     "derivation-self-test-bitcoin.ts",
     // A coin's self-test vectors come only with the coin (AUD-023-BLD001).
-    "/message-signer-self-test-bitcoin.ts",
+    ...messageSigningCoinMarkers("bitcoin"),
     "/bip38-self-test-bitcoin.ts",
     "btcutil-js",
     "/wallet-recovery/src/address-targets.ts",
@@ -379,7 +420,7 @@ const coinSourceMarkers = {
     "/coins/dash/",
     "/adapters/dash.ts",
     "derivation-self-test-dash.ts",
-    "/message-signer-self-test-dash.ts",
+    ...messageSigningCoinMarkers("dash"),
     "/bip38-self-test-dash.ts",
     "/masternode-self-test-dash.ts",
     "dash-shielded-wasm",
@@ -418,16 +459,7 @@ const featureSourceMarkers = {
     "/bip38-self-test-bitcoin.ts",
     "/bip38-self-test-dash.ts",
   ],
-  "message-signing": [
-    "/crypto-core/src/bip322-signing.ts",
-    "/bip322-signer.ts",
-    "/message-signing-feature.ts",
-    "/message-signer.ts",
-    "/message-signer-dash.ts",
-    "/message-signer-self-test.ts",
-    "/message-signer-self-test-bitcoin.ts",
-    "/message-signer-self-test-dash.ts",
-  ],
+  "message-signing": MESSAGE_SIGNING_FEATURE_MARKERS,
   "wallet-matcher": [
     "/recovery-wallet-matcher.ts",
     "apps/key-derivation/src/ui/matcher-results.ts",

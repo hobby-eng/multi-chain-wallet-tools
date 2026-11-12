@@ -5,7 +5,6 @@
     "capabilities": {
       "bip85": true,
       "bitcoinSilentPayments": true,
-      "bitcoinMessageSigning": true,
       "advancedPsbt": true
     }
   },
@@ -15,7 +14,6 @@
     "capabilities": {
       "bip85": true,
       "bitcoinSilentPayments": false,
-      "bitcoinMessageSigning": false,
       "advancedPsbt": false
     }
   }

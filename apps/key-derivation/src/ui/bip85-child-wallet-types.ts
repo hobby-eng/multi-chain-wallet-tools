@@ -7,13 +7,17 @@ import type { DerivationWorkerClient } from "../workers/derive-client.js";
 interface ChildMessageSigning {
   activeSource(): "main" | "bip85" | null;
   close(): void;
-  format(resultId: string): import("../workers/protocol.js").MessageSigningFormat | null;
+  offers(
+    resultId: string,
+    addressKey: string,
+  ): readonly import("../workers/protocol.js").MessageSigningFormat[];
   open(
     result: DerivationResult,
     branch: ResultBranch,
     source: "bip85",
     index: number,
     address: string,
+    addressKey: string,
   ): void;
 }
 

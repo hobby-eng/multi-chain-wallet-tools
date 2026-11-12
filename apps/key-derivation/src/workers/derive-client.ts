@@ -9,7 +9,8 @@ import type {
   WorkerMessage,
   WorkerRequest,
 } from "./protocol.js";
-import type { CompactMessageSignature } from "@ckd/core/compact-message.js";
+import type { MessageSignature } from "@ckd/core/message-signature.js";
+import type { MessageSigningRequest } from "@ckd/coins/message-signing.js";
 import type { SilentPaymentResult } from "./silent-payment.js";
 import type { Bip85RequestOptions, Bip85Result } from "@ckd/core/bip85-parameters.js";
 import type { Bip38EncryptionResult } from "./protocol.js";
@@ -26,10 +27,11 @@ interface PendingRequest {
       | CryptoSelfTestReport
       | AddressSearchMatch
       | AddressSearchResult[]
-      | CompactMessageSignature
+      | MessageSignature
       | SilentPaymentResult
       | Bip85Result
       | Bip38EncryptionResult
+      | boolean
       | null,
   ): void;
   reject(reason: Error): void;
@@ -199,9 +201,9 @@ export class DerivationWorkerClient {
     address: string,
     message: string,
     format: MessageSigningFormat,
-  ): Promise<CompactMessageSignature> {
+  ): Promise<MessageSignature> {
     const seed = input.seed.slice();
-    return this.#request<CompactMessageSignature>(
+    return this.#request<MessageSignature>(
       {
         id: this.#nextId,
         type: "sign-message",
@@ -213,6 +215,11 @@ export class DerivationWorkerClient {
       },
       [seed.buffer],
     );
+  }
+
+  /** Whether `signature` signs the request's message for its address; no seed is sent. */
+  async verifyMessage(request: MessageSigningRequest, signature: string): Promise<boolean> {
+    return this.#request<boolean>({ id: this.#nextId, type: "verify-message", request, signature });
   }
 
   async deriveSilentPayment(
@@ -304,10 +311,11 @@ export class DerivationWorkerClient {
       | CryptoSelfTestReport
       | AddressSearchMatch
       | AddressSearchResult[]
-      | CompactMessageSignature
+      | MessageSignature
       | SilentPaymentResult
       | Bip85Result
       | Bip38EncryptionResult
+      | boolean
       | null,
   >(request: WorkerRequest, transfer: Transferable[] = []): Promise<T> {
     if (this.#lifecycle === "terminated") {
