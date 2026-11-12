@@ -7,16 +7,26 @@ export class DerivedPrivateKey implements Disposable {
   readonly #fields: readonly ResultField[];
   #bytes: Uint8Array | undefined;
 
-  /** Bind the key to its public address and retire the consumed result before lending the key. */
-  constructor(result: DerivationResult, address: string) {
+  /**
+   * Bind the key to the row's field `addressKey`, which must hold `address`: the row's address, or
+   * another public payment-address form of it, such as Bitcoin Cash's legacy one. The consumed
+   * result is retired before the key is lent.
+   */
+  constructor(result: DerivationResult, address: string, addressKey = "address") {
     this.#fields = [];
     let failure: DerivationSecretsError | undefined;
     try {
       DerivationSecrets.take(result);
       const row = result.rows[0];
-      const derived = row?.basic.find((field) => field.key === "address" && !field.secret)?.value;
-      if (derived !== address) throw new DerivationSecretsError("derivation.key.address");
       const fields = row === undefined ? [] : [...row.basic, ...row.advanced];
+      const bound = fields.some(
+        (field) =>
+          field.key === addressKey &&
+          (field.key === "address" || field.role === "paymentAddress") &&
+          !field.secret &&
+          field.value === address,
+      );
+      if (!bound) throw new DerivationSecretsError("derivation.key.address");
       const privateField = fields.find(
         (field) => field.key === "privateKeyHex" || field.key === "childPrivateKey",
       );

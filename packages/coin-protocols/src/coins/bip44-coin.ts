@@ -42,7 +42,12 @@ export interface Bip44CoinKeys {
   /** Whether the coin's wallets show the uncompressed public key, as Ethereum's do. */
   readonly uncompressedPublicKey?: boolean;
   readonly notices?: readonly string[];
-  /** The address of a compressed public key. */
+  /**
+   * The address of a public key in SEC1 form: compressed (33 bytes) for the rows, which derive
+   * compressed keys; uncompressed (65 bytes) when a compact message signature's header 27–30
+   * recovers one, whose P2PKH address hashes those 65 bytes as Bitcoin Core does. An encoder hashes
+   * the bytes it is given and never converts between the two forms.
+   */
   address(publicKey: Uint8Array): Bip44CoinAddress;
 }
 

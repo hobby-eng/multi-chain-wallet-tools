@@ -1,18 +1,21 @@
+import {
+  compactSigningHeader,
+  readCompactHeader,
+  type CompactHeaders,
+  type CompactScriptType,
+} from "./compact-message-headers.js";
 import { concatBytes, encodeP2pkh, hash160, secp256k1, sha256 } from "./crypto.js";
 import type { MessageSignature } from "./message-signature.js";
 import { SigningMessage } from "./signing-message.js";
 
 /** A compact signature: one header byte, then r and s of 32 bytes each. */
 const SIGNATURE_BYTES = 65;
-/** The headers of Bitcoin Core's compact signatures: 27 + recovery id, + 4 for a compressed key. */
-const FIRST_HEADER = 27;
-const LAST_HEADER = 34;
 
 const REFUSALS = {
   INVALID_LENGTH: "Message length is outside the supported range.",
   INVALID_BASE64: "The compact signature is not valid Base64.",
   INVALID_SIGNATURE_LENGTH: `A compact message signature must contain exactly ${SIGNATURE_BYTES} bytes.`,
-  INVALID_HEADER: `Compact message signature header must be from ${FIRST_HEADER} to ${LAST_HEADER}.`,
+  INVALID_HEADER: "The compact signature's header is not one this format uses.",
   RECOVERY_FAILED: "No public key can be recovered from this compact signature.",
   INVALID_KEY: "Message signing requires a 32-byte private key.",
   SIGNING_FAILED: "The generated signature did not verify against the selected address.",
@@ -29,10 +32,31 @@ export class CompactMessageError extends Error {
   }
 }
 
+/** One coin's compact format: its message magic, its headers and its address forms. */
 export interface CompactMessageParameters {
   readonly magic: string;
-  readonly p2pkhPrefix: number;
   readonly format: string;
+  /** The headers its verification reads (compact-message-headers.ts). */
+  readonly headers: CompactHeaders;
+  /** The script type whose header the signer writes: 31, 35 or 39 plus the recovery id. */
+  readonly signingType: CompactScriptType;
+  /** Every address form of `publicKey` under `type` that a signature for that type proves. */
+  addresses(publicKey: Uint8Array, type: CompactScriptType): readonly string[];
+}
+
+/** A P2PKH-only format of Bitcoin Core's headers, such as Bitcoin's and Dash's. */
+export function p2pkhCompactParameters(
+  magic: string,
+  p2pkhPrefix: number,
+  format: string,
+): CompactMessageParameters {
+  return {
+    magic,
+    format,
+    headers: "core",
+    signingType: "p2pkh",
+    addresses: (publicKey) => [encodeP2pkh(hash160(publicKey), p2pkhPrefix)],
+  };
 }
 
 function compactSize(value: number): Uint8Array {
@@ -84,8 +108,8 @@ export function decodeCompactSignature(value: string): Uint8Array {
 }
 
 /**
- * Whether `value` has the shape of a compact signature: Base64 of 65 bytes whose header is from 27
- * to 34. It says nothing about validity; a verifier checks that.
+ * Whether `value` has the shape of a compact signature: Base64 of 65 bytes with one of Bitcoin
+ * Core's headers (compact-message-headers.ts). It says nothing about validity; a verifier checks it.
  */
 export function isCompactSignature(value: string): boolean {
   let signature: Uint8Array;
@@ -95,44 +119,49 @@ export function isCompactSignature(value: string): boolean {
     // Text that is not Base64 is simply not of this shape.
     return false;
   }
-  const header = signature[0];
   return (
     signature.length === SIGNATURE_BYTES &&
-    header !== undefined &&
-    header >= FIRST_HEADER &&
-    header <= LAST_HEADER
+    readCompactHeader(signature[0] ?? 0, "core") !== undefined
   );
 }
 
 interface RecoveredCompactPublicKey {
   readonly publicKey: Uint8Array;
   readonly compressed: boolean;
+  /** The script types the header lets the signature prove. */
+  readonly types: readonly CompactScriptType[];
 }
 
+/** The signer's public key, recovered as a format of `headers` reads the signature's header. */
 export function recoverCompactPublicKey(
   signature: Uint8Array,
   digest: Uint8Array,
+  headers: CompactHeaders = "core",
 ): RecoveredCompactPublicKey {
   if (signature.length !== SIGNATURE_BYTES)
     throw new CompactMessageError("INVALID_SIGNATURE_LENGTH");
-  const header = signature[0];
-  if (header === undefined || header < FIRST_HEADER || header > LAST_HEADER)
-    throw new CompactMessageError("INVALID_HEADER");
-  const offset = header - FIRST_HEADER;
-  const compressed = offset >= 4;
+  const header = readCompactHeader(signature[0] ?? 0, headers);
+  if (header === undefined) throw new CompactMessageError("INVALID_HEADER");
+  const { recoveryId, compressed, types } = header;
   const publicKey = secp256k1.Signature.fromBytes(signature.slice(1), "compact")
-    .addRecoveryBit(offset & 3)
+    .addRecoveryBit(recoveryId)
     .recoverPublicKey(digest)
     .toBytes(compressed);
   if (!secp256k1.verify(signature.slice(1), digest, publicKey, { prehash: false, lowS: false })) {
     throw new CompactMessageError("RECOVERY_FAILED");
   }
-  return { publicKey, compressed };
+  return { publicKey, compressed, types };
 }
 
-function recoveredAddress(signature: Uint8Array, digest: Uint8Array, p2pkhPrefix: number): string {
-  const { publicKey } = recoverCompactPublicKey(signature, digest);
-  return encodeP2pkh(hash160(publicKey), p2pkhPrefix);
+/** Whether the signature's key, under a type its header names, has the address `address`. */
+function provesAddress(
+  signature: Uint8Array,
+  digest: Uint8Array,
+  parameters: CompactMessageParameters,
+  address: string,
+): boolean {
+  const { publicKey, types } = recoverCompactPublicKey(signature, digest, parameters.headers);
+  return types.some((type) => parameters.addresses(publicKey, type).includes(address));
 }
 
 export function signCompactMessage(
@@ -151,10 +180,13 @@ export function signCompactMessage(
   const recovered = secp256k1.sign(digest, privateKey, { prehash: false, format: "recovered" });
   const recovery = recovered[0];
   if (recovery === undefined) throw new CompactMessageError("SIGNING_FAILED");
-  const signatureBytes = concatBytes(Uint8Array.of(31 + recovery), recovered.slice(1));
+  const signatureBytes = concatBytes(
+    Uint8Array.of(compactSigningHeader(recovery, parameters.signingType)),
+    recovered.slice(1),
+  );
   try {
     const signature = base64Encode(signatureBytes);
-    if (recoveredAddress(signatureBytes, digest, parameters.p2pkhPrefix) !== address) {
+    if (!provesAddress(signatureBytes, digest, parameters, address)) {
       throw new CompactMessageError("SIGNING_FAILED");
     }
     return { signature, format: parameters.format, verified: true };
@@ -173,15 +205,13 @@ export function verifyCompactMessage(
   const digest = compactMessageDigest(message, parameters.magic);
   const signatureBytes = decodeCompactSignature(signature);
   try {
-    let recovered: string;
     try {
-      recovered = recoveredAddress(signatureBytes, digest, parameters.p2pkhPrefix);
+      return provesAddress(signatureBytes, digest, parameters, address.trim());
     } catch (cause) {
       if (cause instanceof CompactMessageError) throw cause;
       // Pasted bytes can name no point at all (r = 0, or r off the curve): noble then refuses them.
       throw new CompactMessageError("RECOVERY_FAILED");
     }
-    return recovered === address.trim();
   } finally {
     digest.fill(0);
     signatureBytes.fill(0);

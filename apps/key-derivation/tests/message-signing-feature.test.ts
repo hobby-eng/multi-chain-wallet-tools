@@ -16,6 +16,8 @@ async function pending(f: ReturnType<typeof fixture>) {
   const request = worker.requests[0];
   if (request?.type !== "sign-message")
     throw new Error("The client did not post its signing request.");
+  // The worker binds the key to the field the person clicked, here the row's address.
+  expect(request.addressKey).toBe("address");
   return { worker, request };
 }
 

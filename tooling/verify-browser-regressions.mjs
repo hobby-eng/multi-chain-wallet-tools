@@ -15,6 +15,7 @@ import { GenerationMatrixCase } from "./browser-cases/generation-matrix.mjs";
 import { CopyFeedbackCase } from "./browser-cases/copy-feedback.mjs";
 import { Bip85ManualStartCase } from "./browser-cases/bip85-manual-start.mjs";
 import { SingleKeyCoinsCase } from "./browser-cases/single-key-coins.mjs";
+import { MessageSigningCoinsCase } from "./browser-cases/message-signing-coins.mjs";
 import { EvmNetworkCandidatesCase } from "./browser-cases/evm-network-candidates.mjs";
 import { AccountCoinCandidatesCase } from "./browser-cases/account-coin-candidates.mjs";
 import { CoinJoinPartialCase } from "./browser-cases/coinjoin-partial.mjs";
@@ -49,7 +50,7 @@ import { DeriverBrowserCases } from "./browser-regressions/deriver.mjs";
 import { BrowserSigningCases } from "./browser-regressions/signing.mjs";
 const { workerReadiness, coinJoin, bip38, childWallet } = DeriverBrowserCases;
 import { BrowserFixtures } from "./browser-regressions/fixtures.mjs";
-const { mnemonic } = BrowserFixtures;
+const { mnemonic, message } = BrowserFixtures;
 import { MhfeBrowserCases } from "./browser-regressions/mhfe.mjs";
 const {
   checkedMnemonic,
@@ -163,7 +164,7 @@ for (const browserName of (process.env.BROWSER_ENGINES ?? "chromium,firefox").sp
         });
       }
       // The single-key coins are the Multi-Chain Edition's only.
-      if (profile.id === "multi-chain")
+      if (profile.id === "multi-chain") {
         cases.push({
           name: "single-key-coins",
           execute: async (context, run) => {
@@ -171,6 +172,14 @@ for (const browserName of (process.env.BROWSER_ENGINES ?? "chromium,firefox").sp
             run.checks.push(await SingleKeyCoinsCase.run(page));
           },
         });
+        cases.push({
+          name: "message-signing-coins",
+          execute: async (context, run) => {
+            const page = await open(context, profile, "key-derivation", run);
+            run.checks.push(await MessageSigningCoinsCase.run(page, message));
+          },
+        });
+      }
       // The EVM networks besides Ethereum and the account coins are the Multi-Chain Edition's only.
       if (profile.id === "multi-chain") {
         cases.push({

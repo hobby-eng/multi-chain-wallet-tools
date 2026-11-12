@@ -41,6 +41,8 @@ export interface MessageSigningFeatureOptions {
 interface SigningContext {
   readonly index: number;
   readonly address: string;
+  /** The key of the row's field the person clicked, to which the worker binds the key. */
+  readonly addressKey: string;
   /** The row's network when the dialog opened, which verification needs and nothing else. */
   readonly network: NetworkName;
   readonly source: "main" | "bip85";
@@ -167,6 +169,7 @@ export class MessageSigningFeature implements Disposable {
     this.#context = {
       index,
       address,
+      addressKey,
       network,
       source,
       resultId: result.id,
@@ -322,6 +325,7 @@ export class MessageSigningFeature implements Disposable {
             plan.workerAdapterId ?? source.adapter.id,
             { ...input, branch: plan.branch, start: active.index, count: 1, seed },
             active.address,
+            active.addressKey,
             this.#ui.message.value,
             format,
           );

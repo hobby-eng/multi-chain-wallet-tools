@@ -92,6 +92,7 @@ it.each([
           adapterId,
           input,
           address,
+          addressKey: "address",
           message: "Synthetic public signing fixture",
           format,
         },
