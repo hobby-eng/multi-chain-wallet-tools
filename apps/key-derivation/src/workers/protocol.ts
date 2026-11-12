@@ -1,7 +1,8 @@
 import type { CoinDerivationInput } from "@ckd/coins/registry.js";
 import type { CryptoSelfTestReport } from "@ckd/self-test-types";
 import type { DerivationResult } from "@ckd/core/types.js";
-import type { CompactMessageSignature } from "@ckd/core/compact-message.js";
+import type { MessageSignature } from "@ckd/core/message-signature.js";
+import type { MessageSigningRequest } from "@ckd/coins/message-signing.js";
 import type { SilentPaymentResult } from "./silent-payment.js";
 import type { Bip85RequestOptions, Bip85Result } from "@ckd/core/bip85-parameters.js";
 import type { MultisigWalletOptions } from "@ckd/coins/multisig-wallet.js";
@@ -58,6 +59,8 @@ export type WorkerRequest =
       message: string;
       format: MessageSigningFormat;
     }
+  /** Verifies a pasted signature for a row's address: public material only, no seed. */
+  | { id: number; type: "verify-message"; request: MessageSigningRequest; signature: string }
   | {
       id: number;
       type: "silent-payment";
@@ -83,7 +86,8 @@ type WorkerSuccess =
   | { id: number; ok: true; type: "derive"; result: DerivationResult }
   | { id: number; ok: true; type: "search"; result: AddressSearchMatch | null }
   | { id: number; ok: true; type: "search-many"; result: AddressSearchResult[] }
-  | { id: number; ok: true; type: "sign-message"; result: CompactMessageSignature }
+  | { id: number; ok: true; type: "sign-message"; result: MessageSignature }
+  | { id: number; ok: true; type: "verify-message"; result: boolean }
   | { id: number; ok: true; type: "silent-payment"; result: SilentPaymentResult }
   | { id: number; ok: true; type: "bip85"; result: Bip85Result }
   | { id: number; ok: true; type: "multisig"; result: DerivationResult }

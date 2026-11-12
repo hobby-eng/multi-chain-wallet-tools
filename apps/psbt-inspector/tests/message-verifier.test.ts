@@ -94,4 +94,23 @@ describe("signed message verifier", () => {
       recoveredAddress: fixture.address,
     });
   });
+
+  it.each([
+    [
+      "text that is no signature",
+      "13vU5PUSuArDXJdCWZvUFEbgJ2wcmtSJWn",
+      "not a signature",
+      "The signature is not a BIP-322 signature.",
+    ],
+    [
+      "BIP-322's simple vector for a P2PKH address",
+      "13vU5PUSuArDXJdCWZvUFEbgJ2wcmtSJWn",
+      "smpAkcwRAIgZRfIY3p7/DoVTty6YZbWS71bc5Vct9p9Fia83eRmw2QCICK/ENGfwLtptFluMGs2KsqoNSk89pO7F29zJLUx9a/sASECx/EgAxlkQpQ9hYjgGu6EBCPMVPwVIVJqO4XCsMvViHI=",
+      "A BIP-322 simple signature proves only native SegWit addresses; this address needs a full one.",
+    ],
+  ])("refuses %s with the library's text", async (_name, address, signature, text) => {
+    await expect(
+      verifySignedMessage(address, "Hello World", signature, "bitcoin", "mainnet"),
+    ).rejects.toThrow(text);
+  });
 });

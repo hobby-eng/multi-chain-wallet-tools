@@ -104,4 +104,12 @@ describe("a BIP-322 signing key has one bounded operation lifetime", () => {
     expect(cleared[0]).toEqual(new Uint8Array(32));
     await expect(signer.sign(request)).rejects.toMatchObject({ code: "KEY_RELEASED" });
   });
+
+  it("refuses an unknown address mode before starting the backend", async () => {
+    const signer = await keyOwner();
+    // A wrong mode is fed on purpose, to check that it is refused (TS-04).
+    const unknown = { ...request, mode: "unknown" } as unknown as typeof request;
+    await expect(signer.sign(unknown)).rejects.toEqual(new MessageSigningError("INVALID_MODE"));
+    expect(native.init).not.toHaveBeenCalled();
+  });
 });

@@ -331,7 +331,6 @@ export class Bip85ChildWallet {
       this.#results === null
     )
       return;
-    const signingFormat = this.#options.messageSigning?.format(result.id) ?? null;
     renderResults(this.#summary, this.#list, this.#notices, result, {
       mode: this.#mode,
       selected: this.#selected,
@@ -347,9 +346,17 @@ export class Bip85ChildWallet {
         else this.#selected.delete(index);
         this.#updateActions();
       },
-      canSignMessages: signingFormat !== null,
-      onSignMessage: (index, address) => {
-        this.#options.messageSigning?.open(result, this.#activeBranch, "bip85", index, address);
+      canSignMessage: (addressKey) =>
+        (this.#options.messageSigning?.offers(result.id, addressKey).length ?? 0) > 0,
+      onSignMessage: (index, address, addressKey) => {
+        this.#options.messageSigning?.open(
+          result,
+          this.#activeBranch,
+          "bip85",
+          index,
+          address,
+          addressKey,
+        );
       },
       encryptedBip38: new Map(),
     });

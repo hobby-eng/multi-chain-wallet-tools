@@ -149,7 +149,7 @@ export class DerivationResultPanel {
     const { view, results } = this.#options;
     const signing = this.#options.signing();
     const bip38 = this.#options.bip38();
-    const format = results.current === null ? null : (signing?.format(results.current.id) ?? null);
+    const resultId = results.current?.id;
     const rowLimit = bip38?.visibleRows(results.active);
     const canEncrypt =
       results.current !== null && bip38?.supportsResult(results.current.id) === true;
@@ -169,10 +169,11 @@ export class DerivationResultPanel {
         results.select(index, checked);
         this.updateBulkActions();
       },
-      canSignMessages: format !== null,
-      onSignMessage: (index: number, address: string) => {
+      canSignMessage: (addressKey: string) =>
+        resultId !== undefined && (signing?.offers(resultId, addressKey).length ?? 0) > 0,
+      onSignMessage: (index: number, address: string, addressKey: string) => {
         if (results.current !== null)
-          signing?.open(results.current, results.active, "main", index, address);
+          signing?.open(results.current, results.active, "main", index, address, addressKey);
       },
       encryptedBip38: bip38?.encryptedKeys(results.active) ?? new Map<number, string>(),
       ...(rowLimit === undefined ? {} : { rowLimit }),

@@ -1,7 +1,7 @@
 import { Transaction } from "@scure/btc-signer";
 import { bip322Library } from "./bip322-verifier.js";
 import { hexToBytes, secp256k1, wipe } from "./crypto.js";
-import type { CompactMessageSignature } from "./compact-message.js";
+import type { MessageSignature } from "./message-signature.js";
 import type { NetworkName } from "./types.js";
 import { SigningMessage, SigningMessageError } from "./signing-message.js";
 
@@ -101,7 +101,7 @@ export class Bip322Signing {
   }
 
   /** Signs one request; the key is single-use and cleared before public verification. */
-  async sign(request: Bip322SigningRequest): Promise<CompactMessageSignature> {
+  async sign(request: Bip322SigningRequest): Promise<MessageSignature> {
     this.#requireKey();
     if (this.#active) throw new MessageSigningError("SIGNING_ACTIVE");
     this.#active = true;

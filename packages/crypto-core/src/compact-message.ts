@@ -1,14 +1,11 @@
 import { signCompactMessage, verifyCompactMessage } from "./compact-message-internal.js";
-import type {
-  CompactMessageParameters,
-  CompactMessageSignature,
-} from "./compact-message-internal.js";
+import type { CompactMessageParameters } from "./compact-message-internal.js";
+import type { MessageSignature } from "./message-signature.js";
 import type { NetworkName } from "./types.js";
 import { DashCompactMessageProfile } from "./compact-message-dash-profile.js";
 import { getBitcoinAddressFacts } from "./bitcoin-address-facts.js";
 
 type CompactMessageChain = "bitcoin" | "dash";
-export type { CompactMessageSignature } from "./compact-message-internal.js";
 
 function parameters(chain: CompactMessageChain, network: NetworkName): CompactMessageParameters {
   if (chain === "bitcoin") {
@@ -27,7 +24,7 @@ export function signCompactP2pkhMessage(
   message: string,
   chain: CompactMessageChain,
   network: NetworkName,
-): CompactMessageSignature {
+): MessageSignature {
   return signCompactMessage(privateKey, address, message, parameters(chain, network));
 }
 

@@ -11,15 +11,23 @@ import {
   runBitcoinMessageSigningSelfTest,
 } from "../src/workers/message-signer-self-test-bitcoin.js";
 import { runDashMessageSigningSelfTest } from "../src/workers/message-signer-self-test-dash.js";
-import { signDerivedMessage } from "../src/workers/message-signer.js";
-import { signDerivedMessage as signDashMessage } from "../src/workers/message-signer-dash.js";
+import { MessageSigners } from "@ckd/coins/message-signing.js";
+import { BITCOIN_MESSAGE_SIGNING } from "@ckd/coins/bitcoin/message-signing.js";
+import { DASH_MESSAGE_SIGNING } from "@ckd/coins/dash/message-signing.js";
 import { runSilentPaymentSelfTest } from "../src/workers/silent-payment-self-test.js";
 import type { FeatureFunctions } from "../src/workers/worker-runtime.js";
 
-/** The functions a build with Bitcoin composes, and those of a build with Dash alone. */
-const multiCoin: FeatureFunctions = { signDerivedMessage, encryptDerivedP2pkhKey };
+/** The functions a build with Bitcoin and Dash composes, and those of a build with Dash alone. */
+const bothSigners = new MessageSigners([BITCOIN_MESSAGE_SIGNING, DASH_MESSAGE_SIGNING]);
+const dashSigners = new MessageSigners([DASH_MESSAGE_SIGNING]);
+const multiCoin: FeatureFunctions = {
+  signDerivedMessage: bothSigners.sign,
+  verifyDerivedMessage: bothSigners.verify,
+  encryptDerivedP2pkhKey,
+};
 const dashOnly: FeatureFunctions = {
-  signDerivedMessage: signDashMessage,
+  signDerivedMessage: dashSigners.sign,
+  verifyDerivedMessage: dashSigners.verify,
   encryptDerivedP2pkhKey: encryptDashP2pkhKey,
 };
 
@@ -58,14 +66,29 @@ describe("the known answers of the Deriver's optional features", () => {
 
   it("fail when the composed function gives another answer, or is missing", async () => {
     const wrongSigner: FeatureFunctions = {
+      ...multiCoin,
       signDerivedMessage: async (...request) => ({
-        ...(await signDerivedMessage(...request)),
+        ...(await bothSigners.sign(...request)),
         signature: "H".padEnd(88, "A"),
       }),
     };
     await expect(runBitcoinMessageSigningSelfTest(wrongSigner)).rejects.toThrow(
       /Bitcoin compact message signature/u,
     );
+    // A verifier that accepts every signature must fail the refusal check.
+    const lenientVerifier: FeatureFunctions = {
+      ...multiCoin,
+      verifyDerivedMessage: async () => true,
+    };
+    await expect(runBitcoinMessageSigningSelfTest(lenientVerifier)).rejects.toThrow(
+      /Bitcoin compact refusal of another message/u,
+    );
+    await expect(
+      runDashMessageSigningSelfTest({ ...dashOnly, verifyDerivedMessage: async () => true }),
+    ).rejects.toThrow(/Dash compact refusal of another message/u);
+    await expect(
+      runDashMessageSigningSelfTest({ signDerivedMessage: dashSigners.sign }),
+    ).rejects.toThrow(/verification is not composed/u);
     await expect(runDashMessageSigningSelfTest({})).rejects.toThrow(/not composed/u);
     await expect(runDashBip38FullSelfTest({})).rejects.toThrow(/not composed/u);
   });

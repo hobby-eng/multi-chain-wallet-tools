@@ -12,8 +12,9 @@ export interface ResultsRenderOptions {
   windowSize: number;
   onWindowChange(start: number): void;
   onSelectionChange(index: number, selected: boolean): void;
-  canSignMessages: boolean;
-  onSignMessage(index: number, address: string): void;
+  /** Whether the address field `addressKey` of the result's rows has a signing action. */
+  canSignMessage(addressKey: string): boolean;
+  onSignMessage(index: number, address: string, addressKey: string): void;
   encryptedBip38: ReadonlyMap<number, string>;
   rowLimit?: number;
 }
@@ -81,16 +82,17 @@ export class ResultRendering {
 
   static #signButton(
     index: number,
-    address: string,
-    onSign: (index: number, address: string) => void,
+    field: ResultField,
+    onSign: ResultsRenderOptions["onSignMessage"],
   ): HTMLButtonElement {
+    const address = field.value;
     const sign = ResultRendering.#iconButton(
-      "Sign a message with this address",
+      "Sign or verify a message with this address",
       "M4 20h4l11-11-4-4L4 16v4zm12-16 4 4 1-1a1.4 1.4 0 0 0 0-2l-2-2a1.4 1.4 0 0 0-2 0l-1 1z",
     );
     sign.dataset.signMessage = String(index);
     sign.dataset.signAddress = address;
-    sign.addEventListener("click", () => onSign(index, address));
+    sign.addEventListener("click", () => onSign(index, address, field.key));
     return sign;
   }
 
@@ -112,9 +114,9 @@ export class ResultRendering {
     const qrPayload = paymentQrPayload(field);
     if (qrPayload !== undefined)
       actions.append(createPaymentQrAction(document, qrPayload, field.label));
-    if (qrPayload !== undefined && locator.row !== undefined && options.canSignMessages) {
+    if (qrPayload !== undefined && locator.row !== undefined && options.canSignMessage(field.key)) {
       actions.append(
-        ResultRendering.#signButton(locator.row, field.value, options.onSignMessage.bind(options)),
+        ResultRendering.#signButton(locator.row, field, options.onSignMessage.bind(options)),
       );
     }
     row.append(label, value, actions);
@@ -143,9 +145,9 @@ export class ResultRendering {
     const qrPayload = paymentQrPayload(field);
     if (qrPayload !== undefined)
       content.append(createPaymentQrAction(document, qrPayload, field.label));
-    if (qrPayload !== undefined && options.canSignMessages) {
+    if (qrPayload !== undefined && options.canSignMessage(field.key)) {
       content.append(
-        ResultRendering.#signButton(rowIndex, field.value, options.onSignMessage.bind(options)),
+        ResultRendering.#signButton(rowIndex, field, options.onSignMessage.bind(options)),
       );
     }
     cell.append(content);

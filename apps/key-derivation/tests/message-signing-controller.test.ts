@@ -13,8 +13,15 @@ class Control extends EventTarget {
   hidden = false;
   open = false;
   textContent = "";
+  readonly children: Control[] = [];
   querySelectorAll(): Control[] {
     return [];
+  }
+  replaceChildren(...nodes: Control[]): void {
+    this.children.splice(0, this.children.length, ...nodes);
+  }
+  createElement(): Control {
+    return new Control();
   }
   showModal(): void {
     this.open = true;
@@ -30,60 +37,62 @@ class Control extends EventTarget {
 
 const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
+/** The view's native fields that the signing lifecycle reaches. */
+const FIELD_NAMES = [
+  "document",
+  "form",
+  "mnemonic",
+  "passphrase",
+  "exportFormat",
+  "modeBasic",
+  "modeAdvanced",
+  "resultReceiveTab",
+  "resultChangeTab",
+  "resultCoinJoinTab",
+  "resultCoinJoinExternalTab",
+  "resultCoinJoinInternalTab",
+  "toggleSensitiveValues",
+  "toggleResultSecrets",
+  "copyMnemonicButton",
+  "copyWatchOnlyButton",
+  "downloadWatchOnlyButton",
+  "cancelDerivationButton",
+  "expectedAddress",
+  "searchStart",
+  "searchCount",
+  "searchAddressButton",
+  "generate12Button",
+  "generate15Button",
+  "generate18Button",
+  "generate21Button",
+  "generate24Button",
+  "clearAllButton",
+  "selectAllButton",
+  "selectNoneButton",
+  "selectInvertButton",
+  "messageSignerDialog",
+  "messageSignerFormatField",
+  "messageSignerFormatSelect",
+  "messageSignerFormat",
+  "messageSignerAddress",
+  "messageSignerPath",
+  "messageSignerMessage",
+  "signMessageButton",
+  "closeMessageSignerButton",
+  "messageSignerError",
+  "messageSignatureResult",
+  "messageSignatureOutput",
+  "messageSignatureVerification",
+  "copyMessageSignature",
+];
+
 async function fixture() {
   vi.stubGlobal("window", {
     addEventListener: vi.fn(),
     setTimeout: vi.fn(() => 0),
     clearTimeout: vi.fn(),
   });
-  const names = [
-    "document",
-    "form",
-    "mnemonic",
-    "passphrase",
-    "exportFormat",
-    "modeBasic",
-    "modeAdvanced",
-    "resultReceiveTab",
-    "resultChangeTab",
-    "resultCoinJoinTab",
-    "resultCoinJoinExternalTab",
-    "resultCoinJoinInternalTab",
-    "toggleSensitiveValues",
-    "toggleResultSecrets",
-    "copyMnemonicButton",
-    "copyWatchOnlyButton",
-    "downloadWatchOnlyButton",
-    "cancelDerivationButton",
-    "expectedAddress",
-    "searchStart",
-    "searchCount",
-    "searchAddressButton",
-    "generate12Button",
-    "generate15Button",
-    "generate18Button",
-    "generate21Button",
-    "generate24Button",
-    "clearAllButton",
-    "selectAllButton",
-    "selectNoneButton",
-    "selectInvertButton",
-    "messageSignerDialog",
-    "messageSignerFormatField",
-    "messageSignerFormatSelect",
-    "messageSignerFormat",
-    "messageSignerAddress",
-    "messageSignerPath",
-    "messageSignerMessage",
-    "signMessageButton",
-    "closeMessageSignerButton",
-    "messageSignerError",
-    "messageSignatureResult",
-    "messageSignatureOutput",
-    "messageSignatureVerification",
-    "copyMessageSignature",
-  ];
-  const fields = Object.fromEntries(names.map((name) => [name, new Control()]));
+  const fields = Object.fromEntries(FIELD_NAMES.map((name) => [name, new Control()]));
   const bySelector = new Map(
     Object.entries({
       "#message-signer-dialog": fields.messageSignerDialog,
@@ -197,8 +206,9 @@ async function fixture() {
   fields.form!.dispatchEvent(new Event("submit", { cancelable: true }));
   await settle();
   const options = method("renderCurrent").mock.lastCall?.[1] as ResultsRenderOptions;
-  expect(options.canSignMessages).toBe(true);
-  options.onSignMessage(0, "public-test-address");
+  expect(options.canSignMessage("address")).toBe(true);
+  expect(options.canSignMessage("legacyAddress")).toBe(false);
+  options.onSignMessage(0, "public-test-address", "address");
   fields.messageSignerDialog!.open = true;
   fields.messageSignerMessage!.value = "Public message signing lifecycle fixture";
   fields.signMessageButton!.click();
@@ -219,7 +229,8 @@ describe("message signing request lifecycle", () => {
       if (action === "close") f.fields.closeMessageSignerButton!.click();
       if (action === "cancel") f.fields.messageSignerDialog!.dispatchEvent(new Event("cancel"));
       if (action === "clear") f.fields.clearAllButton!.click();
-      if (action === "replace") f.options.onSignMessage(0, "another-public-test-address");
+      if (action === "replace")
+        f.options.onSignMessage(0, "another-public-test-address", "address");
       expect(f.worker.terminate).toHaveBeenCalled();
       f.resolve({ signature: "stale-signature", format: "BIP-322", verified: true });
       await settle();
@@ -231,7 +242,7 @@ describe("message signing request lifecycle", () => {
   it("does not surface an obsolete failure in a replacement dialog", async () => {
     const f = await fixture();
     f.fields.closeMessageSignerButton!.click();
-    f.options.onSignMessage(0, "another-public-test-address");
+    f.options.onSignMessage(0, "another-public-test-address", "address");
     f.reject(new Error("Obsolete worker error"));
     await settle();
     expect(f.fields.messageSignerError!.hidden).toBe(true);

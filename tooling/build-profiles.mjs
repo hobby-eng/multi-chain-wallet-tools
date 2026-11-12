@@ -185,6 +185,8 @@ export function assertDashOnlyGraph(inputs, label) {
         relative === "embedded-derivation.ts" ||
         // The multisig script and wallet builder name no coin; each coin brings its own scheme.
         relative === "multisig-wallet.ts" ||
+        // The message signers' router names no coin; each coin brings its own standards.
+        relative === "message-signing.ts" ||
         relative === "dash-registry.ts" ||
         relative === "dash-community-registry-profile.ts" ||
         relative === "dash-runtime-registry.ts" ||

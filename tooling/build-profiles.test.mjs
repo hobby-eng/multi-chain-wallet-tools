@@ -79,23 +79,6 @@ describe("build profiles", () => {
     expect(dash).toBe("<main></main>");
   });
 
-  it("excludes the Bitcoin signature-format selector from Dash Community", () => {
-    const template = "__KEY_DERIVATION_SIGNER_FORMAT_FIELD__";
-    const multi = applyProfileTemplate(
-      template,
-      BUILD_PROFILES["multi-chain"],
-      getToolBuild(BUILD_PROFILES["multi-chain"], "key-derivation"),
-    );
-    const dash = applyProfileTemplate(
-      template,
-      BUILD_PROFILES["dash-community"],
-      getToolBuild(BUILD_PROFILES["dash-community"], "key-derivation"),
-    );
-    expect(multi).toContain('id="message-signer-format-select"');
-    expect(multi).toContain("bitcoin-bip322-legacy");
-    expect(dash).toBe("");
-  });
-
   it("rejects current and future non-Dash modules from Dash build graphs", () => {
     expect(() =>
       assertDashOnlyGraph(
@@ -103,6 +86,8 @@ describe("build profiles", () => {
           "packages/coin-protocols/src/coins/registry-base.ts",
           "packages/coin-protocols/src/coins/adapters/dash.ts",
           "packages/coin-protocols/src/coins/dash/core.ts",
+          "packages/coin-protocols/src/coins/message-signing.ts",
+          "packages/coin-protocols/src/coins/dash/message-signing.ts",
           "apps/discovery-scanner/src/coins/dash-community.ts",
           "apps/discovery-scanner/src/coins/dash/platform-scanner.ts",
           "packages/recovery-backup/src/mnemocode-reencoding.ts",
@@ -119,6 +104,7 @@ describe("build profiles", () => {
     ).not.toThrow();
     for (const input of [
       "packages/coin-protocols/src/coins/adapters/bitcoin.ts",
+      "packages/coin-protocols/src/coins/bitcoin/message-signing.ts",
       "packages/recovery-mnemocode-wasm/generated/multi-chain/key-derivation/mnemocode.wasm",
       "packages/recovery-mnemocode-wasm/generated/future-edition/key-derivation/mnemocode.wasm",
       "packages/coin-protocols/src/coins/adapters/future-coin.ts",

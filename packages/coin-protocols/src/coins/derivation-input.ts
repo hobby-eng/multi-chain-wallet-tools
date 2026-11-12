@@ -1,5 +1,6 @@
 import { MAX_BIP32_INDEX } from "@ckd/core/bip32-limits.js";
 import { IntegerInput } from "@ckd/core/validation.js";
+import type { NetworkName } from "@ckd/core/types.js";
 import type { CoinAdapter, TextControl } from "./registry-base.js";
 import type { DerivationParameters } from "./derivation-request.js";
 
@@ -81,11 +82,8 @@ export class DerivationInput {
     );
     if (count - 1 > limits.start - start)
       throw new DerivationInputError("derivation.input.range", limits.start);
-    const network = fields.network;
-    if (network !== "mainnet" && network !== "testnet")
-      throw new DerivationInputError("derivation.input.network");
     return {
-      network,
+      network: DerivationInput.network(fields.network),
       account:
         adapter.accountControl === false
           ? adapter.defaults.account
@@ -101,6 +99,13 @@ export class DerivationInput {
     };
   }
 
+  /** The network control's value, admitted alone: mainnet or testnet. */
+  static network(value: unknown): NetworkName {
+    if (value !== "mainnet" && value !== "testnet")
+      throw new DerivationInputError("derivation.input.network");
+    return value;
+  }
+
   /** Every text control's trimmed value, empty when absent; the protocol judges its content. */
   static #text(
     controls: readonly TextControl[],
@@ -109,7 +114,7 @@ export class DerivationInput {
     return Object.freeze(
       Object.fromEntries(
         controls.map(({ key, maxLength }) => {
-          const value = (Object.hasOwn(values ?? {}, key) ? values![key]! : "").trim();
+          const value = (Object.hasOwn(values ?? {}, key) ? (values?.[key] ?? "") : "").trim();
           if (value.length > maxLength)
             throw new DerivationInputError("derivation.input.text", maxLength);
           return [key, value];

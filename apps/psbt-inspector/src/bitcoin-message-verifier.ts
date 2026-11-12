@@ -1,17 +1,8 @@
 import { verifyCompactP2pkhMessage } from "@ckd/core/compact-message.js";
+import { isCompactSignature } from "@ckd/core/compact-message-internal.js";
 import { verifyBip322Message } from "@ckd/core/bip322-verifier.js";
 import type { MessageVerification } from "./dash-message-verifier.js";
 import type { PsbtNetwork } from "./psbt.js";
-
-function isCompactSignature(signature: string): boolean {
-  try {
-    const decoded = atob(signature.replaceAll(/\s+/gu, ""));
-    const header = decoded.charCodeAt(0);
-    return decoded.length === 65 && header >= 27 && header <= 34;
-  } catch {
-    return false;
-  }
-}
 
 export async function verifyBitcoinSignedMessage(
   address: string,
