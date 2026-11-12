@@ -121,6 +121,37 @@ export function chosenWordsRemainingBits(request: ChosenWordsRequest): number {
   return odds(plan(request)).remainingBits;
 }
 
+/**
+ * What a phrase drawn with wishes and checks keeps of its randomness, as MHFE rated it for the
+ * person before 0.8.0: the checks alone leave ample randomness, and wishes beyond them make the
+ * phrase not recommended.
+ */
+export interface CheckedDrawOdds {
+  /** About; for someone who knows the chosen word. */
+  readonly randomBits: number;
+  /** The bits the checks alone leave: below them the phrase is not recommended. */
+  readonly recommendedBits: number;
+  readonly randomness: "ample" | "notRecommended";
+  /** A word asked for at a fixed position, where one anywhere would keep more. */
+  readonly fixedPosition: boolean;
+}
+
+/**
+ * The odds of a draw that meets `wishes` and passes checks taking `checkBits` bits together, such
+ * as the MHFE wallet check's 16 and TON's 8. Throws as the generator does for wishes it refuses.
+ */
+export function checkedDrawOdds(wishes: ChosenWordsRequest, checkBits: number): CheckedDrawOdds {
+  const recommendedBits = bip39EntropyBits(wishes.wordCount) - checkBits;
+  const randomBits = chosenWordsRemainingBits(wishes) - checkBits;
+  return {
+    randomBits,
+    recommendedBits,
+    // Rounding of the logarithm must not turn wishes that take nothing into a warning.
+    randomness: randomBits >= recommendedBits - 1e-9 ? "ample" : "notRecommended",
+    fixedPosition: wishes.chosen.some((word) => word.position !== "anywhere"),
+  };
+}
+
 function readBits(bytes: Uint8Array, start: number, count: number): number {
   let value = 0;
   for (let bit = start; bit < start + count; bit += 1)

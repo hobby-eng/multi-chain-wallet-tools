@@ -1,230 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createKeyDerivationController } from "../src/ui/controller.js";
-import type { KeyDerivationView } from "../src/ui/view.js";
 import type { DerivationResult } from "@ckd/core/types.js";
 import { DerivationResultsError } from "@ckd/ui/derivation-results.js";
 import type { DerivationWorkerClient } from "../src/workers/derive-client.js";
 import { mnemonicToSeed } from "@ckd/core/bip39.js";
+import { ControllerTestControl as TestControl } from "@ckd/test-support/controller-events.js";
 import {
-  ControllerTestControl as TestControl,
-  ControllerTestForm as TestForm,
-} from "@ckd/test-support/controller-events.js";
-
-type ResultTestWorker = Pick<DerivationWorkerClient, "ready" | "derive" | "terminate">;
-
-async function settle(): Promise<void> {
-  await new Promise<void>((resolve) => setTimeout(resolve, 0));
-}
-
-function installNativeWindow(): void {
-  const windowEvents = new TestControl();
-  vi.stubGlobal("window", {
-    addEventListener: windowEvents.addEventListener.bind(windowEvents),
-    setTimeout(callback: () => void): number {
-      return globalThis.setTimeout(callback, 0) as unknown as number;
-    },
-    clearTimeout(id: number): void {
-      globalThis.clearTimeout(id);
-    },
-  });
-}
-
-/** A started controller with fake view controls; `extra` adds or replaces dependencies. */
-function controllerHarness(extra: Record<string, unknown> = {}) {
-  installNativeWindow();
-  const document = new TestControl();
-  const form = new TestForm();
-  const controls = {
-    coin: new TestControl(),
-    protocolTabs: new TestControl(),
-    network: new TestControl(),
-    account: new TestControl(),
-    branchInput: new TestControl(),
-    branchSelect: new TestControl(),
-    includeChange: new TestControl(),
-    includeCoinJoin: new TestControl(),
-    includeLegacyMobile: new TestControl(),
-    start: new TestControl(),
-    count: new TestControl(),
-  };
-  const modeBasic = new TestControl();
-  const modeAdvanced = new TestControl();
-  let resolveWorkerSelfTest!: (value: {
-    passed: boolean;
-    checks: string[];
-    durationMs: number;
-  }) => void;
-  const workerSelfTest = new Promise<{ passed: boolean; checks: string[]; durationMs: number }>(
-    (resolve) => {
-      resolveWorkerSelfTest = resolve;
-    },
-  );
-  const startupWorker = {
-    selfTest: vi.fn(() => workerSelfTest),
-    terminate: vi.fn(),
-  };
-  const view = {
-    document,
-    controls,
-    form,
-    mnemonic: new TestControl(),
-    passphrase: new TestControl(),
-    exportFormat: new TestControl(),
-    modeBasic,
-    modeAdvanced,
-    resultBranchTabs: new TestControl(),
-    resultReceiveTab: new TestControl(),
-    resultChangeTab: new TestControl(),
-    resultCoinJoinTab: new TestControl(),
-    coinJoinBranchTabs: new TestControl(),
-    resultCoinJoinExternalTab: new TestControl(),
-    resultCoinJoinInternalTab: new TestControl(),
-    toggleSensitiveValues: new TestControl(),
-    toggleResultSecrets: new TestControl(),
-    copyMnemonicButton: new TestControl(),
-    descriptorButtons: Object.fromEntries(
-      ["scanner", "publicCopy", "publicDownload", "privateCopy", "privateDownload"].map((key) => [
-        key,
-        new TestControl(),
-      ]),
-    ),
-    copyWatchOnlyButton: new TestControl(),
-    downloadWatchOnlyButton: new TestControl(),
-    cancelDerivationButton: new TestControl(),
-    expectedAddress: new TestControl(),
-    searchStart: new TestControl(),
-    searchCount: new TestControl(),
-    searchAddressButton: new TestControl(),
-    generate12Button: new TestControl(),
-    generate15Button: new TestControl(),
-    generate18Button: new TestControl(),
-    generate21Button: new TestControl(),
-    generate24Button: new TestControl(),
-    clearAllButton: new TestControl(),
-    selectAllButton: new TestControl(),
-    selectNoneButton: new TestControl(),
-    selectInvertButton: new TestControl(),
-    showError: vi.fn(),
-    showStatus: vi.fn(),
-    clearMessages: vi.fn(),
-    populateCoinSelect: vi.fn(),
-    configureControls: vi.fn(),
-    updateWordCount: vi.fn(),
-    updateSeedDiagnostic: vi.fn(),
-    updateMode: vi.fn(),
-    updateBulkActions: vi.fn(),
-    populateBuildPassport: vi.fn(),
-    setCryptoControlsEnabled: vi.fn(),
-    showCryptoSelfTestPassed: vi.fn(),
-    showCryptoSelfTestFailed: vi.fn(),
-    setRecoverySourceVisibility: vi.fn(),
-    setResultSecretsVisibility: vi.fn(),
-    resetDeriveAction: vi.fn(),
-    hideSearchResult: vi.fn(),
-    documentActionFrom: vi.fn(() => null),
-    clearResults: vi.fn(),
-    setGeneratedMnemonic: vi.fn(),
-    clearAllInputs: vi.fn(),
-    updatePathPreview: vi.fn(),
-    showDerivationRunning: vi.fn(),
-    showDerivationIdle: vi.fn(),
-    showCancellationRequested: vi.fn(),
-    showResults: vi.fn(),
-    updateResultBranchTabs: vi.fn(),
-    renderCurrent: vi.fn(),
-    scrollResultsIntoView: vi.fn(),
-  } as unknown as KeyDerivationView;
-  const adapter = {
-    id: "bitcoin-bip44",
-    label: "Bitcoin",
-    variantLabel: "BIP44",
-    defaults: {},
-  };
-  // The startup fixture also sends passed:false to exercise rejection of a failed external report.
-  const createWorker = vi.fn<() => typeof startupWorker | ResultTestWorker>(() => startupWorker);
-  const dependencyMocks = {
-    coinFamilies: [{ id: "bitcoin", label: "Bitcoin" }],
-    getAdapterFamilyId: () => "bitcoin",
-    getCoinAdapter: () => adapter,
-    getDefaultCoinAdapter: () => adapter,
-    buildInfo: {},
-    generateMnemonic: vi.fn(),
-    mnemonicToSeed: vi.fn(),
-    runBip39SelfTest: () => ({ passed: true, checks: ["fixture"], durationMs: 1 }),
-    runRecoveryBackupSelfTest: vi.fn(() => ({ passed: true, checks: [], durationMs: 0 })),
-    setRecoveryControlsEnabled: vi.fn(),
-    writeClipboard: vi.fn(),
-    downloadBlob: vi.fn(),
-    downloadText: vi.fn(),
-    createWorker,
-    ...extra,
-  };
-  const dependencies = dependencyMocks as unknown as Parameters<
-    typeof createKeyDerivationController
-  >[1];
-  const controller = createKeyDerivationController(view, dependencies);
-  return {
-    controller,
-    view,
-    dependencies,
-    dependencyMocks,
-    form,
-    createWorker,
-    modeBasic,
-    modeAdvanced,
-    resolveWorkerSelfTest,
-  };
-}
-
-function streamResult(start: number): DerivationResult {
-  return {
-    id: "bitcoin-bip44",
-    title: "Synthetic",
-    networkLabel: "Mainnet",
-    pathTemplate: "m/i",
-    basicSummary: [],
-    summary: [],
-    notices: [],
-    accountDescriptors: {
-      accountPath: "m/0'",
-      publicText: "synthetic public",
-      privateText: "synthetic private",
-      scannerText: "synthetic scanner",
-      fileStem: "synthetic",
-    },
-    rows: [start, start + 1].map((index) => ({
-      index,
-      path: `m/${index}`,
-      title: "Synthetic row",
-      basic: [],
-      advanced: [],
-    })),
-  };
-}
-
-async function streamHarness(extra: Record<string, unknown> = {}) {
-  const adapter = {
-    id: "bitcoin-bip44",
-    label: "Bitcoin",
-    variantLabel: "BIP44",
-    batchSize: 2,
-    defaults: { network: "mainnet", account: 0, branch: 0, start: 0, count: 6 },
-  };
-  const harness = controllerHarness({
-    mnemonicToSeed: () => new Uint8Array(64).fill(7),
-    getDefaultCoinAdapter: () => adapter,
-    getCoinAdapter: () => adapter,
-    ...extra,
-  });
-  harness.controller.start();
-  harness.resolveWorkerSelfTest({ passed: true, checks: ["worker fixture"], durationMs: 1 });
-  await settle();
-  harness.view.controls.network.value = "mainnet";
-  harness.view.controls.count.value = "6";
-  harness.view.controls.start.value = "0";
-  harness.view.controls.account.value = "0";
-  return harness;
-}
+  controllerHarness,
+  settle,
+  streamHarness,
+  streamResult,
+  type ResultTestWorker,
+} from "./controller-harness.js";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -425,7 +212,7 @@ describe("Key Derivation readiness and chosen-word generation", () => {
   it("registers once, gates derivation on startup self-test, and handles mode transitions", async () => {
     const chosenWords = {
       onChange: vi.fn(),
-      useChecked: vi.fn(),
+      setConditioned: vi.fn(),
       active: vi.fn(() => false),
       generate: vi.fn(),
       setRevealed: vi.fn(),
@@ -475,7 +262,7 @@ describe("Key Derivation readiness and chosen-word generation", () => {
   it("generates with chosen words only when they are active, and never falls back", async () => {
     const chosenWords = {
       onChange: vi.fn(),
-      useChecked: vi.fn(),
+      setConditioned: vi.fn(),
       active: vi.fn(() => true),
       generate: vi.fn(() =>
         Promise.reject(new Error("Chosen word 1 is not an English BIP39 word.")),
@@ -483,9 +270,9 @@ describe("Key Derivation readiness and chosen-word generation", () => {
       setRevealed: vi.fn(),
       clear: vi.fn(),
     };
-    const { controller, view, dependencies, resolveWorkerSelfTest } = controllerHarness({
-      chosenWords,
-    });
+    const { controller, view, dependencies, resolveWorkerSelfTest, generation } = controllerHarness(
+      { chosenWords },
+    );
     controller.start();
     resolveWorkerSelfTest({ passed: true, checks: ["worker fixture"], durationMs: 1 });
     await settle();
@@ -493,7 +280,9 @@ describe("Key Derivation readiness and chosen-word generation", () => {
     (view.generate12Button as unknown as TestControl).click();
     await settle();
     expect(chosenWords.generate).toHaveBeenCalledWith(12);
-    expect(view.showError).toHaveBeenLastCalledWith("Chosen word 1 is not an English BIP39 word.");
+    // The refusal stands next to the Generate buttons, not with the derivation's messages.
+    expect(generation.error.textContent).toBe("Chosen word 1 is not an English BIP39 word.");
+    expect(view.showError).not.toHaveBeenCalledWith("Chosen word 1 is not an English BIP39 word.");
     // A wish that cannot be met is an error, never an ordinary phrase in its place.
     expect(dependencies.generateMnemonic).not.toHaveBeenCalled();
 
@@ -510,7 +299,7 @@ describe("Key Derivation readiness and chosen-word generation", () => {
   it("drops an already sampled chosen-word phrase when wishes change before publication (AUD-026-ARC001)", async () => {
     const chosenWords = {
       onChange: vi.fn(),
-      useChecked: vi.fn(),
+      setConditioned: vi.fn(),
       active: vi.fn(() => true),
       // Production sampling finishes before this promise is returned.
       generate: vi.fn(() =>
@@ -525,8 +314,7 @@ describe("Key Derivation readiness and chosen-word generation", () => {
     controller.start();
     resolveWorkerSelfTest({ passed: true, checks: ["worker fixture"], durationMs: 1 });
     await settle();
-    // No checked mode is installed here: the panel itself tells the page of its edits.
-    expect(chosenWords.useChecked).not.toHaveBeenCalled();
+    // The panel itself tells the page of its edits.
     const edited = chosenWords.onChange.mock.calls[0]![0] as () => void;
     (view.generate12Button as unknown as TestControl).click();
     edited();
@@ -541,7 +329,7 @@ describe("Key Derivation generated source publication", () => {
       "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
     const chosenWords = {
       onChange: vi.fn(),
-      useChecked: vi.fn(),
+      setConditioned: vi.fn(),
       active: vi.fn(() => false),
       generate: vi.fn(async () => publicPhrase),
       request: vi.fn(() => ({
@@ -553,11 +341,14 @@ describe("Key Derivation generated source publication", () => {
       clear: vi.fn(),
     };
     const checked = {
+      condition: { goal: "passes the check", name: "the check", bits: 16, words: 24 },
       active: vi.fn(() => false),
       generate: vi.fn(async () => publicPhrase),
       cancel: vi.fn(),
       clear: vi.fn(),
       setEnabled: vi.fn(),
+      speed: vi.fn(),
+      onSpeed: vi.fn(),
     };
     const { controller, view, dependencies, resolveWorkerSelfTest } = controllerHarness({
       chosenWords,
@@ -599,11 +390,14 @@ describe("Key Derivation generated source publication", () => {
       24,
       exactPassphrase,
       chosenWords.request(),
+      undefined,
       expect.any(Function),
     );
     expect(view.passphrase.value).toBe(exactPassphrase);
   });
+});
 
+describe("Key Derivation phrases of TON and of long draws", () => {
   it("reads a TON phrase typed during the startup checks once they pass, and opens its tab", async () => {
     const bitcoin = { id: "bitcoin-bip44", label: "Bitcoin", variantLabel: "BIP44", defaults: {} };
     const telegram = {
@@ -644,36 +438,45 @@ describe("Key Derivation generated source publication", () => {
     expect(view.configureControls).toHaveBeenLastCalledWith(telegram, expect.anything());
   });
 
-  it("cancels a checked draw when a derivation control changes (AUD-026-API001)", async () => {
-    let fail!: (cause: Error) => void;
-    const draw = new Promise<string>((_, reject) => {
-      fail = reject;
+  it("keeps a checked draw when a derivation control changes, and shows its phrase (AUD-026-API001)", async () => {
+    const PHRASE = `${"abandon ".repeat(23)}art`;
+    let release!: (phrase: string) => void;
+    const draw = new Promise<string>((resolve) => {
+      release = resolve;
     });
     const checked = {
+      condition: { goal: "passes the check", name: "the check", bits: 16, words: 24 },
       active: vi.fn(() => true),
       generate: vi.fn(() => draw),
-      cancel: vi.fn(() => {
-        const cause = new Error("Stopped");
-        cause.name = "AbortError";
-        fail(cause);
-      }),
+      cancel: vi.fn(),
       clear: vi.fn(),
       setEnabled: vi.fn(),
+      speed: vi.fn(),
+      onSpeed: vi.fn(),
     };
-    const { controller, view, resolveWorkerSelfTest } = controllerHarness({
+    const { controller, view, resolveWorkerSelfTest, generation } = controllerHarness({
       installCheckedMnemonicFeature: vi.fn(() => checked),
     });
     controller.start();
     resolveWorkerSelfTest({ passed: true, checks: ["worker fixture"], durationMs: 1 });
     await settle();
+    (view.passphrase as unknown as TestControl).value = "TREZOR";
     (view.generate24Button as unknown as TestControl).click();
     await settle();
     expect(checked.generate).toHaveBeenCalledOnce();
+    expect(generation.line.textContent).toMatch(
+      /^Drawing a new 24-word phrase that passes the check/u,
+    );
     checked.cancel.mockClear();
+    // A long draw may outlive a change of what is derived: it goes on, and its phrase is shown
+    // and derived with the new settings, never dropped silently.
     (view.controls.count as unknown as TestControl).dispatchEvent(new Event("change"));
     await settle();
-    expect(checked.cancel).toHaveBeenCalledOnce();
-    expect(view.setGeneratedMnemonic).not.toHaveBeenCalled();
+    expect(checked.cancel).not.toHaveBeenCalled();
+    release(PHRASE);
+    await settle();
+    expect(view.setGeneratedMnemonic).toHaveBeenCalledWith(PHRASE, undefined);
+    expect(generation.line.textContent).toMatch(/^Generated a new 24-word BIP39 recovery phrase/u);
   });
 
   it("offers a phrase made with chosen words to the backup tabs (AUD-019-UI001)", async () => {
@@ -681,7 +484,7 @@ describe("Key Derivation generated source publication", () => {
       "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
     const chosenWords = {
       onChange: vi.fn(),
-      useChecked: vi.fn(),
+      setConditioned: vi.fn(),
       active: vi.fn(() => true),
       generate: vi.fn(() => Promise.resolve(PHRASE)),
       setRevealed: vi.fn(),
@@ -730,7 +533,7 @@ describe("Key Derivation descendant revocation", () => {
     };
     const chosenWords = {
       onChange: vi.fn(),
-      useChecked: vi.fn(),
+      setConditioned: vi.fn(),
       active: vi.fn(() => false),
       generate: vi.fn(),
       setRevealed: vi.fn(),

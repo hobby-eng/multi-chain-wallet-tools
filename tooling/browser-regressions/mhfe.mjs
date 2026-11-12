@@ -3,6 +3,7 @@ import { MhfeInputLifecycleCase } from "../browser-cases/mhfe-input-lifecycle.mj
 import { MhfePendingInputCase } from "../browser-cases/mhfe-pending-input-lifecycle.mjs";
 import { MhfeContainerAdaptationCase } from "../browser-cases/mhfe-container-adaptation.mjs";
 import { MhfeEncryptCommandCase } from "../browser-cases/mhfe-encrypt-command.mjs";
+import { RandomFixtures } from "../browser-cases/random-fixtures.mjs";
 import { createHash } from "node:crypto";
 import { entropyToMnemonic, mnemonicToSeedSync } from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english.js";
@@ -302,66 +303,8 @@ async function mhfeCustomPath(context, profile, run) {
   );
 }
 
-async function installWalletCheckDrawFixture(context) {
-  // The Deriver's wallet-check draw workers take their randomness from the page's source only when
-  // this test sets one: public profile-vector entropy (a counter in the last eight bytes, after two
-  // different probes, as the draw's source check asks), or a stuck source that the draw must
-  // refuse. Every other part of the draw, and MHFE's check of its phrase, is the page's own.
-  await context.addInitScript(() => {
-    const NativeBlob = window.Blob;
-    const NativeWorker = window.Worker;
-    const sources = new WeakMap();
-    const urls = new Map();
-    const createUrl = URL.createObjectURL.bind(URL);
-    window.Blob = class extends NativeBlob {
-      constructor(parts, options) {
-        super(parts, options);
-        if (parts?.every((part) => typeof part === "string")) sources.set(this, parts.join(""));
-      }
-    };
-    URL.createObjectURL = (blob) => {
-      const url = createUrl(blob);
-      if (sources.has(blob)) urls.set(url, sources.get(blob));
-      return url;
-    };
-    window.mhfeRandom = null;
-    window.mhfeDrawDelay = 0;
-    window.Worker = class extends NativeWorker {
-      constructor(url, options) {
-        let fixtureUrl;
-        const random = window.mhfeRandom;
-        // The draw's worker is the one script that hashes the profile's domain tag.
-        if (random !== null && urls.get(url)?.includes("MHFE-WALLET-CHECK-SEED-1")) {
-          const prefix =
-            random === "stuck"
-              ? `Object.defineProperty(crypto, "getRandomValues", { value: (bytes) => bytes.fill(0) });\n`
-              : `{
-            const fixture = new Uint8Array(32);
-            new DataView(fixture.buffer).setBigUint64(24, BigInt(${random}), false);
-            let calls = 0;
-            Object.defineProperty(crypto, "getRandomValues", { value: (bytes) => {
-              calls += 1;
-              if (calls === 3) {
-                const until = performance.now() + ${window.mhfeDrawDelay};
-                while (performance.now() < until) {}
-              }
-              for (let i = 0; i < bytes.length; i += 1)
-                bytes[i] = calls <= 2 ? 1 + ((i + calls) % 254) : fixture[i % 32];
-              return bytes;
-            }});
-          }\n`;
-          fixtureUrl = createUrl(
-            new NativeBlob([prefix, urls.get(url)], { type: "text/javascript" }),
-          );
-        }
-        super(fixtureUrl ?? url, options);
-      }
-    };
-  });
-}
-
 async function checkedMnemonic(context, profile, run) {
-  await installWalletCheckDrawFixture(context);
+  await RandomFixtures.walletCheckDraw(context);
   const page = await open(context, profile, "key-derivation", run);
   const before = await storageSnapshot(page);
   assert.equal(await page.locator("#wallet-check-enabled").isChecked(), false);
@@ -398,10 +341,11 @@ async function checkedMnemonic(context, profile, run) {
   for (const count of [12, 15, 18, 21])
     assert.equal(await page.locator(`#generate-${count}`).isDisabled(), true);
   // The check alone, as MHFE rated it: 16 of the 256 bits.
-  await waitText(page, "#wallet-check-outlook", /keeps about 240 of its 256 random bits/u);
-  // The check needs a passphrase.
+  await waitText(page, "#generation-bits", /keeps about 240 of its 256 random bits/u);
+  // The check needs a passphrase; the refusal stands next to the Generate buttons.
   await page.locator("#generate-24").click();
-  await waitText(page, "#error", /needs a BIP39 passphrase/u);
+  await waitText(page, "#generation-error", /needs a BIP39 passphrase/u);
+  assert.equal(await page.locator("#error").isVisible(), false);
   assert.equal(await page.locator("#mnemonic").inputValue(), "");
   await page.locator("#passphrase").fill("TREZOR");
   // One passphrase field, checked with Show (owner, 2026-10-25): its warning shows while it holds text.
@@ -419,7 +363,7 @@ async function checkedMnemonic(context, profile, run) {
   // A fixed word costs 11 bits and the check 16; the excluded word a small fraction of a bit.
   await waitText(
     page,
-    "#wallet-check-outlook",
+    "#generation-bits",
     /^Not recommended: the phrase keeps about 228 of its 256/u,
   );
   assert.equal(await page.locator("#chosen-words-strength").isVisible(), false);
@@ -461,14 +405,15 @@ async function checkedMnemonic(context, profile, run) {
   });
   await page.locator("#passphrase").fill("trezor");
   await page.locator("#generate-24").click();
-  await page.locator("#wallet-check-cancel").waitFor({ state: "visible" });
-  await page.locator("#wallet-check-cancel").click();
-  await page.locator("#wallet-check-cancel").waitFor({ state: "hidden" });
+  await page.locator("#generation-stop").waitFor({ state: "visible" });
+  await page.locator("#generation-stop").click();
+  await page.locator("#generation-stop").waitFor({ state: "hidden" });
+  await waitText(page, "#generation-line", /^Stopped /u);
   await page.evaluate(() => {
     window.mhfeDrawDelay = 0;
   });
   await page.waitForTimeout(300);
-  assert.equal(await page.locator("#error").isVisible(), false, "Stop is not a failure");
+  assert.equal(await page.locator("#generation-error").isVisible(), false, "Stop is not a failure");
   assert.ok(
     (await page.locator("#mnemonic").inputValue()) === drawn,
     "the cancelled draw is dropped",
@@ -483,7 +428,7 @@ async function checkedMnemonic(context, profile, run) {
   await page.locator("#wallet-check-enabled").check();
   await page.locator("#passphrase").fill("TREZOR");
   await page.locator("#generate-24").click();
-  await waitText(page, "#error", /random/iu);
+  await waitText(page, "#generation-error", /random/iu);
   assert.equal(await page.locator("#mnemonic").inputValue(), "");
   assert.deepEqual(await storageSnapshot(page), before);
   assert.equal(run.requests.length, 0);

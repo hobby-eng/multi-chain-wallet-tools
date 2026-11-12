@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createKeyDerivationController } from "../src/ui/controller.js";
 import type { KeyDerivationView } from "../src/ui/view.js";
 import { createBitcoinAddressSearchRunner } from "../src/ui/address-search-feature.js";
+import { generationViews } from "./fake-generation-view.js";
 import { settlePromises } from "./fake-recovery-page.js";
 
 class Control extends EventTarget {
@@ -96,8 +97,16 @@ function fixture() {
     searchCount: fields.searchCount,
     result: new Control(),
   };
+  const { generationProgress, generationOutlook } = generationViews();
   const view = new Proxy(
-    { ...fields, controls, addressSearch, descriptorButtons: {} },
+    {
+      ...fields,
+      controls,
+      addressSearch,
+      descriptorButtons: {},
+      generationProgress,
+      generationOutlook,
+    },
     {
       get(target, key: string) {
         return key in target ? target[key as keyof typeof target] : method(key);
@@ -122,7 +131,12 @@ function fixture() {
     .fn()
     .mockReturnValueOnce(startup)
     .mockReturnValueOnce(worker)
-    .mockImplementation(() => ({ derive: () => new Promise(() => {}), terminate: vi.fn() }));
+    // A derivation worker that never answers: the derivation a new phrase starts stays pending.
+    .mockImplementation(() => ({
+      ready: async () => undefined,
+      derive: () => new Promise(() => {}),
+      terminate: vi.fn(),
+    }));
   const adapter = {
     id: "bitcoin-bip44",
     variantLabel: "BIP44",

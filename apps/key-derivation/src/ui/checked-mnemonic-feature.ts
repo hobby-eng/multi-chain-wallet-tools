@@ -1,70 +1,70 @@
 // "Generate with the MHFE wallet check" in Generate & Derive: the Generate 24 button draws a phrase
 // that passes MHFE's wallet check (MHFE-WALLET-CHECK-SEED-1) with the BIP39 passphrase typed in the
-// page, and holds the chosen word of the panel below if one is given. The Deriver draws it itself,
-// on a few workers (wallet-check-draw.ts): from MHFE 0.8.0 it is the one generator of phrases. MHFE's
-// wallet module checks the phrase once more (MhfeWallet.walletCheck) before it is shown.
+// page, holds the chosen word of the panel below if one is given, and with "Generate a phrase the
+// Telegram wallet accepts" also passes TON's check. The Deriver draws it itself, on the workers the
+// person chooses (wallet-check-draw.ts): from MHFE 0.8.0 it is the one generator of phrases.
+// MHFE's wallet module checks the phrase once more (MhfeWallet.walletCheck), and the page checks
+// TON's condition once more, before it is shown.
 import type { ChosenWordCount, ChosenWordsRequest } from "@ckd/core/bip39-chosen-words.js";
 import {
   runWalletCheckSelfTest,
-  WALLET_CHECK_EXPECTED_DRAWS,
+  WALLET_CHECK_BITS,
   WALLET_CHECK_WORDS,
-  walletCheckOdds,
 } from "@ckd/core/bip39-wallet-check.js";
 import { MhfeError } from "@ckd/recovery-mhfe-wasm/runtime/runtime.js";
 import { requireQueryElement } from "@ckd/ui/dom.js";
-import type { CheckedGeneration } from "./chosen-words-feature.js";
+import type { DrawSpeedState, GenerationCondition, WorkerPrecheck } from "./generation-plan.js";
 import { MhfeEngine } from "./recovery-mhfe-engine.js";
 import { MhfeRun, MhfeRunStopped } from "./recovery-mhfe-run.js";
 import { MhfePanelCheck } from "./recovery-mhfe-self-check.js";
-import {
-  describe,
-  drawLine,
-  drawOutlook,
-  drawStartLine,
-  selfCheckFailure,
-} from "./recovery-mhfe-status.js";
-import { JobClock } from "./recovery-progress.js";
+import { describe, selfCheckFailure } from "./recovery-mhfe-status.js";
 import {
   GenerationOptionState,
   type GenerateButtons,
   type GenerationOption,
 } from "./generation-option.js";
 import { WalletCheckDraw } from "./wallet-check-draw.js";
+import { WalletCheckDrawSpeed } from "./wallet-check-draw-speed.js";
+import { DrawThreads } from "./wallet-check-draw-threads.js";
 
-/** The wishes of the chosen-word panel, for a phrase of a given length. */
-type WishesFor = (wordCount: ChosenWordCount) => ChosenWordsRequest;
+/** The wallet check as a condition of a drawn phrase, in the words of the page's lines. */
+const CONDITION: GenerationCondition = Object.freeze({
+  goal: "passes the MHFE wallet check with your BIP39 passphrase",
+  name: "the MHFE wallet check",
+  bits: WALLET_CHECK_BITS,
+  words: WALLET_CHECK_WORDS,
+});
 
 /**
- * A generation option, not an assertion about a phrase imported or edited afterwards. It plugs into
- * the chosen-word panel as its checked mode (CheckedGeneration). Its engine is its own, so that a
- * draw of the MHFE panel and this one never stop each other.
+ * A generation option, not an assertion about a phrase imported or edited afterwards. Its engine is
+ * its own, so that a draw of the MHFE panel and this one never stop each other.
  */
-export class CheckedMnemonicFeature implements CheckedGeneration, GenerationOption {
+export class CheckedMnemonicFeature implements GenerationOption {
   readonly #engine: MhfeEngine;
   readonly #box: HTMLInputElement;
   readonly #state: GenerationOptionState;
   readonly #panel: HTMLElement;
   readonly #help: HTMLDetailsElement;
-  readonly #cancel: HTMLButtonElement;
   /** The note beside the passphrase label: optional, or required while this mode is chosen. */
   readonly #need: HTMLElement | null;
   readonly #buttons: GenerateButtons;
-  /** What the wishes keep with the check, shown while the box is ticked. */
-  readonly #outlook: HTMLElement;
+  /** Starts the workers of one draw or measurement (CORE-09). */
+  readonly #createDraw: () => WalletCheckDraw;
+  readonly #threads: DrawThreads;
+  readonly #speed: WalletCheckDrawSpeed;
+  readonly #speedListeners: (() => void)[] = [];
   /** MHFE's quick check of its wallet module, run when the box is first ticked. */
   readonly #check: MhfePanelCheck;
   #failed = false;
   /** The phrase being drawn, whose Cancel latches over every step (MhfeRun). */
   #run: MhfeRun | undefined;
-  /** The workers drawing it. */
-  #draw: WalletCheckDraw | undefined;
-  #wishes: WishesFor | null = null;
 
   constructor(
     page: Document,
     onChange: () => void,
     buttons: GenerateButtons,
     engine: MhfeEngine = new MhfeEngine(),
+    createDraw: () => WalletCheckDraw = () => new WalletCheckDraw(),
   ) {
     const required = <T extends Element>(selector: string) =>
       requireQueryElement<T>(page, selector);
@@ -72,18 +72,22 @@ export class CheckedMnemonicFeature implements CheckedGeneration, GenerationOpti
     this.#box = required<HTMLInputElement>("#wallet-check-enabled");
     this.#state = new GenerationOptionState(
       this.#box,
-      () => this.cancel(),
       () => {
-        this.#showOutlook();
-        this.#sync();
+        this.cancel();
+        this.#speed.stop();
       },
+      () => this.#sync(),
     );
     this.#panel = required<HTMLElement>("#wallet-check-options");
     this.#help = required<HTMLDetailsElement>("#wallet-check-help");
-    this.#cancel = required<HTMLButtonElement>("#wallet-check-cancel");
     this.#need = page.querySelector<HTMLElement>("#passphrase-need-kind");
     this.#buttons = buttons;
-    this.#outlook = required<HTMLElement>("#wallet-check-outlook");
+    this.#createDraw = createDraw;
+    this.#threads = new DrawThreads(
+      required<HTMLSelectElement>("#draw-threads"),
+      globalThis.navigator?.hardwareConcurrency,
+    );
+    this.#speed = new WalletCheckDrawSpeed(() => this.#speedChanged(), createDraw);
     this.#check = new MhfePanelCheck(engine, this.#panel, required("#wallet-check-status"), [
       "Wallet",
     ]);
@@ -94,14 +98,17 @@ export class CheckedMnemonicFeature implements CheckedGeneration, GenerationOpti
     };
     this.#box.addEventListener("change", () => {
       changed();
-      this.#showOutlook();
       if (this.#box.checked) void this.#open();
     });
     // A draw belongs to the passphrase it started with: editing the passphrase stops it.
     page.querySelector("#passphrase")?.addEventListener("input", changed);
-    this.#cancel.addEventListener("click", changed);
-    // A change of the wishes reaches this mode through the panel (showWishes).
+    this.#threads.onChange(() => this.#speedChanged());
     this.#sync();
+  }
+
+  /** The wallet check as a condition of the phrase. */
+  get condition(): GenerationCondition {
+    return CONDITION;
   }
 
   // The same three methods as TonPhraseFeature's, both GenerationOption's (a deliberate copy).
@@ -115,31 +122,44 @@ export class CheckedMnemonicFeature implements CheckedGeneration, GenerationOpti
 
   clear(): void {
     this.#state.clear();
-  }
-
-  onChange(listener: () => void): void {
-    this.#box.addEventListener("change", listener);
-  }
-
-  showWishes(request: WishesFor | null): void {
-    this.#wishes = request;
-    this.#showOutlook();
+    this.#threads.reset();
   }
 
   cancel(): void {
     this.#run?.cancel();
   }
 
+  /** Calls `listener` when a measurement of speed ends or the threads change. */
+  onSpeed(listener: () => void): void {
+    this.#speedListeners.push(listener);
+  }
+
   /**
-   * A phrase that passes the wallet check with `passphrase` and meets `wishes`; `onStatus` gets
-   * the status lines while it is drawn, with the average time at the speed so far. MHFE checks the
-   * phrase once more before it is given. Cancelled, it rejects with an AbortError.
+   * How fast a draw runs on the threads chosen, with TON's check when `ton`: the last measurement
+   * of the same draw, or one about to run, which onSpeed reports. Null stops measuring. Nothing is
+   * measured while a phrase is drawn.
+   */
+  speed(ton: boolean | null): DrawSpeedState | undefined {
+    if (ton === null || !this.#state.enabled || !this.#box.checked) {
+      this.#speed.stop();
+      return undefined;
+    }
+    if (this.#run !== undefined) return undefined;
+    return this.#speed.of({ ton, threads: this.#threads.count });
+  }
+
+  /**
+   * A phrase that passes the wallet check with `passphrase`, meets `wishes` and passes `precheck`
+   * if one is given, tried first; `onDraws` gets the phrases tried. MHFE checks the phrase once
+   * more, and the page checks `precheck` once more, before it is given. Cancelled, it rejects with
+   * an AbortError.
    */
   async generate(
     words: ChosenWordCount,
     passphrase: string,
     wishes: ChosenWordsRequest,
-    onStatus: (line: string) => void,
+    precheck: WorkerPrecheck | undefined,
+    onDraws: (draws: number) => void,
   ): Promise<string> {
     this.cancel();
     if (!this.#state.enabled) throw new Error("The cryptographic self-test has not passed.");
@@ -154,10 +174,11 @@ export class CheckedMnemonicFeature implements CheckedGeneration, GenerationOpti
       chosen: wishes.chosen.map((word) => ({ ...word })),
       neverUse: [...wishes.neverUse],
     };
-    const draw = new WalletCheckDraw();
+    const draw = this.#createDraw();
     const run = new MhfeRun(() => draw.stop());
     this.#run = run;
-    this.#draw = draw;
+    // The workers are the draw's now; a measurement under way would only slow it.
+    this.#speed.pause();
     this.#sync();
     try {
       if (!(await run.step(() => this.#check.ensure())))
@@ -167,17 +188,20 @@ export class CheckedMnemonicFeature implements CheckedGeneration, GenerationOpti
       const wallet = await run.step(() => this.#engine.wallet());
       // The page's own digest against the profile's published vector, before minutes of drawing.
       runWalletCheckSelfTest();
-      onStatus(drawStartLine(true, WALLET_CHECK_EXPECTED_DRAWS));
-      const clock = new JobClock();
       const phrase = await run.step(() =>
-        draw.run(wanted, passphrase, (draws) =>
-          onStatus(drawLine(draws, clock, true, WALLET_CHECK_EXPECTED_DRAWS)),
+        draw.run(
+          { wishes: wanted, ton: precheck !== undefined, threads: this.#threads.count },
+          passphrase,
+          onDraws,
         ),
       );
       if (phrase === undefined) throw new MhfeRunStopped();
-      // MHFE's own check, in its worker, before the phrase is shown.
+      // MHFE's own check, in its worker, and the page's own check of TON's condition, by another
+      // implementation than the workers', before the phrase is shown.
       if (!(await run.step(() => wallet.walletCheck({ phrase, passphrase }))))
         throw new Error("The generated phrase failed its MHFE wallet check.");
+      if (precheck !== undefined && !precheck.passes(phrase))
+        throw new Error(`The generated phrase failed ${precheck.name}.`);
       return phrase;
     } catch (cause) {
       if (cause instanceof MhfeRunStopped)
@@ -186,9 +210,10 @@ export class CheckedMnemonicFeature implements CheckedGeneration, GenerationOpti
       throw new Error(describe(cause, "the phrase could not be checked."), { cause });
     } finally {
       draw.stop();
-      if (this.#draw === draw) this.#draw = undefined;
       if (this.#run === run) this.#run = undefined;
       this.#sync();
+      // A measurement paused for the draw may run again.
+      this.#speedChanged();
     }
   }
 
@@ -203,20 +228,8 @@ export class CheckedMnemonicFeature implements CheckedGeneration, GenerationOpti
     this.#sync();
   }
 
-  /** What the panel's wishes keep of the phrase's randomness with the check, while it is ticked. */
-  #showOutlook(): void {
-    const text = this.#box.checked
-      ? drawOutlook(
-          walletCheckOdds({
-            wordCount: WALLET_CHECK_WORDS,
-            chosen: [],
-            neverUse: [],
-            ...this.#wishes?.(WALLET_CHECK_WORDS),
-          }),
-        )
-      : null;
-    this.#outlook.textContent = text ?? "";
-    this.#outlook.hidden = text === null;
+  #speedChanged(): void {
+    for (const listener of this.#speedListeners) listener();
   }
 
   #sync(): void {
@@ -225,7 +238,7 @@ export class CheckedMnemonicFeature implements CheckedGeneration, GenerationOpti
     this.#panel.hidden = !this.#box.checked;
     // The "?" explains the option before it is chosen (owner, 2026-10-23).
     this.#help.hidden = false;
-    this.#cancel.hidden = this.#run === undefined;
+    this.#threads.setEnabled(this.#run === undefined);
     // "case-sensitive" stays in the page's own span, which keeps the word whole on a phone.
     if (this.#need !== null)
       this.#need.textContent = this.#box.checked ? "required for MHFE generation" : "optional";

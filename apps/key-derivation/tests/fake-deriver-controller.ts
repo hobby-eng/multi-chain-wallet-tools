@@ -7,6 +7,7 @@ import { installSilentPaymentFeature } from "../src/ui/silent-payment-feature.js
 import type { SilentPaymentResult } from "../src/workers/silent-payment.js";
 import { RecoveryTestPage } from "./fake-recovery-page.js";
 import type { ChosenWordsFeature } from "../src/ui/chosen-words-feature.js";
+import { generationViews } from "./fake-generation-view.js";
 
 export interface Deferred<T> {
   readonly promise: Promise<T>;
@@ -130,6 +131,7 @@ export function installControllerFixture(
   const view = {
     ...viewElements,
     ...viewMethods,
+    ...generationViews(),
     document: page,
     controls,
     descriptorButtons: {},

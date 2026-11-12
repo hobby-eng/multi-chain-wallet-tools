@@ -10,9 +10,6 @@ import {
   candidateSummary,
   clearOnFirstProgress,
   describe,
-  drawLine,
-  drawOutlook,
-  drawStartLine,
   keepLine,
   listed,
   readBackDiffers,
@@ -147,46 +144,6 @@ group("MHFE panel texts", () => {
         rounds: 12,
       }),
     ).toBe("Comparing with your wallet · 1 min 6 s elapsed");
-    expect(drawLine(65_536, clock, true)).toBe(
-      "Drawing a phrase that passes the check · 65,536 tried · 1 min 6 s elapsed",
-    );
-    expect(drawLine(170, clock, false)).toBe(
-      "Drawing a phrase that meets your words · 170 tried · 1 min 6 s elapsed",
-    );
-    // Half of the 131,072 expected draws in 66 s: 132 s on average at this speed.
-    expect(drawLine(65_536, clock, true, 131_072)).toBe(
-      "Drawing a phrase that passes the check · 65,536 tried · 1 min 6 s elapsed · about 2 min 12 s on average at this speed",
-    );
-  });
-
-  it("starts a draw with the draws MHFE expects", () => {
-    expect(drawStartLine(true, 65_536)).toBe(
-      "Drawing a phrase that passes the check, about 65,536 draws.",
-    );
-    expect(drawStartLine(false, 170.6)).toBe(
-      "Drawing a phrase that meets your words, about 171 draws.",
-    );
-    // Neither the check nor a chosen word: the first phrase drawn is taken.
-    expect(drawStartLine(false, 1)).toBe("Drawing a new phrase.");
-  });
-
-  it("states what a new phrase keeps with the check, in the words of mhfe new", () => {
-    const odds = (
-      randomBits: number,
-      randomness: "ample" | "notRecommended",
-      fixedPosition = true,
-    ) => ({ randomBits, randomness, fixedPosition });
-    expect(drawOutlook(odds(240, "ample"))).toBe(
-      "The phrase keeps about 240 of its 256 random bits: still far more than enough.",
-    );
-    expect(drawOutlook(odds(228.98, "notRecommended"))).toBe(
-      "Not recommended: the phrase keeps about 228 of its 256 random bits, fewer than 240. A word " +
-        "anywhere in the phrase keeps more than one at a fixed position.",
-    );
-    // A word asked for anywhere already keeps more: no such advice.
-    expect(drawOutlook(odds(228.98, "notRecommended", false))).toBe(
-      "Not recommended: the phrase keeps about 228 of its 256 random bits, fewer than 240.",
-    );
   });
 
   it("says what to keep from the package's list", () => {

@@ -10,6 +10,7 @@ import { DashKeysAndMultisigCase } from "./browser-cases/dash-keys-and-multisig.
 import { MnemoCodeShareHintsCase } from "./browser-cases/mnemocode-share-hints.mjs";
 import { MnemoCodeSourceHintsCase } from "./browser-cases/mnemocode-source-hints.mjs";
 import { SeedQrHiddenCase } from "./browser-cases/seedqr-hidden.mjs";
+import { GenerationMatrixCase } from "./browser-cases/generation-matrix.mjs";
 // Synthetic, direct-file integration tests. Never point this at a live browser profile.
 import { CopyFeedbackCase } from "./browser-cases/copy-feedback.mjs";
 import { Bip85ManualStartCase } from "./browser-cases/bip85-manual-start.mjs";
@@ -237,6 +238,22 @@ for (const browserName of (process.env.BROWSER_ENGINES ?? "chromium,firefox").sp
       cases.push({
         name: "checked-mnemonic",
         execute: (context, run) => checkedMnemonic(context, profile, run),
+      });
+      // Every combination of the generation options, with screenshots of each running and done.
+      cases.push({
+        name: "generation-matrix",
+        execute: async (context, run) => {
+          run.checks.push(
+            ...(await GenerationMatrixCase.run(
+              context,
+              profile,
+              run,
+              open,
+              BrowserHarness.storageSnapshot,
+              output,
+            )),
+          );
+        },
       });
       cases.push({
         name: "mhfe-input-lifecycle",

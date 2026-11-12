@@ -21,21 +21,6 @@ const WORD_COUNTS: readonly ChosenWordCount[] = BIP39_WORD_COUNTS;
 const PERCENT_SCALE = 100;
 const BIT_DISPLAY_SCALE = 10;
 
-/**
- * A generation mode that draws only phrases that pass a check, as the MHFE wallet check does
- * (checked-mnemonic-feature.ts), plugged into the panel by a build that has it. Its own library
- * rates the wishes, so the mode shows what they keep in its own place; the panel's table holds the
- * rules of the ordinary generator only.
- */
-export interface CheckedGeneration {
-  /** Whether the mode is chosen. */
-  active(): boolean;
-  /** Calls `listener` when the mode is chosen or left. */
-  onChange(listener: () => void): void;
-  /** Takes the panel's wishes, or null while there are none, and shows what they keep. */
-  showWishes(request: ((wordCount: ChosenWordCount) => ChosenWordsRequest) | null): void;
-}
-
 export interface ChosenWordsFeature {
   /** True when the box is ticked and a wish is given: the Generate buttons then call generate. */
   active(): boolean;
@@ -55,8 +40,12 @@ export interface ChosenWordsFeature {
    * for the earlier wishes must not be published (AUD-024-API002).
    */
   onChange(listener: () => void): void;
-  /** Hands the wishes to a checked generation mode while it is chosen. */
-  useChecked(mode: CheckedGeneration): void;
+  /**
+   * While a generation option that checks the phrase is chosen (TON's check, the MHFE wallet
+   * check), the panel's table of bits for every length gives way to the option's own statement of
+   * what the wishes and the checks keep (phrase-generation.ts).
+   */
+  setConditioned(conditioned: boolean): void;
 }
 
 import { defined } from "@ckd/core/defined.js";
@@ -70,7 +59,7 @@ export class ChosenWordsPanel implements ChosenWordsFeature {
   readonly #bits;
   readonly #verdict;
   readonly #rule;
-  #checked: CheckedGeneration | undefined;
+  #conditioned = false;
   readonly #listeners: (() => void)[];
   constructor(page: Document = document) {
     const required = <T extends Element>(selector: string) =>
@@ -111,14 +100,10 @@ export class ChosenWordsPanel implements ChosenWordsFeature {
   };
   readonly #update = (): void => {
     this.#panel.hidden = !this.#enabled.checked;
-    // A checked mode rates the wishes with its own library and shows that itself.
-    const mode = this.#checked?.active() === true ? this.#checked : undefined;
-    this.#strength.hidden = mode !== undefined;
-    this.#rule.hidden = mode !== undefined;
-    if (mode !== undefined) {
-      mode.showWishes(this.active() ? this.request : null);
-      return;
-    }
+    // A generation option that checks the phrase states the bits itself.
+    this.#strength.hidden = this.#conditioned;
+    this.#rule.hidden = this.#conditioned;
+    if (this.#conditioned) return;
     const results = WORD_COUNTS.map((wordCount) => ({
       wordCount,
       result: this.#remaining(wordCount),
@@ -173,10 +158,10 @@ export class ChosenWordsPanel implements ChosenWordsFeature {
   readonly onChange = (listener: () => void): void => {
     this.#listeners.push(listener);
   };
-  /** {@inheritDoc ChosenWordsFeature.useChecked} */
-  readonly useChecked = (mode: CheckedGeneration): void => {
-    this.#checked = mode;
-    mode.onChange(this.#update);
+  /** {@inheritDoc ChosenWordsFeature.setConditioned} */
+  readonly setConditioned = (conditioned: boolean): void => {
+    if (conditioned === this.#conditioned) return;
+    this.#conditioned = conditioned;
     this.#update();
   };
 }

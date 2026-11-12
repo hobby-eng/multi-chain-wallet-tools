@@ -4,6 +4,7 @@ import { createMessageSigningInstaller } from "../src/ui/message-signing-feature
 import { BITCOIN_MESSAGE_SIGNING_POLICY } from "../src/ui/message-signing-policy-bitcoin.js";
 import type { KeyDerivationView } from "../src/ui/view.js";
 import type { ResultsRenderOptions } from "../src/ui/results.js";
+import { generationViews } from "./fake-generation-view.js";
 
 class Control extends EventTarget {
   value = "";
@@ -129,7 +130,7 @@ async function fixture() {
     return methods.get(key)!;
   };
   const view = new Proxy(
-    { ...fields, controls, descriptorButtons: {} },
+    { ...fields, controls, descriptorButtons: {}, ...generationViews() },
     {
       get(target, key: string) {
         return key in target ? target[key as keyof typeof target] : method(key);

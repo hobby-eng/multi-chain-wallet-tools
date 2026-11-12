@@ -117,13 +117,15 @@ export function singleKeyCoinModules(coin) {
 
 /**
  * TON's phrase, beyond its coin modules: its mnemonic, the page's TON phrase feature (the Telegram
- * wallet's seed and Telegram-compatible generation) and the worker's slower key check.
+ * wallet's seed and Telegram-compatible generation), the worker's slower key check and TON's check
+ * in the wallet-check draw.
  */
 export const TON_PHRASE_MODULES = Object.freeze([
   "/crypto-core/src/ton-mnemonic.ts",
   "/crypto-core/src/ton-phrase.ts",
   "/key-derivation/src/ui/ton-phrase-feature.ts",
   "/key-derivation/src/workers/ton-key-self-test.ts",
+  "/key-derivation/src/workers/ton-draw-precheck.ts",
 ]);
 
 /** The graph markers of a single-key coin's own modules, which no build without it may hold. */
