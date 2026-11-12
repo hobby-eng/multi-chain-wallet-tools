@@ -93,13 +93,14 @@ describe("message-signing composition", () => {
     expect(parseKeyDerivationFeatures(profile, ["--coins", "dash"]).has("message-signing")).toBe(
       true,
     );
-    expect(
-      parseKeyDerivationFeatures(profile, ["--coins", "ethereum"]).has("message-signing"),
-    ).toBe(false);
+    // XRP has no common message-signing standard (RESEARCH.md), so XRP alone signs nothing.
+    expect(parseKeyDerivationFeatures(profile, ["--coins", "xrp"]).has("message-signing")).toBe(
+      false,
+    );
     expect(() =>
       parseKeyDerivationFeatures(profile, [
         "--coins",
-        "ethereum",
+        "xrp",
         "--features",
         "derive,message-signing",
       ]),

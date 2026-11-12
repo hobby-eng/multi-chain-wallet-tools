@@ -4,6 +4,13 @@
 // (coins/ed25519-coin.ts); Hedera has keys of both. Each coin's modules sit at the same places,
 // named by its id, so a build composes any of them from this one table.
 
+/** The modules of EIP-191's envelope signing (SHARED_MODULES), which Ethereum's coins share. */
+const ENVELOPE_SIGNING = [
+  "message-signing-envelope",
+  "message-signing-envelope-191",
+  "message-signing-recoverable",
+];
+
 /**
  * coin id → the names its modules export, the kinds of derivation it uses, and the shared modules
  * (SHARED_MODULES) its own modules import.
@@ -38,13 +45,13 @@ export const SINGLE_KEY_COINS = Object.freeze({
     prefix: "TRON",
     derivation: "tronDerivation",
     kinds: ["bip44"],
-    shared: ["keccak-account"],
+    shared: ["keccak-account", ...ENVELOPE_SIGNING],
   },
   "ethereum-classic": {
     prefix: "ETHEREUM_CLASSIC",
     derivation: "ethereumClassicDerivation",
     kinds: ["bip44"],
-    shared: ["keccak-account"],
+    shared: ["keccak-account", ...ENVELOPE_SIGNING, "message-signing-policy-evm"],
   },
   cosmos: { prefix: "COSMOS", derivation: "cosmosDerivation", kinds: ["bip44"], shared: [] },
   injective: {
@@ -159,6 +166,24 @@ export const SHARED_MODULES = Object.freeze({
   // The compact message signing of the BIP44 coins that sign as Bitcoin Core does; only with
   // message-signing, whose "/message-signing-" marker it also carries.
   "message-signing-compact": { marker: "/coins/message-signing-compact.ts", ownCoins: [] },
+  // EIP-191's envelope signing of Ethereum, Ethereum Classic and Tron, also only with
+  // message-signing; and the note that Ethereum and Ethereum Classic share.
+  "message-signing-envelope": {
+    marker: "/coins/message-signing-envelope.ts",
+    ownCoins: ["ethereum"],
+  },
+  "message-signing-envelope-191": {
+    marker: "/crypto-core/src/message-signing-envelope-191.ts",
+    ownCoins: ["ethereum"],
+  },
+  "message-signing-recoverable": {
+    marker: "/crypto-core/src/message-signing-recoverable.ts",
+    ownCoins: ["ethereum"],
+  },
+  "message-signing-policy-evm": {
+    marker: "/message-signing-policy-evm.ts",
+    ownCoins: ["ethereum"],
+  },
 });
 
 /** Whether a build with the coins `hasCoin` admits needs the shared module `name`. */

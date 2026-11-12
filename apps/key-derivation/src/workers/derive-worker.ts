@@ -13,6 +13,9 @@ import { LITECOIN_MESSAGE_SIGNING } from "@ckd/coins/litecoin/message-signing.js
 import { DOGECOIN_MESSAGE_SIGNING } from "@ckd/coins/dogecoin/message-signing.js";
 import { BITCOIN_CASH_MESSAGE_SIGNING } from "@ckd/coins/bitcoin-cash/message-signing.js";
 import { ZCASH_MESSAGE_SIGNING } from "@ckd/coins/zcash/message-signing.js";
+import { ETHEREUM_MESSAGE_SIGNING } from "@ckd/coins/ethereum/message-signing.js";
+import { ETHEREUM_CLASSIC_MESSAGE_SIGNING } from "@ckd/coins/ethereum-classic/message-signing.js";
+import { TRON_MESSAGE_SIGNING } from "@ckd/coins/tron/message-signing.js";
 import { runBip85SelfTest } from "./bip85-self-test.js";
 import { runBitcoinBip38FullSelfTest } from "./bip38-self-test-bitcoin.js";
 import { runDashBip38FullSelfTest } from "./bip38-self-test-dash.js";
@@ -37,6 +40,15 @@ import {
   runZcashMessageSigningFullSelfTest,
   runZcashMessageSigningSelfTest,
 } from "./message-signer-self-test-zcash.js";
+import {
+  runEthereumMessageSigningFullSelfTest,
+  runEthereumMessageSigningSelfTest,
+} from "./message-signer-self-test-ethereum.js";
+import {
+  runEthereumClassicMessageSigningFullSelfTest,
+  runEthereumClassicMessageSigningSelfTest,
+} from "./message-signer-self-test-ethereum-classic.js";
+import { runTronMessageSigningSelfTest } from "./message-signer-self-test-tron.js";
 import { runDashMasternodeFullSelfTest } from "./masternode-self-test-dash.js";
 import { runSilentPaymentSelfTest } from "./silent-payment-self-test.js";
 import { runTonKeyFullSelfTest } from "./ton-key-self-test.js";
@@ -48,6 +60,9 @@ const messageSigners = new MessageSigners([
   DOGECOIN_MESSAGE_SIGNING,
   BITCOIN_CASH_MESSAGE_SIGNING,
   ZCASH_MESSAGE_SIGNING,
+  ETHEREUM_MESSAGE_SIGNING,
+  ETHEREUM_CLASSIC_MESSAGE_SIGNING,
+  TRON_MESSAGE_SIGNING,
 ]);
 
 startDerivationWorker({
@@ -63,6 +78,9 @@ startDerivationWorker({
     runDogecoinMessageSigningSelfTest,
     runBitcoinCashMessageSigningSelfTest,
     runZcashMessageSigningSelfTest,
+    runEthereumMessageSigningSelfTest,
+    runEthereumClassicMessageSigningSelfTest,
+    runTronMessageSigningSelfTest,
   ],
   fullSelfTests: [
     runBip322FullSelfTest,
@@ -70,6 +88,8 @@ startDerivationWorker({
     runDogecoinMessageSigningFullSelfTest,
     runBitcoinCashMessageSigningFullSelfTest,
     runZcashMessageSigningFullSelfTest,
+    runEthereumMessageSigningFullSelfTest,
+    runEthereumClassicMessageSigningFullSelfTest,
     runBitcoinBip38FullSelfTest,
     runDashBip38FullSelfTest,
     runDashMasternodeFullSelfTest,
@@ -77,6 +97,7 @@ startDerivationWorker({
   ],
   signDerivedMessage: messageSigners.sign,
   verifyDerivedMessage: messageSigners.verify,
+  admitMessageSigning: messageSigners.admit,
   deriveSilentPayment,
   deriveBip85: (seed, options) => Bip85.derive(seed, options),
   encryptDerivedP2pkhKey,

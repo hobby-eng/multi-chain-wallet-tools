@@ -219,9 +219,19 @@ export class DerivationWorkerClient {
     );
   }
 
-  /** Whether `signature` signs the request's message for its address; no seed is sent. */
-  async verifyMessage(request: MessageSigningRequest, signature: string): Promise<boolean> {
-    return this.#request<boolean>({ id: this.#nextId, type: "verify-message", request, signature });
+  /** Whether `signature` signs the request's message for an address of a row; no seed is sent. */
+  async verifyMessage(
+    adapterId: string,
+    request: MessageSigningRequest,
+    signature: string,
+  ): Promise<boolean> {
+    return this.#request<boolean>({
+      id: this.#nextId,
+      type: "verify-message",
+      adapterId,
+      request,
+      signature,
+    });
   }
 
   async deriveSilentPayment(

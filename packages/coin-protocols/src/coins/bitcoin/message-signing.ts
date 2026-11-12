@@ -6,6 +6,7 @@ import { verifyBip322Message } from "@ckd/core/bip322-verifier.js";
 import { signCompactP2pkhMessage, verifyCompactP2pkhMessage } from "@ckd/core/compact-message.js";
 import type { ResultField } from "@ckd/core/types.js";
 import type { CoinMessageSigning, MessageSigningRequest } from "../message-signing.js";
+import { BITCOIN_PROFILES } from "./profiles.js";
 
 const COMPACT = "bitcoin-compact";
 
@@ -34,6 +35,7 @@ async function signBip322(
 
 /** Bitcoin's formats: its four BIP-322 address modes and the compact P2PKH signature. */
 export const BITCOIN_MESSAGE_SIGNING: CoinMessageSigning = Object.freeze({
+  adapters: Object.freeze(BITCOIN_PROFILES.map((profile) => profile.adapterId)),
   formats: Object.freeze([
     COMPACT,
     "bitcoin-bip322-legacy",

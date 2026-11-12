@@ -18,6 +18,9 @@ import { LITECOIN_MESSAGE_SIGNING_POLICY } from "./message-signing-policy-liteco
 import { DOGECOIN_MESSAGE_SIGNING_POLICY } from "./message-signing-policy-dogecoin.js";
 import { BITCOIN_CASH_MESSAGE_SIGNING_POLICY } from "./message-signing-policy-bitcoin-cash.js";
 import { ZCASH_MESSAGE_SIGNING_POLICY } from "./message-signing-policy-zcash.js";
+import { ETHEREUM_MESSAGE_SIGNING_POLICY } from "./message-signing-policy-ethereum.js";
+import { ETHEREUM_CLASSIC_MESSAGE_SIGNING_POLICY } from "./message-signing-policy-ethereum-classic.js";
+import { TRON_MESSAGE_SIGNING_POLICY } from "./message-signing-policy-tron.js";
 
 export const installMessageSigningFeature = createMessageSigningInstaller(
   combineMessageSigningPolicies(
@@ -27,5 +30,8 @@ export const installMessageSigningFeature = createMessageSigningInstaller(
     DOGECOIN_MESSAGE_SIGNING_POLICY,
     BITCOIN_CASH_MESSAGE_SIGNING_POLICY,
     ZCASH_MESSAGE_SIGNING_POLICY,
+    ETHEREUM_MESSAGE_SIGNING_POLICY,
+    ETHEREUM_CLASSIC_MESSAGE_SIGNING_POLICY,
+    TRON_MESSAGE_SIGNING_POLICY,
   ),
 );

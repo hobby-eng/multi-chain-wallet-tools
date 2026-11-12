@@ -1,5 +1,6 @@
 import type { MessageSigningRequest } from "@ckd/coins/message-signing.js";
 import type { Bip322VerificationError } from "@ckd/core/bip322-verifier.js";
+import type { RecoverableSignatureError } from "@ckd/core/message-signing-recoverable.js";
 import {
   isCompactSignature,
   type CompactMessageError,
@@ -13,6 +14,8 @@ type VerifyingWorker = Pick<DerivationWorkerClient, "verifyMessage" | "terminate
 
 /** The public request of the dialog's address, format and message, and the format's label. */
 export interface MessageVerificationTarget {
+  /** The adapter of the dialog's row, whose coin must own the format. */
+  readonly adapterId: string;
   readonly request: MessageSigningRequest;
   readonly label: string;
   /** The label of another offered format whose signatures are compact, if the address has one. */
@@ -36,9 +39,13 @@ const UNREADABLE = "This signature is not in the selected format.";
 // The verifiers' refusals of the pasted signature itself, by code; any other failure is the
 // tool's, and reads as FAILED.
 const SIGNATURE_REFUSALS: ReadonlyMap<unknown, string> = new Map<
-  CompactMessageError["code"] | Bip322VerificationError["code"],
+  CompactMessageError["code"] | Bip322VerificationError["code"] | RecoverableSignatureError["code"],
   string
 >([
+  ["INVALID_HEX", UNREADABLE],
+  ["INVALID_V", UNREADABLE],
+  // TronWeb's verifyMessageV2 refuses the high-S twin of a signature: so does the dialog.
+  ["HIGH_S", UNREADABLE],
   ["INVALID_BASE64", UNREADABLE],
   ["INVALID_SIGNATURE_LENGTH", UNREADABLE],
   ["INVALID_HEADER", UNREADABLE],
@@ -142,7 +149,7 @@ export class MessageSigningVerification implements Disposable {
       verify.textContent = VERIFYING_LABEL;
       worker = this.#options.createWorker();
       this.#worker = worker;
-      const valid = await worker.verifyMessage(target.request, pasted);
+      const valid = await worker.verifyMessage(target.adapterId, target.request, pasted);
       if (revision !== this.#revision) return;
       result.textContent = valid
         ? `Valid for ${target.request.address} · ${target.label}`

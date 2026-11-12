@@ -4,10 +4,13 @@ import {
   verifyDashCompactP2pkhMessage,
 } from "@ckd/core/compact-message-dash.js";
 import type { CoinMessageSigning, MessageSigningRequest } from "../message-signing.js";
+import { DASH_ADDRESS_FAMILIES } from "./address-families.js";
 
 /** Dash's one format, Dash Core's signmessage. */
 export const DASH_MESSAGE_SIGNING: CoinMessageSigning = Object.freeze({
   formats: Object.freeze(["dash-compact"]),
+  // Dash Core's P2PKH families, the CoinJoin rows' worker adapter among them.
+  adapters: DASH_ADDRESS_FAMILIES.coreAdapters(),
   sign: (privateKey: Uint8Array, request: MessageSigningRequest) =>
     signDashCompactP2pkhMessage(privateKey, request.address, request.message, request.network),
   verify: (request: MessageSigningRequest, signature: string) =>

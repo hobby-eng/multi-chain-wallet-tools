@@ -64,6 +64,7 @@ it.each([
         };
       },
       runDerivationSelfTest,
+      admitMessageSigning: signers.admit,
       signDerivedMessage: async (...args) => {
         privateFieldsLoaned = args[2].some((field) => field.secret);
         const privateField = observedPrivateField;
@@ -195,7 +196,9 @@ async function verifyInWorker(
   const signature =
     "H5Oj4LXfIgqbHRLIbCGux6wQGf3ZtC8iQt79foa4M9nkadAXIRsCL4X8sJWAH9iwOpV5w6N8mS1jxrRp+8Nxapc=";
   listener?.(
-    new MessageEvent("message", { data: { id: 1, type: "verify-message", request, signature } }),
+    new MessageEvent("message", {
+      data: { id: 1, type: "verify-message", adapterId: "dash-core", request, signature },
+    }),
   );
   await vi.waitFor(() => expect(messages.some((posted) => "id" in posted)).toBe(true));
   return messages.find((posted) => "id" in posted);
@@ -211,7 +214,10 @@ it.each([
       throw new Error("Verification must not reach a coin adapter.");
     });
     const verifyDerivedMessage = vi.fn(signers.verify);
-    const reply = await verifyInWorker({ getRuntimeCoinAdapter, verifyDerivedMessage }, message);
+    const reply = await verifyInWorker(
+      { getRuntimeCoinAdapter, verifyDerivedMessage, admitMessageSigning: signers.admit },
+      message,
+    );
     expect(reply).toEqual({ id: 1, ok: true, type: "verify-message", result: valid });
     expect(verifyDerivedMessage).toHaveBeenCalledOnce();
     expect(getRuntimeCoinAdapter).not.toHaveBeenCalled();

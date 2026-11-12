@@ -33,6 +33,17 @@ export const MESSAGE_SIGNING_COINS = Object.freeze({
     startup: ["runZcashMessageSigningSelfTest"],
     full: ["runZcashMessageSigningFullSelfTest"],
   },
+  ethereum: {
+    prefix: "ETHEREUM",
+    startup: ["runEthereumMessageSigningSelfTest"],
+    full: ["runEthereumMessageSigningFullSelfTest"],
+  },
+  "ethereum-classic": {
+    prefix: "ETHEREUM_CLASSIC",
+    startup: ["runEthereumClassicMessageSigningSelfTest"],
+    full: ["runEthereumClassicMessageSigningFullSelfTest"],
+  },
+  tron: { prefix: "TRON", startup: ["runTronMessageSigningSelfTest"], full: [] },
 });
 
 export const MESSAGE_SIGNING_COIN_IDS = Object.freeze(Object.keys(MESSAGE_SIGNING_COINS));

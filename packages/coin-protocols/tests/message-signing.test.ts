@@ -18,6 +18,7 @@ const DASH = {
 function recordingCoin(formats: readonly string[], calls: string[]): CoinMessageSigning {
   return {
     formats,
+    adapters: [],
     sign: (_key, request) => {
       calls.push(`sign ${request.format}`);
       return { signature: "public", format: request.format, verified: true };

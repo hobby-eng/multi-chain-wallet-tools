@@ -307,6 +307,7 @@ export function selectedWorkerEntry(root, profile, features) {
     properties.push(
       "signDerivedMessage: messageSigners.sign",
       "verifyDerivedMessage: messageSigners.verify",
+      "admitMessageSigning: messageSigners.admit",
     );
   }
   for (const [feature, symbol, file] of optional) {
