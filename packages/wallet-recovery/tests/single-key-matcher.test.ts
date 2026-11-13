@@ -1,3 +1,4 @@
+import { bech32 } from "@scure/base";
 import { describe, expect, it } from "vitest";
 import { detectMultiChainMatcherTargets } from "../src/matcher-targets-multichain.js";
 
@@ -94,6 +95,32 @@ describe("single-key coins in the Wallet Matcher", () => {
       "-1:335996ba9cce6625ebfdd7019ced50927c1a08b1846a289a55efc37c01d77df9",
     ])
       expect(() => targetOf(refused)).toThrow(/not recognized/u);
+  });
+
+  it("refuse a Cardano mainnet address in plain words, since no Cardano key is searched", () => {
+    // CIP-19's test vectors (cardano-foundation/CIPs @7720fed CIP-0019/README.md): a base, an
+    // enterprise and a reward address.
+    for (const address of [
+      "addr1qx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3n0d3vllmyqwsx5wktcd8cc3sq835lu7drv2xwl2wywfgse35a3x",
+      "addr1vx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzers66hrl8",
+      "stake1uyehkck0lajq8gr28t9uxnuvgcqrc6070x3k9r8048z8y5gh6ffgw",
+    ])
+      expect(() => targetOf(address)).toThrow(/cannot search Cardano addresses/u);
+    // A testnet address, and a key text, are no mainnet address: not recognized, as before.
+    expect(() =>
+      targetOf("addr_test1vz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzerspjrlsz", "testnet"),
+    ).toThrow(/not recognized/u);
+    expect(() =>
+      targetOf("addr_vk1w0l2sr2zgfm26ztc6nl9xy8ghsk5sh6ldwemlpmp9xylzy4dtf7st80zhd"),
+    ).toThrow(/not recognized/u);
+    expect(() => targetOf("addr1vx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzers66hrl9")).toThrow(
+      /not recognized/u,
+    );
+    // An addr1 text whose header names testnet (0x60) is no mainnet address either.
+    const testnetHeader = Uint8Array.of(0x60, ...new Uint8Array(28));
+    expect(() => targetOf(bech32.encode("addr", bech32.toWords(testnetHeader), false))).toThrow(
+      /not recognized/u,
+    );
   });
 
   it("refuse a line longer than any supported address before decoding it", () => {

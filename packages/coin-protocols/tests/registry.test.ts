@@ -15,6 +15,49 @@ import {
 import { DASH_COMMUNITY_COIN_ADAPTERS } from "../src/coins/dash-community-registry-profile.js";
 import { MULTI_CHAIN_COIN_ADAPTERS } from "../src/coins/multi-chain-registry-profile.js";
 
+/** The Multi-Chain Edition's adapters, in the order the registry composes them. */
+const MULTI_CHAIN_ADAPTER_IDS = [
+  "bitcoin-legacy",
+  "bitcoin-nested-segwit",
+  "bitcoin-native-segwit",
+  "bitcoin-taproot",
+  "ethereum",
+  "dash-core",
+  "dash-multisig-p2sh",
+  "dash-multisig-core-pkh",
+  "dash-legacy-mobile",
+  "dash-platform",
+  "dash-identity",
+  "dash-identity-funding",
+  "dash-dashpay",
+  "dash-masternode",
+  "dash-shielded",
+  "litecoin-legacy",
+  "litecoin-nested-segwit",
+  "litecoin-native-segwit",
+  "dogecoin",
+  "bitcoin-cash",
+  "bitcoin-cash-coin-type-0",
+  "zcash",
+  "xrp",
+  "tron",
+  "ethereum-classic",
+  "cosmos",
+  "injective",
+  "solana",
+  "solana-ledger",
+  "stellar",
+  "near",
+  "hedera",
+  "hedera-ecdsa",
+  "ton",
+  "ton-trust",
+  "ton-ledger",
+  "cardano",
+  "cardano-ledger",
+  "cardano-icarus-trezor",
+];
+
 describe("coin adapter extension contract", () => {
   it("composes static adapter profiles without cross-edition leakage", () => {
     expect(MULTI_CHAIN_COIN_ADAPTERS.map(({ id }) => id)).toEqual(
@@ -34,44 +77,7 @@ describe("coin adapter extension contract", () => {
   it("registers unique, complete adapters without UI-specific branching", () => {
     const ids = COIN_ADAPTERS.map((adapter) => adapter.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toEqual([
-      "bitcoin-legacy",
-      "bitcoin-nested-segwit",
-      "bitcoin-native-segwit",
-      "bitcoin-taproot",
-      "ethereum",
-      "dash-core",
-      "dash-multisig-p2sh",
-      "dash-multisig-core-pkh",
-      "dash-legacy-mobile",
-      "dash-platform",
-      "dash-identity",
-      "dash-identity-funding",
-      "dash-dashpay",
-      "dash-masternode",
-      "dash-shielded",
-      "litecoin-legacy",
-      "litecoin-nested-segwit",
-      "litecoin-native-segwit",
-      "dogecoin",
-      "bitcoin-cash",
-      "bitcoin-cash-coin-type-0",
-      "zcash",
-      "xrp",
-      "tron",
-      "ethereum-classic",
-      "cosmos",
-      "injective",
-      "solana",
-      "solana-ledger",
-      "stellar",
-      "near",
-      "hedera",
-      "hedera-ecdsa",
-      "ton",
-      "ton-trust",
-      "ton-ledger",
-    ]);
+    expect(ids).toEqual(MULTI_CHAIN_ADAPTER_IDS);
     for (const adapter of COIN_ADAPTERS) {
       expect(adapter.label.length).toBeGreaterThan(0);
       expect(adapter.variantLabel.length).toBeGreaterThan(0);
@@ -103,7 +109,14 @@ describe("coin adapter extension contract", () => {
         expect(adapter.fieldRoles.addresses).toContain("address");
         expect(adapter.defaults.count).toBe(20);
       }
-      expect(adapter.seedSource).toBeUndefined();
+      // Cardano's Icarus variants derive from the CIP-3 root of the phrase, not BIP39's seed.
+      expect(adapter.seedSource).toBe(
+        adapter.id === "cardano"
+          ? "cardano-icarus"
+          : adapter.id === "cardano-icarus-trezor"
+            ? "cardano-icarus-trezor"
+            : undefined,
+      );
       expect(adapter.pathPreview({ ...adapter.defaults })).toContain("m/");
       expect(getCoinAdapter(adapter.id)).toBe(adapter);
     }
@@ -113,6 +126,7 @@ describe("coin adapter extension contract", () => {
     expect(COIN_FAMILIES.map(({ id, label }) => ({ id, label }))).toEqual([
       { id: "bitcoin", label: "Bitcoin" },
       { id: "bitcoin-cash", label: "Bitcoin Cash" },
+      { id: "cardano", label: "Cardano" },
       { id: "cosmos", label: "Cosmos" },
       { id: "dash", label: "Dash" },
       { id: "dogecoin", label: "Dogecoin" },

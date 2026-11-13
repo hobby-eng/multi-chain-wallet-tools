@@ -2,6 +2,7 @@ import { runBitcoinDerivationSelfTest } from "./derivation-self-test-bitcoin.js"
 import { runDashDerivationSelfTest } from "./derivation-self-test-dash.js";
 import { runEthereumDerivationSelfTest } from "./derivation-self-test-ethereum.js";
 import { runBitcoinCashDerivationSelfTest } from "./derivation-self-test-bitcoin-cash.js";
+import { runCardanoDerivationSelfTest } from "./derivation-self-test-cardano.js";
 import { runCosmosDerivationSelfTest } from "./derivation-self-test-cosmos.js";
 import { runDogecoinDerivationSelfTest } from "./derivation-self-test-dogecoin.js";
 import { runEthereumClassicDerivationSelfTest } from "./derivation-self-test-ethereum-classic.js";
@@ -41,5 +42,6 @@ export function runDerivationSelfTest(): Promise<CryptoSelfTestReport> {
     runNearDerivationSelfTest,
     runHederaDerivationSelfTest,
     runTonDerivationSelfTest,
+    runCardanoDerivationSelfTest,
   ]);
 }

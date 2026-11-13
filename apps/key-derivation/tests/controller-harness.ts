@@ -147,7 +147,7 @@ export function controllerHarness(extra: Record<string, unknown> = {}) {
   // The startup fixture also sends passed:false to exercise rejection of a failed external report.
   const createWorker = vi.fn<() => typeof startupWorker | ResultTestWorker>(() => startupWorker);
   const dependencyMocks = {
-    coinFamilies: [{ id: "bitcoin", label: "Bitcoin" }],
+    coinFamilies: [{ id: "bitcoin", label: "Bitcoin", adapters: [adapter] }],
     getAdapterFamilyId: () => "bitcoin",
     getCoinAdapter: () => adapter,
     getDefaultCoinAdapter: () => adapter,

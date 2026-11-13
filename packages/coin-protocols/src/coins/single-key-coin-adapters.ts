@@ -1,6 +1,7 @@
 // Every single-key coin's adapters, for the full Multi-Chain registry; a selective build composes
 // its own coins instead (tooling/key-derivation-composition.mjs).
 import { BITCOIN_CASH_COIN_ADAPTERS } from "./adapters/bitcoin-cash.js";
+import { CARDANO_COIN_ADAPTERS } from "./adapters/cardano.js";
 import { COSMOS_COIN_ADAPTERS } from "./adapters/cosmos.js";
 import { DOGECOIN_COIN_ADAPTERS } from "./adapters/dogecoin.js";
 import { ETHEREUM_CLASSIC_COIN_ADAPTERS } from "./adapters/ethereum-classic.js";
@@ -35,4 +36,5 @@ export const SINGLE_KEY_COIN_ADAPTERS: readonly CoinAdapter[] = [
   ...NEAR_COIN_ADAPTERS,
   ...HEDERA_COIN_ADAPTERS,
   ...TON_COIN_ADAPTERS,
+  ...CARDANO_COIN_ADAPTERS,
 ];

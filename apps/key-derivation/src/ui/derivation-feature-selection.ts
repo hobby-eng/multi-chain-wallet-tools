@@ -2,6 +2,7 @@ export { installSilentPaymentFeature } from "./silent-payment-feature.js";
 export { installBip85Feature } from "./bip85-feature.js";
 export { installCheckedMnemonicFeature } from "./checked-mnemonic-feature.js";
 export { installTonPhraseFeature } from "./ton-phrase-feature.js";
+export { phraseSeedReaders } from "./cardano-seed-sources.js";
 import { createBip38EncryptionInstaller } from "./bip38-encryption-feature.js";
 
 export const installBip38EncryptionFeature = createBip38EncryptionInstaller([

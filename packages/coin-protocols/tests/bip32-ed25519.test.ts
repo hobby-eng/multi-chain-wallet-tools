@@ -6,7 +6,8 @@ import { ed25519 } from "@noble/curves/ed25519.js";
 import { bech32 } from "@scure/base";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mnemonicToSeed } from "@ckd/core/bip39.js";
-import { cardanoIcarusRoot, type CardanoIcarusMaster } from "@ckd/core/cardano-icarus.js";
+import { cardanoIcarusRoot } from "@ckd/core/cardano-icarus.js";
+import type { CardanoIcarusMaster } from "@ckd/core/cardano-root.js";
 import { bytesToHex, concatBytes, hexToBytes } from "@ckd/core/crypto.js";
 import {
   BIP32_ED25519_MAX_DEPTH,

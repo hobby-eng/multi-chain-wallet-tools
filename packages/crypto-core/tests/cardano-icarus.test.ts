@@ -4,7 +4,8 @@
 import { createHash, pbkdf2Sync } from "node:crypto";
 import { bech32 } from "@scure/base";
 import { describe, expect, it } from "vitest";
-import { cardanoIcarusRoot, type CardanoIcarusMaster } from "../src/cardano-icarus.js";
+import { cardanoIcarusRoot } from "../src/cardano-icarus.js";
+import { cardanoIcarusRootOf, type CardanoIcarusMaster } from "../src/cardano-root.js";
 import { englishMnemonicToEntropy } from "../src/bip39.js";
 import { bytesToHex } from "../src/crypto.js";
 
@@ -131,5 +132,20 @@ describe("Trezor's Icarus-Trezor root", () => {
     const twentyFour = PHRASES.at(-1) ?? "";
     expect(rootHex(twentyFour, "", "icarus-trezor")).not.toBe(rootHex(twentyFour));
     expect(rootHex(twentyFour, "", "icarus-trezor")).toBe(nodeTrezorRoot(twentyFour));
+  });
+});
+
+describe("the Icarus root of an entropy", () => {
+  it("refuses bytes of a length no BIP39 phrase has, such as a BIP39 seed or a TON entropy", () => {
+    for (const length of [0, 15, 17, 33, 64, 96])
+      for (const master of ["icarus", "icarus-trezor"] as const)
+        expect(() =>
+          cardanoIcarusRootOf(new Uint8Array(length), new Uint8Array(0), master),
+        ).toThrow(expect.objectContaining({ code: "cardano.root.entropy" }));
+    for (const length of [16, 20, 24, 28, 32]) {
+      const root = cardanoIcarusRootOf(new Uint8Array(length), new Uint8Array(0), "icarus");
+      expect(root).toHaveLength(96);
+      root.fill(0);
+    }
   });
 });

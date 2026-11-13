@@ -1,8 +1,10 @@
-// The single-key coins of the Deriver: one key per address, each coin only its paths, its key and
-// address forms, its startup vectors and its Wallet Matcher recognizer. The BIP44 coins derive by
-// BIP32 (packages/coin-protocols/src/coins/bip44-coin.ts), the Ed25519 coins by SLIP-10
-// (coins/ed25519-coin.ts); Hedera has keys of both. Each coin's modules sit at the same places,
-// named by its id, so a build composes any of them from this one table.
+// The single-key coins of the Deriver: the coins that bring one module set each, only their paths,
+// their key and address forms, their startup vectors and their Wallet Matcher recognizer. The BIP44
+// coins derive by BIP32 (packages/coin-protocols/src/coins/bip44-coin.ts), the Ed25519 coins by
+// SLIP-10 (coins/ed25519-coin.ts); Hedera has keys of both; Cardano derives by BIP32-Ed25519
+// (coin-protocols/src/bip32-ed25519.ts), a payment key and a stake key in its base addresses. Each
+// coin's modules sit at the same places, named by its id, so a build composes any of them from this
+// one table.
 
 /** The modules of EIP-191's envelope signing (SHARED_MODULES), which Ethereum's coins share. */
 const ENVELOPE_SIGNING = [
@@ -133,6 +135,12 @@ export const SINGLE_KEY_COINS = Object.freeze({
       "message-signing-response",
     ],
   },
+  cardano: {
+    prefix: "CARDANO",
+    derivation: "cardanoDerivation",
+    kinds: ["bip32-ed25519"],
+    shared: [],
+  },
 });
 
 export const SINGLE_KEY_COIN_IDS = Object.freeze(Object.keys(SINGLE_KEY_COINS));
@@ -178,6 +186,15 @@ export const TON_PHRASE_MODULES = Object.freeze([
   "/key-derivation/src/workers/ton-draw-precheck.ts",
 ]);
 
+/**
+ * Cardano's modules beyond its coin modules: the page's readers of its CIP-3 roots, the phrase seed
+ * sources of its Icarus variants, and the worker's slower known answers.
+ */
+export const CARDANO_PAGE_MODULES = Object.freeze([
+  "/key-derivation/src/ui/cardano-seed-sources.ts",
+  "/key-derivation/src/workers/cardano-key-self-test.ts",
+]);
+
 /** The graph markers of a single-key coin's own modules, which no build without it may hold. */
 export function singleKeyCoinMarkers(coin) {
   return [
@@ -187,10 +204,11 @@ export function singleKeyCoinMarkers(coin) {
     `/wallet-recovery/src/matcher-targets-${coin}.ts`,
     ...(coin === "bitcoin-cash" ? ["/crypto-core/src/cashaddr.ts"] : []),
     ...(coin === "ton" ? TON_PHRASE_MODULES : []),
+    ...(coin === "cardano" ? CARDANO_PAGE_MODULES : []),
   ];
 }
 
-/** Whether any of `coins` (ids) is a single-key coin of `kind`, "bip44" or "ed25519". */
+/** Whether any of `coins` (ids) is a single-key coin of `kind`, "bip44", "ed25519" or "bip32-ed25519". */
 export function hasSingleKeyKind(hasCoin, kind) {
   return SINGLE_KEY_COIN_IDS.some(
     (coin) => hasCoin(coin) && SINGLE_KEY_COINS[coin].kinds.includes(kind),
@@ -263,6 +281,12 @@ export const SINGLE_KEY_SHARED_MARKERS = Object.freeze({
     "/coins/ed25519-coin.ts",
     "/coins/ed25519-coin-profile.ts",
     "/adapters/ed25519-coin.ts",
+  ]),
+  // Cardano's keys; coin-protocols/src/ed25519-hd-common.ts, which SLIP-10 shares, has no marker.
+  "bip32-ed25519": Object.freeze([
+    "/coin-protocols/src/bip32-ed25519.ts",
+    "/crypto-core/src/cardano-icarus.ts",
+    "/crypto-core/src/cardano-root.ts",
   ]),
   any: Object.freeze([
     "/coins/coin-variant.ts",

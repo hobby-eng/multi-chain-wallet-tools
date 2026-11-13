@@ -98,6 +98,25 @@ describe("Dash Community artifact exclusion rules", () => {
     ).toContain("non-Dash recovery adapter registration: cardano");
   });
 
+  it("finds Cardano by its name in any case, its addresses and its key texts", () => {
+    for (const text of [
+      "Cardano",
+      "cardano-ledger",
+      "cardano.key.root",
+      "Icarus-Trezor",
+      "CIP-1852",
+      "addr1vx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzers66hrl8",
+      "stake1uyevw2xnsc0pvn9t9r9c7qryfqfeerchgrlm3ea2nefr9hqxdekzz",
+      "root_xsk1vzrzr76vqyqlavclduhawqvtae2pq8lk0424q7t8rzfjyhhp530zxv2fwq5a3pd4vdzqtu6s2zxdjhww8xg4qw",
+      "addr_vk1w0l2sr2zgfm26ztc6nl9xy8ghsk5sh6ldwemlpmp9xylzy4dtf7st80zhd",
+    ])
+      expect([text, findDashArtifactViolations(text)]).toEqual([
+        text,
+        expect.arrayContaining(["Cardano"]),
+      ]);
+    expect(findDashArtifactViolations("the address1 field")).not.toContain("Cardano");
+  });
+
   it("accepts only the explicit Dash adapter registrations", () => {
     expect(
       findDashArtifactViolations(

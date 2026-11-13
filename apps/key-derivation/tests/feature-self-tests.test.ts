@@ -3,6 +3,7 @@ import { runBitcoinBip38FullSelfTest } from "../src/workers/bip38-self-test-bitc
 import { runDashBip38FullSelfTest } from "../src/workers/bip38-self-test-dash.js";
 import { runDashMasternodeFullSelfTest } from "../src/workers/masternode-self-test-dash.js";
 import { runTonKeyFullSelfTest } from "../src/workers/ton-key-self-test.js";
+import { runCardanoKeyFullSelfTest } from "../src/workers/cardano-key-self-test.js";
 import { encryptDerivedP2pkhKey } from "../src/workers/bip38-encrypter.js";
 import { encryptDerivedP2pkhKey as encryptDashP2pkhKey } from "../src/workers/bip38-encrypter-dash.js";
 import { runBip85SelfTest } from "../src/workers/bip85-self-test.js";
@@ -61,6 +62,13 @@ describe("the known answers of the Deriver's optional features", () => {
     ]);
     expect(runTonKeyFullSelfTest().checks).toEqual([
       "TON phrase key · PBKDF2-SHA512, 100,000 iterations",
+    ]);
+    expect(runCardanoKeyFullSelfTest().checks).toEqual([
+      "Cardano addresses of 15- and 24-word Icarus roots · cardano-serialization-lib",
+      "Cardano base addresses under Icarus, Icarus-Trezor and Ledger · Trezor",
+      "Cardano address encodings · CIP-19",
+      "Cardano account and address keys · cardano-addresses",
+      "Cardano stake address · CIP-11",
     ]);
   }, 60_000);
 

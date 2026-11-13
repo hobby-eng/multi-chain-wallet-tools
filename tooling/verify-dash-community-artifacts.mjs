@@ -28,6 +28,12 @@ const DASH_FORBIDDEN_ARTIFACT_PATTERNS = [
   // name Zcash's protocol, so the transparent adapter is found by its id.
   [/\bbitcoincash\b|\bCashAddr\b/iu, "Bitcoin Cash"],
   [/\b(?:XRP|Tron|Cosmos|Injective|Solana|Stellar|NEAR|Hedera)\b/u, "single-key coin"],
+  // Cardano, by its name in any case (its ids and error codes too), its master keys, and the
+  // prefixes of its addresses and of its CIP-5 key texts.
+  [
+    /\b(?:Cardano|Icarus|CIP-1852)\b|\b(?:addr|stake)1|\b(?:root|acct|addr|stake)_x?[sv]k1/iu,
+    "Cardano",
+  ],
   [/\bzcash\b|Zcash transparent|\bTransparent · BIP44\b/u, "Zcash transparent adapter"],
   // The EVM networks of the connected tools, by name ("Base" is too common a word; the endpoint
   // pattern finds it), by endpoint and by their chain-id request.

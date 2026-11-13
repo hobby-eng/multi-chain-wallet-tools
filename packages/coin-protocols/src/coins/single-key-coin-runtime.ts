@@ -2,6 +2,7 @@
 // only inside isolated derivation workers or tests.
 import type { Bip32BatchOptions, DerivationResult } from "@ckd/core/types.js";
 import { bitcoinCashDerivation } from "./bitcoin-cash/index.js";
+import { cardanoDerivation } from "./cardano/index.js";
 import { cosmosDerivation } from "./cosmos/index.js";
 import { dogecoinDerivation } from "./dogecoin/index.js";
 import { ethereumClassicDerivation } from "./ethereum-classic/index.js";
@@ -31,6 +32,7 @@ const DERIVATIONS = [
   nearDerivation,
   hederaDerivation,
   tonDerivation,
+  cardanoDerivation,
 ];
 
 /** The derivation of a single-key coin's adapter id, or undefined for any other id. */
