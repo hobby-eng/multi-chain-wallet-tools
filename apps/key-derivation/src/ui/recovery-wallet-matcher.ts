@@ -1,4 +1,5 @@
-import { WalletMatcherPlan } from "@ckd/recovery/matcher-plan.js";
+import { WalletMatcherPlan, type MatcherProgress } from "@ckd/recovery/matcher-plan.js";
+import { BrowserTurn } from "@ckd/ui/browser-turn.js";
 import { installNumberedInput, updateLineNumbers } from "@ckd/ui/dom.js";
 import { MnemonicEntries } from "@ckd/core/mnemonic-entries.js";
 import { DerivationCancelledError } from "../workers/derive-client.js";
@@ -24,6 +25,11 @@ export class WalletMatcher {
   readonly #inputs: InputRevision;
   readonly #run: RecoveryPanelRun;
   #result: MatcherResults | undefined;
+  /**
+   * The plan of the search that is going, wiped as soon as its inputs are revoked: its loop waits
+   * for a timer between phrases, which a page hidden into the back-forward cache never fires.
+   */
+  #searching: WalletMatcherPlan | undefined;
 
   /** Installs input/output adapters; WalletMatcherPlan owns admission and all computations. */
   constructor(context: RecoveryFeatureContext) {
@@ -129,8 +135,17 @@ export class WalletMatcher {
     );
   }
 
+  /** The status line of a search's progress: its phrases' seeds first, then its structures. */
+  static #progressText({ stage, completed, total }: MatcherProgress): string {
+    return stage === "seeds"
+      ? `Preparing ${completed}/${total} seed phrases…`
+      : `Scanning ${completed}/${total} wallet structures…`;
+  }
+
   #revoke(): void {
     this.#run.revoke(new DerivationCancelledError("Wallet matcher cancelled."));
+    this.#searching?.wipe();
+    this.#searching = undefined;
     this.#result?.wipe();
     this.#result = undefined;
     this.#root.replaceChildren();
@@ -148,10 +163,15 @@ export class WalletMatcher {
     try {
       using plan = this.#plan();
       if (!current()) return;
-      const outcome = await plan.search(run.worker(), current, (completed, total) => {
-        if (current())
-          this.#status.textContent = `Scanning ${completed}/${total} wallet structures…`;
-      });
+      this.#searching = plan;
+      const outcome = await plan.search(
+        run.worker(),
+        current,
+        (progress) => {
+          if (current()) this.#status.textContent = WalletMatcher.#progressText(progress);
+        },
+        () => BrowserTurn.yield(),
+      );
       if (!current() || outcome.kind === "stopped") return;
       const findings = outcome.findings;
       if (findings.length === 0)
@@ -172,7 +192,11 @@ export class WalletMatcher {
         this.#status.textContent = cause instanceof Error ? cause.message : "Wallet search failed.";
     } finally {
       this.#run.end(run);
-      if (current()) this.#cancel.hidden = true;
+      // A revoked run's plan was wiped and dropped by #revoke; a newer run may hold the field now.
+      if (current()) {
+        this.#searching = undefined;
+        this.#cancel.hidden = true;
+      }
     }
   }
 }

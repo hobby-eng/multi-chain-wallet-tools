@@ -16,6 +16,7 @@ import { CopyFeedbackCase } from "./browser-cases/copy-feedback.mjs";
 import { Bip85ManualStartCase } from "./browser-cases/bip85-manual-start.mjs";
 import { SingleKeyCoinsCase } from "./browser-cases/single-key-coins.mjs";
 import { CardanoCase } from "./browser-cases/cardano.mjs";
+import { WalletMatcherCase } from "./browser-cases/wallet-matcher.mjs";
 import { MessageSigningCoinsCase } from "./browser-cases/message-signing-coins.mjs";
 import { EvmNetworkCandidatesCase } from "./browser-cases/evm-network-candidates.mjs";
 import { AccountCoinCandidatesCase } from "./browser-cases/account-coin-candidates.mjs";
@@ -164,6 +165,13 @@ for (const browserName of (process.env.BROWSER_ENGINES ?? "chromium,firefox").sp
           },
         });
       }
+      cases.push({
+        name: "wallet-matcher",
+        execute: async (context, run) => {
+          const page = await open(context, profile, "key-derivation", run);
+          run.checks.push(await WalletMatcherCase.run(page, profile.id === "multi-chain"));
+        },
+      });
       // Cardano's tabs in the Multi-Chain Edition; Dash Community has none of it.
       cases.push({
         name: "cardano",

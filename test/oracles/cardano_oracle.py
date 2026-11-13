@@ -242,6 +242,9 @@ def deriver():
     ]:
         check(f"{name} m/1852'/1815'/0'/1/0", address(root, 0, 1, 0), change)
         check(f"{name} m/1852'/1815'/0'/0/5", address(root, 0, 0, 5), fifth)
+    # The stake key's reward address of the same phrase under Icarus, which the Matcher's tests find
+    # on role 2 (packages/wallet-recovery/tests/cardano-matcher.test.ts).
+    check("Icarus m/1852'/1815'/0'/2/0", address(icarus_root(entropy_of(about)), 0, 2, 0), "stake1u8j40zgr2gy4788kl54h6x3gu0pukq5lfr8nflufpg5dzaskqlx2l")
 
 
 def child_wallet():

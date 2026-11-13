@@ -63,4 +63,29 @@ export class MatcherScope {
       return adapter.branchControl.options.map(({ value }) => value);
     return [adapter.defaults.branch];
   }
+
+  /**
+   * The branches to search under `adapter`, each with the targets its rows can show: a target's own
+   * branches when it names them (Cardano's roles: its change ones only with change addresses, as
+   * branches() admits a change branch), or else every branch the adapter searches.
+   */
+  static targetBranches(
+    adapter: CoinAdapter,
+    targets: readonly WalletMatcherTarget[],
+    includeChange: boolean,
+    allCoins = false,
+  ): ReadonlyMap<number, readonly WalletMatcherTarget[]> {
+    const searchChange = includeChange || allCoins;
+    const byBranch = new Map<number, WalletMatcherTarget[]>();
+    for (const target of targets) {
+      const own = target.branches;
+      const branches =
+        own === undefined
+          ? MatcherScope.branches(adapter, includeChange, allCoins)
+          : [...own.receive, ...(searchChange ? own.change : [])];
+      for (const branch of branches)
+        byBranch.set(branch, [...(byBranch.get(branch) ?? []), target]);
+    }
+    return byBranch;
+  }
 }

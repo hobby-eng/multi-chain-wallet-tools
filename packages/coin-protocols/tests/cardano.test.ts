@@ -13,6 +13,9 @@ import {
   cardanoBaseAddress,
   cardanoEnterpriseAddress,
   cardanoRewardAddress,
+  cardanoSigningAddress,
+  isCardanoMainnetAddress,
+  isCardanoScriptOrPointerAddress,
 } from "@ckd/coins/cardano/address.js";
 import { cardanoDerivation } from "@ckd/coins/cardano/index.js";
 import type { CardanoMaster } from "@ckd/coins/cardano/profiles.js";
@@ -186,6 +189,77 @@ describe("Cardano's addresses", () => {
     expect(cardanoRewardAddress(stake)).toBe(
       "stake1uyehkck0lajq8gr28t9uxnuvgcqrc6070x3k9r8048z8y5gh6ffgw",
     );
+  });
+});
+
+/** CIP-19's mainnet test vectors (cardano-foundation/CIPs @7720fed CIP-0019/README.md), by type. */
+const CIP19 = {
+  keys: [
+    "addr1qx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3n0d3vllmyqwsx5wktcd8cc3sq835lu7drv2xwl2wywfgse35a3x",
+    "addr1vx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzers66hrl8",
+    "stake1uyehkck0lajq8gr28t9uxnuvgcqrc6070x3k9r8048z8y5gh6ffgw",
+  ],
+  scriptsAndPointers: [
+    "addr1z8phkx6acpnf78fuvxn0mkew3l0fd058hzquvz7w36x4gten0d3vllmyqwsx5wktcd8cc3sq835lu7drv2xwl2wywfgs9yc0hh",
+    "addr1yx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzerkr0vd4msrxnuwnccdxlhdjar77j6lg0wypcc9uar5d2shs2z78ve",
+    "addr1x8phkx6acpnf78fuvxn0mkew3l0fd058hzquvz7w36x4gt7r0vd4msrxnuwnccdxlhdjar77j6lg0wypcc9uar5d2shskhj42g",
+    "addr1gx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer5pnz75xxcrzqf96k",
+    "addr128phkx6acpnf78fuvxn0mkew3l0fd058hzquvz7w36x4gtupnz75xxcrtw79hu",
+    "addr1w8phkx6acpnf78fuvxn0mkew3l0fd058hzquvz7w36x4gtcyjy7wx",
+    "stake178phkx6acpnf78fuvxn0mkew3l0fd058hzquvz7w36x4gtcccycj5",
+  ],
+};
+
+/** A mainnet bech32 text of `prefix` over a header and `bytes` hash bytes, built for a refusal. */
+function addressText(prefix: string, header: number, ...bytes: number[][]): string {
+  const body = Uint8Array.of(header, ...bytes.flat());
+  return bech32.encode(prefix, bech32.toWords(body), false);
+}
+const HASH = Array.from({ length: 28 }, (_, index) => index);
+
+describe("Cardano's address texts", () => {
+  it("reads an address in one case only, as BIP-173 says: mixed case is refused", () => {
+    for (const address of CIP19.keys) {
+      const mixed = `${address.slice(0, 20)}${address.slice(20).toUpperCase()}`;
+      expect([
+        isCardanoMainnetAddress(address),
+        isCardanoMainnetAddress(address.toUpperCase()),
+      ]).toEqual([true, true]);
+      expect([isCardanoMainnetAddress(mixed), cardanoSigningAddress(mixed)]).toEqual([
+        false,
+        undefined,
+      ]);
+    }
+  });
+
+  it("tells CIP-19's addresses of scripts and pointers from addresses of keys", () => {
+    for (const address of CIP19.scriptsAndPointers) {
+      expect([address, isCardanoScriptOrPointerAddress(address)]).toEqual([address, true]);
+      expect(cardanoSigningAddress(address)).toBeUndefined();
+    }
+    for (const address of CIP19.keys)
+      expect([address, isCardanoScriptOrPointerAddress(address)]).toEqual([address, false]);
+  });
+
+  it("finds a malformed address neither of keys nor of a script or a pointer", () => {
+    for (const malformed of [
+      // A base address's bytes under stake, a reward header under addr, a base header with 39
+      // bytes after it, and a reserved type (9).
+      addressText("stake", 0x01, HASH, HASH),
+      addressText("addr", 0xe1, HASH),
+      addressText("addr", 0x01, HASH, HASH.slice(0, 11)),
+      addressText("addr", 0x91, HASH),
+      // A script's reward header under addr, and a script's enterprise address one byte too long.
+      addressText("addr", 0xf1, HASH),
+      addressText("addr", 0x71, HASH, [0]),
+      // Pointers of two naturals, and of three whose last byte says more follow.
+      addressText("addr", 0x41, HASH, [1, 2]),
+      addressText("addr", 0x41, HASH, [1, 2, 3, 0x80]),
+    ]) {
+      expect(isCardanoMainnetAddress(malformed)).toBe(true);
+      expect([malformed, cardanoSigningAddress(malformed)]).toEqual([malformed, undefined]);
+      expect([malformed, isCardanoScriptOrPointerAddress(malformed)]).toEqual([malformed, false]);
+    }
   });
 });
 

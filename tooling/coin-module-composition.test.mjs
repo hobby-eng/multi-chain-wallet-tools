@@ -93,5 +93,11 @@ describe("coin-owned modules and known answers in selective builds", () => {
     expect(applyKeyDerivationFeatureTemplate(child, options(["bitcoin", "ton"]))).toBe(
       '<section id="bip85-wallet-workspace"></section>',
     );
+    // So does the Matcher's note on Cardano's roles.
+    const matcher = '<p>Payment addresses.<span id="matcher-cardano-note"> For Cardano…</span></p>';
+    expect(applyKeyDerivationFeatureTemplate(matcher, options(["cardano"]))).toBe(matcher);
+    expect(applyKeyDerivationFeatureTemplate(matcher, options(["dash"]))).toBe(
+      "<p>Payment addresses.</p>",
+    );
   });
 });

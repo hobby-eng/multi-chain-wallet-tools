@@ -12,9 +12,23 @@ const MAX_TARGET_LENGTH = 128;
 /** A target as a coin recognizes it; the matcher numbers it. */
 export type RecognizedTarget = Omit<WalletMatcherTarget, "id">;
 
+/**
+ * A coin's refusal of an address it knows but cannot search, such as a Cardano address of a script:
+ * its text says why, and the matcher prefixes the line, "Address N: …".
+ */
+export class UnsearchableAddressError extends Error {
+  constructor(reason: string) {
+    super(reason);
+    this.name = "UnsearchableAddressError";
+  }
+}
+
 /** What a coin brings to the matcher. */
 export interface MatcherCoin {
-  /** The target that `value` is for this coin, or null when the coin does not know it. */
+  /**
+   * The target that `value` is for this coin, or null when the coin does not know it; it throws an
+   * UnsearchableAddressError for an address of the coin that no row can show.
+   */
   recognize(value: string, network: NetworkName): RecognizedTarget | null;
   /** Every address profile of the coin, searched for a payment address when all are forced. */
   readonly addressAdapters: readonly string[];
@@ -64,7 +78,14 @@ export function detectMatcherTargets(
     // Refused before any recognizer decodes it, so that a long paste costs nothing (CORE-50).
     if (value.length > MAX_TARGET_LENGTH)
       throw new Error(`Address ${index + 1} is longer than any supported address.`);
-    const recognized = recognizedByAll(coins, value, network);
+    let recognized: RecognizedTarget | null;
+    try {
+      recognized = recognizedByAll(coins, value, network);
+    } catch (cause) {
+      if (cause instanceof UnsearchableAddressError)
+        throw new Error(`Address ${index + 1}: ${cause.message}`, { cause });
+      throw cause;
+    }
     if (recognized === null)
       throw new Error(`Address ${index + 1} is not recognized for the selected network.`);
     if (seen.has(recognized.normalized))
@@ -74,7 +95,7 @@ export function detectMatcherTargets(
       ...recognized,
       id: `address-${index + 1}`,
       adapterIds:
-        forceAllProfiles && recognized.fieldKeys === undefined
+        forceAllProfiles && recognized.fieldKeys === undefined && recognized.branches === undefined
           ? allAdapters
           : recognized.adapterIds,
     };

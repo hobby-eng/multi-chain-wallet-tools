@@ -48,7 +48,10 @@ class PassiveWorker extends EventTarget {
   }
 }
 
-function mount() {
+/** One turn of the event loop, as the Matcher takes before making each phrase's seeds. */
+const nextTurn = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+function mount(seedOf: RecoveryFeatureContext["mnemonicToSeed"] = mnemonicToSeed) {
   const page = new PassiveQrPage();
   const panel = page.add("wallet-matcher-panel", "section");
   panel.className = "backup-operation";
@@ -95,7 +98,7 @@ function mount() {
   const context: RecoveryFeatureContext = {
     registry: createCoinRegistry([getCoinAdapter("bitcoin-legacy")]),
     detectTargets: detectMultiChainMatcherTargets,
-    mnemonicToSeed,
+    mnemonicToSeed: seedOf,
     linkedValue: () => null,
     linkedSourceRevealed: () => false,
     writeClipboard: vi.fn(async () => undefined),
@@ -119,6 +122,8 @@ function mount() {
     action,
     async start() {
       page.require("run-wallet-matcher").click();
+      // The phrase's seeds are made in a turn of the event loop of their own.
+      await nextTurn();
       await settlePromises();
       const worker = PassiveWorker.instances.at(-1);
       if (worker?.requests[0]?.type !== "search-many")
@@ -216,6 +221,48 @@ it.each(["clear", "pagehide", "linked", "gate"])("revokes pending search on %s",
   await settlePromises();
   expect(view.result.textContent).toBe("");
   expect(worker.stopped).toBe(true);
+});
+
+it("shows the seeds' progress at once, and Cancel stops the search before any request", async () => {
+  const view = mount();
+  const status = view.page.require("wallet-matcher-status");
+  view.page.require("run-wallet-matcher").click();
+  expect(status.textContent).toBe("Preparing 0/1 seed phrases…");
+  view.page.require("cancel-wallet-matcher").click();
+  await nextTurn();
+  await settlePromises();
+  expect(status.textContent).toBe("Search cancelled.");
+  // The run's worker starts with the run, so that it is ready when the seeds are; Cancel stops it.
+  expect(PassiveWorker.instances.map(({ requests, stopped }) => [requests, stopped])).toEqual([
+    [[], true],
+  ]);
+});
+
+it("wipes the seeds made so far in the pagehide handler, before the next turn", async () => {
+  // A page hidden into the back-forward cache fires no later timer: the wipe cannot wait for one.
+  const seeds: Uint8Array[] = [];
+  const view = mount((phrase, passphrase) => {
+    const seed = mnemonicToSeed(phrase, passphrase);
+    seeds.push(seed);
+    return seed;
+  });
+  view.page.require("matcher-seeds").value = `${PHRASE}\n${OTHER}`;
+  view.page.require("run-wallet-matcher").click();
+  await nextTurn();
+  expect(view.page.require("wallet-matcher-status").textContent).toBe(
+    "Preparing 1/2 seed phrases…",
+  );
+  expect(seeds.map((seed) => seed.some((byte) => byte !== 0))).toEqual([true]);
+  view.page.window.dispatchEvent(new Event("pagehide"));
+  expect(seeds.map((seed) => seed.every((byte) => byte === 0))).toEqual([true]);
+  // The loop ends at its turn without making the second phrase's seed or publishing anything.
+  await nextTurn();
+  await settlePromises();
+  expect(seeds).toHaveLength(1);
+  expect(view.page.require("wallet-matcher-status").textContent).toBe("");
+  expect(PassiveWorker.instances.map(({ requests, stopped }) => [requests, stopped])).toEqual([
+    [[], true],
+  ]);
 });
 
 it("still publishes a current public no-match result", async () => {

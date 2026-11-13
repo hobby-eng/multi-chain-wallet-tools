@@ -16,6 +16,7 @@ type RecoveryWorkspaceOptions = Pick<
   | "registry"
   | "detectTargets"
   | "mnemonicToSeed"
+  | "phraseSeedReaders"
   | "writeClipboard"
   | "downloadText"
   | "useMnemonicInDeriver"

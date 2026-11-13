@@ -5,6 +5,7 @@ import {
   type MatcherServices,
   type MatcherWorker,
   type MatcherFinding,
+  type MatcherProgress,
 } from "../src/matcher-plan.js";
 import { getCoinAdapter } from "@ckd/coins/registry.js";
 import { createCoinRegistry } from "@ckd/coins/registry-base.js";
@@ -43,6 +44,17 @@ function input(overrides: Partial<MatcherPlanInput> = {}): MatcherPlanInput {
   };
 }
 
+/** A worker that finds nothing and derives nothing. */
+const NO_MATCH: MatcherWorker = {
+  searchMany: async () => [],
+  derive: async () => {
+    throw new Error("Unexpected derive");
+  },
+};
+/** The host's turn: none needed where nothing else runs between phrases. */
+const NO_TURN = async (): Promise<void> => undefined;
+const NO_PROGRESS = (): void => undefined;
+
 function services() {
   const seeds: Uint8Array[] = [];
   const seed = vi.fn((_phrase: string, _passphrase: string) => {
@@ -63,9 +75,10 @@ function services() {
 
 it.each(["lists", "linked"] as const)(
   "preserves opaque %s passphrases exactly at the seed boundary",
-  (kind) => {
+  async (kind) => {
     const fixture = services();
-    const passphrase = kind === "linked" ? " \ufeffé🔒\r\n " : " \ufeffé🔒 ";
+    // A lone surrogate too: the plan keeps a phrase as code units, never as UTF-8.
+    const passphrase = kind === "linked" ? " \ufeffé🔒\ud800\r\n " : " \ufeffé🔒\ud800 ";
     using plan = new WalletMatcherPlan(
       input({
         source:
@@ -75,6 +88,8 @@ it.each(["lists", "linked"] as const)(
       }),
       fixture.host,
     );
+    expect(fixture.seed).not.toHaveBeenCalled();
+    await plan.search(NO_MATCH, () => true, NO_PROGRESS, NO_TURN);
     expect(fixture.seed).toHaveBeenCalledExactlyOnceWith(PHRASE, passphrase);
     plan.wipe();
     expect(fixture.seeds[0]).toEqual(Uint8Array.of(0, 0, 0));
@@ -95,7 +110,7 @@ it.each([
   expect(fixture.seed).not.toHaveBeenCalled();
 });
 
-it("clears earlier owned seeds when a later phrase is refused", () => {
+it("clears earlier owned seeds when a later phrase is refused", async () => {
   const fixture = services();
   fixture.seed
     .mockImplementationOnce(() => {
@@ -106,14 +121,90 @@ it("clears earlier owned seeds when a later phrase is refused", () => {
     .mockImplementationOnce(() => {
       throw new Error("Synthetic second seed refusal");
     });
-  expect(
-    () =>
-      new WalletMatcherPlan(
-        input({ source: { kind: "lists", phrases: `${PHRASE}\n${PHRASE}`, passphrases: "" } }),
-        fixture.host,
-      ),
-  ).toThrow("Synthetic second seed refusal");
+  {
+    using plan = new WalletMatcherPlan(
+      input({ source: { kind: "lists", phrases: `${PHRASE}\n${PHRASE}`, passphrases: "" } }),
+      fixture.host,
+    );
+    await expect(plan.search(NO_MATCH, () => true, NO_PROGRESS, NO_TURN)).rejects.toThrow(
+      "Synthetic second seed refusal",
+    );
+  }
   expect(fixture.seeds[0]).toEqual(Uint8Array.of(0, 0));
+});
+
+it("reports progress before the first seed is made and before the first derivation", async () => {
+  const fixture = services();
+  const events: string[] = [];
+  fixture.seed.mockImplementation(() => {
+    events.push("seed");
+    return Uint8Array.of(1);
+  });
+  using plan = new WalletMatcherPlan(
+    input({ source: { kind: "lists", phrases: `${PHRASE}\n${PHRASE}`, passphrases: "" } }),
+    fixture.host,
+  );
+  const worker: MatcherWorker = {
+    ...NO_MATCH,
+    searchMany: async () => {
+      events.push("derive");
+      return [];
+    },
+  };
+  const outcome = await plan.search(
+    worker,
+    () => true,
+    ({ stage, completed, total }) => events.push(`${stage} ${completed}/${total}`),
+    async () => {
+      events.push("turn");
+    },
+  );
+  expect(outcome).toEqual({ kind: "complete", findings: [] });
+  // Each phrase's seeds in a turn of their own, then one search per phrase.
+  expect(events).toEqual([
+    "seeds 0/2",
+    "turn",
+    "seed",
+    "seeds 1/2",
+    "turn",
+    "seed",
+    "seeds 2/2",
+    "derive",
+    "search 1/2",
+    "derive",
+    "search 2/2",
+  ]);
+});
+
+it("stops making seeds when the host cancels between phrases, before any derivation", async () => {
+  const fixture = services();
+  const phrases = Array.from({ length: 5 }, () => PHRASE).join("\n");
+  let current = true;
+  const progress = vi.fn<(progress: MatcherProgress) => void>();
+  const worker: MatcherWorker = {
+    ...NO_MATCH,
+    searchMany: vi.fn(async () => []),
+  };
+  {
+    using plan = new WalletMatcherPlan(
+      input({ source: { kind: "lists", phrases, passphrases: "" } }),
+      fixture.host,
+    );
+    // Cancel arrives in the host's turn after the second phrase's seeds.
+    const outcome = await plan.search(
+      worker,
+      () => current,
+      progress,
+      async () => {
+        if (fixture.seed.mock.calls.length === 2) current = false;
+      },
+    );
+    expect(outcome).toEqual({ kind: "stopped" });
+  }
+  expect(fixture.seed).toHaveBeenCalledTimes(2);
+  expect(worker.searchMany).not.toHaveBeenCalled();
+  expect(progress.mock.calls.map(([step]) => step.completed)).toEqual([0, 1, 2]);
+  expect(fixture.seeds).toEqual([Uint8Array.of(0, 0, 0), Uint8Array.of(0, 0, 0)]);
 });
 
 it("reports stopped explicitly after an awaited search without publishing progress", async () => {
@@ -122,16 +213,16 @@ it("reports stopped explicitly after an awaited search without publishing progre
   using plan = new WalletMatcherPlan(input(), fixture.host);
   const progress = vi.fn();
   const worker: MatcherWorker = {
+    ...NO_MATCH,
     searchMany: async () => {
       current = false;
       return [];
     },
-    derive: async () => {
-      throw new Error("Unexpected derive");
-    },
   };
-  await expect(plan.search(worker, () => current, progress)).resolves.toEqual({ kind: "stopped" });
-  expect(progress).not.toHaveBeenCalled();
+  await expect(plan.search(worker, () => current, progress, NO_TURN)).resolves.toEqual({
+    kind: "stopped",
+  });
+  expect(progress).not.toHaveBeenCalledWith(expect.objectContaining({ stage: "search" }));
 });
 
 it.each([true, false])("retires derived result fields on match=%s", async (matches) => {
@@ -181,19 +272,14 @@ it("reports stopped when the last progress callback revokes the request", async 
   const fixture = services();
   let current = true;
   using plan = new WalletMatcherPlan(input(), fixture.host);
-  const worker: MatcherWorker = {
-    searchMany: async () => [],
-    derive: async () => {
-      throw new Error("Unexpected derive");
-    },
-  };
   await expect(
     plan.search(
-      worker,
+      NO_MATCH,
       () => current,
-      () => {
-        current = false;
+      ({ stage }) => {
+        if (stage === "search") current = false;
       },
+      NO_TURN,
     ),
   ).resolves.toEqual({ kind: "stopped" });
 });

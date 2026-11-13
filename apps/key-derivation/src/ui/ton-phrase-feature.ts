@@ -147,18 +147,19 @@ export class TonPhraseFeature implements GenerationOption {
   /**
    * The seed of `adapter` for `phrase`, which the caller wipes. For the Telegram wallet, the 64-byte
    * TON entropy: refused for a phrase that is not TON's, since no TON wallet derives a key from it,
-   * and with a BIP39 passphrase, which is no part of it. For any other variant, BIP39's seed,
-   * refused for a TON phrase that is not BIP39's.
+   * and with a BIP39 passphrase, which is no part of it. For any other variant, the seed that
+   * `phraseSeed` reads for it (BIP39's, or a CIP-3 root), refused for a TON phrase that is not
+   * BIP39's.
    */
   seedFor(
     adapter: Pick<CoinAdapter, "seedSource">,
     phrase: string,
     passphrase: string,
-    bip39Seed: (phrase: string, passphrase: string) => Uint8Array,
+    phraseSeed: (phrase: string, passphrase: string) => Uint8Array,
   ): Uint8Array {
     if (adapter.seedSource !== "ton-phrase") {
       if (tonPhraseKind(phrase) === "ton-only") throw ERRORS.create("ton-only", []);
-      return bip39Seed(phrase, passphrase);
+      return phraseSeed(phrase, passphrase);
     }
     const words = tonWords(phrase);
     if (words === null) throw ERRORS.create("not-ton", []);

@@ -3,7 +3,7 @@ import { RecoverySecretToggle } from "./recovery-secret-toggle.js";
 import { isTabKey, markTab, tabIndexAfter } from "@ckd/ui/tabs.js";
 import { SskrGroupPolicy } from "@ckd/recovery-backup/sskr-groups.js";
 import { textLines } from "@ckd/core/text-lines.js";
-import type { CoinRegistry } from "@ckd/coins/registry-base.js";
+import type { CoinRegistry, PhraseSeedReaders } from "@ckd/coins/registry-base.js";
 import type { WalletMatcherTargetDetector } from "@ckd/recovery/matcher-types.js";
 import type { RecoveryJobGate } from "./recovery-job-gate.js";
 import type { RecoverySourceReference, RecoverySourceTarget } from "./recovery-source-link.js";
@@ -32,6 +32,8 @@ export interface RecoveryFeatureContext {
   readonly registry: CoinRegistry;
   readonly detectTargets: WalletMatcherTargetDetector;
   readonly mnemonicToSeed: (mnemonic: string, passphrase: string) => Uint8Array;
+  /** The page's readers of the seeds that are not BIP39's, such as Cardano's CIP-3 roots. */
+  readonly phraseSeedReaders?: PhraseSeedReaders;
   readonly writeClipboard: (value: string) => Promise<void>;
   readonly downloadText: (text: string, fileName: string, mimeType: string) => void;
   readonly useMnemonicInDeriver: (mnemonic: string, passphrase?: string) => void;

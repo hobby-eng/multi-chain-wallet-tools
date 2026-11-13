@@ -1,7 +1,7 @@
 declare const __CKD_HAS_RECOVERY__: boolean;
 import { BUILD_INFO } from "@ckd/build-info";
 import { generateMnemonic, mnemonicToSeed } from "@ckd/core/bip39.js";
-import type { CoinRegistry } from "@ckd/coins/registry-base.js";
+import type { CoinRegistry, PhraseSeedReaders } from "@ckd/coins/registry-base.js";
 import { runBip39SelfTest } from "@ckd/bip39-self-test";
 import { writeClipboard } from "@ckd/export/clipboard.js";
 import { HelpPopovers } from "@ckd/ui/help-popovers.js";
@@ -39,11 +39,14 @@ export function startKeyDerivationApp(
   new HelpPopovers().install(document);
   const modes = installTopLevelModes();
   const handoff = new RecoveryDeriverHandoff(document, () => modes.setMode("derive"));
+  // The seeds other than BIP39's that the build's variants read (Cardano's), for the Matcher too.
+  const { phraseSeedReaders }: { phraseSeedReaders?: PhraseSeedReaders } = derivationFeatures;
   const recovery = __CKD_HAS_RECOVERY__
     ? installRecoveryWorkspace({
         registry,
         detectTargets,
         mnemonicToSeed,
+        ...(phraseSeedReaders === undefined ? {} : { phraseSeedReaders }),
         writeClipboard,
         downloadText,
         useMnemonicInDeriver: handoff.use.bind(handoff),

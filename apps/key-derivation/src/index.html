@@ -733,7 +733,11 @@
             Payment addresses are matched locally across the selected coin's compatible paths, for Dash including the
             identity funding addresses. For Dash Identity, enter the 40-character HASH160 of the MASTER authentication
             public key. Finding an Identity from its Identity ID or DPNS name requires the proof-verified Discovery
-            Scanner.
+            Scanner.<span id="matcher-cardano-note">
+              For Cardano, a base or enterprise address is matched with the receive keys of each variant, and its change
+              keys too when change addresses are searched; a stake address (stake1…) with the stake keys in the index
+              range. A base address is found only when its stake key is the same wallet's too.</span
+            >
           </p>
           <div class="actions">
             <button class="primary" id="run-wallet-matcher" type="button">Find wallet matches</button
