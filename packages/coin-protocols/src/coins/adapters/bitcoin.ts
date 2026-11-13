@@ -11,6 +11,8 @@ function bitcoinAdapter(profile: BitcoinPurposeProfile): CoinAdapter {
     defaultVariant: profile.defaultVariant,
     networkControl: true,
     addressBranches: BIP44_ADDRESS_BRANCHES,
+    // BIP352's reusable addresses are Bitcoin's: the Silent Payments tab is offered under Bitcoin only.
+    silentPayments: true,
     defaults: { network: "mainnet", account: 0, branch: 0, start: 0, count: 20 },
     fieldRoles: TRANSPARENT_ROLES,
     pathPreview: (input) => profile.paths.pathPreview(input),

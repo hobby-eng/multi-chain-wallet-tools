@@ -109,6 +109,23 @@ export class DerivationControlsView {
   }
 
   /**
+   * Offers an optional feature's option, or hides it with its "?" (its row, else its label) and
+   * disables it while keeping its tick; the feature's tab follows. The original wallet and the
+   * child wallet both use it.
+   */
+  static offerFeatureOption(
+    checkbox: HTMLInputElement,
+    tab: HTMLButtonElement,
+    offered: boolean,
+  ): void {
+    const option =
+      checkbox.closest<HTMLElement>(".field-heading-row") ?? checkbox.closest<HTMLElement>("label");
+    if (option !== null) option.hidden = !offered;
+    checkbox.disabled = !offered;
+    DerivationControlsView.syncFeatureTabVisibility(checkbox, tab);
+  }
+
+  /**
    * Marks the selected entry of a "Derivation type" tab list: the tab of the active feature, or the
    * adapter tab when no feature is active. The original and the derived child wallet both use it.
    */
@@ -303,6 +320,18 @@ export const populateCoinSelect =
 /** Compatibility entry for existing native control callers. */
 export const syncFeatureTabVisibility =
   DerivationControlsView.syncFeatureTabVisibility.bind(DerivationControlsView);
+
+/** Compatibility entry for existing native control callers. */
+export const offerFeatureOption =
+  DerivationControlsView.offerFeatureOption.bind(DerivationControlsView);
+
+/**
+ * Whether a wallet offers Silent Payments: the build has them and the chosen variant's coin has
+ * them (BIP352's are Bitcoin's). The original wallet and the child wallet both ask it.
+ */
+export function silentPaymentsOffered(adapter: CoinAdapter | null, built: boolean): boolean {
+  return built && adapter?.silentPayments === true;
+}
 
 /** Compatibility entry for existing native control callers. */
 export const markSelectedProtocolTab =

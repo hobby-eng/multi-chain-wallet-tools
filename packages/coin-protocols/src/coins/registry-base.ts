@@ -104,6 +104,8 @@ export interface CoinAdapter {
   addressBranches?: AddressBranches;
   /** Optional DIP9 CoinJoin chain, exposed as its own opt-in result tab with nested External/Internal branches. */
   coinJoin?: CoinJoinSupport;
+  /** True on the variants whose coin has BIP352 Silent Payments: the page offers them only then. */
+  silentPayments?: true;
   branchControl?: BranchControl;
   limits?: CoinLimits;
   accountControl?: boolean;

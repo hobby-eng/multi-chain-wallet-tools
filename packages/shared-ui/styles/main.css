@@ -918,7 +918,8 @@ textarea.concealed {
   gap: 9px 18px;
   margin-top: -3px;
 }
-.feature-tab-options:empty {
+/* No empty row is left when none of its options is offered under the chosen coin. */
+.feature-tab-options:not(:has(> :not([hidden]))) {
   display: none;
 }
 .feature-tab-toggle {

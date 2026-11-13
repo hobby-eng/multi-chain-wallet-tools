@@ -94,6 +94,13 @@ async function checkChildWallet(page) {
   );
   await note.waitFor({ state: "visible" });
   assert.match(await note.innerText(), /only its Ledger tab.*read a child phrase with Icarus/su);
+  // Silent Payments are Bitcoin's: the child offers them under Bitcoin only.
+  const silentPayments = page.locator("#bip85-wallet-include-silent-payment");
+  assert.equal(await silentPayments.isVisible(), false, "no Silent Payments under Cardano");
+  // Its options row holds that option alone, so no empty row is left either.
+  const options = page.locator("#bip85-wallet-workspace .feature-tab-options");
+  assert.equal(await options.count(), 1);
+  assert.equal(await options.isVisible(), false, "no empty options row under Cardano");
   await page.locator("#bip85-wallet-count").fill("1");
   await page.locator("#derive-bip85-wallet").click();
   await page.waitForFunction(
@@ -110,6 +117,8 @@ async function checkChildWallet(page) {
   );
   await page.locator("#bip85-wallet-coin").selectOption("bitcoin");
   await note.waitFor({ state: "hidden" });
+  await silentPayments.waitFor({ state: "visible" });
+  assert.equal(await options.isVisible(), true, "the options row is back under Bitcoin");
 }
 
 /** Cardano in the Multi-Chain Deriver, and nowhere in Dash Community's. */

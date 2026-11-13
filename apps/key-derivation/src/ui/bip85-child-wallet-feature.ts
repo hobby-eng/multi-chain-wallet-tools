@@ -6,9 +6,10 @@ import { displayedFields, inspectSelectedRows } from "@ckd/export/formatter.js";
 import {
   configureControls,
   markSelectedProtocolTab,
+  offerFeatureOption,
   populateCoinSelect,
   readControls,
-  syncFeatureTabVisibility,
+  silentPaymentsOffered,
   updatePathPreview,
   type CoinMetadataRegistry,
   type DerivationControlValues,
@@ -247,16 +248,16 @@ export class Bip85ChildWallet {
       else this.#secretsToggleHome?.prepend(this.#toggleSecrets);
     }
   };
+  /**
+   * Offers Silent Payments while the child's coin has them, as the original wallet does
+   * (derivation-workspace-tabs.ts): under another coin the option is hidden and its tick kept.
+   */
   readonly #syncSilentPayment = (): void => {
-    if (this.#includeSilentPayment === null || this.#silentPaymentTab === null) return;
-    if (this.#silentPayment === undefined) {
-      this.#includeSilentPayment.checked = false;
-      this.#includeSilentPayment.disabled = true;
-      const label = this.#includeSilentPayment.closest<HTMLElement>("label");
-      if (label !== null) label.hidden = true;
-    }
-    syncFeatureTabVisibility(this.#includeSilentPayment, this.#silentPaymentTab);
-    if (!this.#includeSilentPayment.checked && this.#silentPaymentActive) {
+    const checkbox = this.#includeSilentPayment;
+    if (checkbox === null || this.#silentPaymentTab === null) return;
+    if (this.#silentPayment === undefined) checkbox.checked = false;
+    offerFeatureOption(checkbox, this.#silentPaymentTab, this.#silentPaymentOffered());
+    if ((!checkbox.checked || checkbox.disabled) && this.#silentPaymentActive) {
       this.#selectSilentPayment(false);
       this.#scheduleRefresh();
     }
@@ -407,6 +408,7 @@ export class Bip85ChildWallet {
     this.#adapter = next;
     this.#clearResults();
     configureControls(next, this.#controls, this.#registry);
+    this.#syncSilentPayment();
     this.#showCoinNotes(this.#options.getAdapterFamilyId(next));
     this.#scheduleRefresh();
   };
@@ -539,10 +541,12 @@ export class Bip85ChildWallet {
       format: this.#exportFormat.value,
     };
   };
+  readonly #silentPaymentOffered = (): boolean =>
+    silentPaymentsOffered(this.#adapter, this.#silentPayment !== undefined);
   #bindFeatures(): void {
     this.#includeSilentPayment?.addEventListener("change", this.#syncSilentPayment);
     this.#silentPaymentTab?.addEventListener("click", () => {
-      if (this.#silentPayment === undefined) return;
+      if (this.#silentPayment === undefined || !this.#silentPaymentOffered()) return;
       this.#clearResults();
       this.#selectSilentPayment(true);
       this.#silentPayment.derive();

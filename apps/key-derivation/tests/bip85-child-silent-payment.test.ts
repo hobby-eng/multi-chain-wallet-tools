@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PassiveQrPage } from "../../../test/support/qr-page.js";
+import { CompleteIdPage } from "@ckd/test-support/complete-id-page.js";
+import {
+  COIN_FAMILIES,
+  getAdapterFamilyId,
+  getCoinAdapter,
+  getDefaultCoinAdapter,
+} from "@ckd/coins/registry.js";
 import type { RecoveryTestElement as FakeElement } from "./fake-recovery-page.js";
 import { entropyToEnglishMnemonic, mnemonicToSeed } from "@ckd/core/bip39.js";
 import { Bip85 } from "@ckd/core/bip85.js";
@@ -35,6 +42,27 @@ function fakeDocument(ids: readonly string[]) {
   const page = new PassiveQrPage();
   for (const id of ids) page.add(id);
   return { document: page.asDocument(), byId: (id: string) => page.require(id) };
+}
+
+/** A page on which every control the child workspace opens with exists on demand. */
+function childDocument(ids: readonly string[]) {
+  const page = new CompleteIdPage();
+  for (const id of ids) page.add(id);
+  return { page, document: page.asDocument(), byId: (id: string) => page.require(id) };
+}
+
+/** Opens the child workspace as the page does, on the build's first coin, Bitcoin. */
+function openChild(options: Partial<Bip85ChildWalletOptions>) {
+  const child = installBip85ChildWallet({
+    coinFamilies: COIN_FAMILIES,
+    getCoinAdapter,
+    getDefaultCoinAdapter,
+    getAdapterFamilyId,
+    ...options,
+  } as unknown as Bip85ChildWalletOptions);
+  child.initialize();
+  child.cancelScheduledRefresh();
+  return child;
 }
 
 function panelIds(prefix: string): string[] {
@@ -95,7 +123,7 @@ describe("BIP85 child wallet Silent Payments", () => {
   it("derives from the child phrase and passphrase exactly what the original workspace shows for them", async () => {
     vi.stubGlobal("window", { setTimeout, clearTimeout });
     const childMnemonic = childMnemonicOf(PARENT_MNEMONIC);
-    const { document, byId } = fakeDocument([
+    const { document, byId } = childDocument([
       ...panelIds(""),
       ...panelIds(CHILD_PREFIX),
       `${CHILD_PREFIX}include-silent-payment`,
@@ -126,7 +154,7 @@ describe("BIP85 child wallet Silent Payments", () => {
     });
 
     // The child workspace receives the same feature module that the controller passes in.
-    installBip85ChildWallet({
+    openChild({
       document,
       mnemonic: () => childMnemonic,
       mnemonicToSeed,
@@ -135,7 +163,7 @@ describe("BIP85 child wallet Silent Payments", () => {
       cryptoReady: () => true,
       secretsRevealed: () => false,
       setSecretsRevealed: () => undefined,
-    } as unknown as Bip85ChildWalletOptions);
+    });
 
     const includeChildSilentPayment = byId(`${CHILD_PREFIX}include-silent-payment`);
     const childTab = byId(`${CHILD_PREFIX}silent-payment-tab`);
@@ -172,7 +200,7 @@ describe("BIP85 child wallet Silent Payments", () => {
 
 it("clears child Silent Payments even when an active signing surface refuses to close", async () => {
   vi.stubGlobal("window", { setTimeout, clearTimeout });
-  const { document, byId } = fakeDocument([
+  const { document, byId } = childDocument([
     ...panelIds(CHILD_PREFIX),
     `${CHILD_PREFIX}include-silent-payment`,
     `${CHILD_PREFIX}silent-payment-tab`,
@@ -183,10 +211,8 @@ it("clears child Silent Payments even when an active signing surface refuses to 
   byId(`${CHILD_PREFIX}silent-payment-account`).value = "0";
   byId(`${CHILD_PREFIX}silent-payment-result`).hidden = true;
   byId(`${CHILD_PREFIX}silent-payment-error`).hidden = true;
-  const close = vi.fn((): void => {
-    throw new Error("Synthetic native signing close fault");
-  });
-  const child = installBip85ChildWallet({
+  const close = vi.fn();
+  const child = openChild({
     document,
     mnemonic: () => PARENT_MNEMONIC,
     mnemonicToSeed,
@@ -195,8 +221,14 @@ it("clears child Silent Payments even when an active signing surface refuses to 
     cryptoReady: () => true,
     secretsRevealed: () => false,
     setSecretsRevealed: () => undefined,
-    messageSigning: { activeSource: () => "bip85", close },
-  } as unknown as Bip85ChildWalletOptions);
+    messageSigning: {
+      activeSource: () => "bip85",
+      close,
+    } as unknown as NonNullable<Bip85ChildWalletOptions["messageSigning"]>,
+  });
+  close.mockImplementation((): void => {
+    throw new Error("Synthetic native signing close fault");
+  });
   byId(`${CHILD_PREFIX}include-silent-payment`).checked = true;
   byId(`${CHILD_PREFIX}include-silent-payment`).dispatchEvent(new Event("change"));
   // The failure is armed after the setup transition, which also clears the child view.
@@ -207,6 +239,61 @@ it("clears child Silent Payments even when an active signing surface refuses to 
   expect(() => child.clear()).toThrow("Synthetic native signing close fault");
   for (const id of OUTPUT_IDS) expect(byId(`${CHILD_PREFIX}${id}`).textContent).toBe("");
   expect(byId(`${CHILD_PREFIX}silent-payment-result`).hidden).toBe(true);
+  vi.unstubAllGlobals();
+});
+
+it("offers child Silent Payments while the child's coin is Bitcoin, keeping the tick under another coin", () => {
+  vi.stubGlobal("window", { setTimeout, clearTimeout });
+  const { page, document, byId } = childDocument([
+    ...panelIds(CHILD_PREFIX),
+    `${CHILD_PREFIX}silent-payment-tab`,
+    `${CHILD_PREFIX}silent-payment-panel`,
+  ]);
+  // The option and its label, nested as the page's template nests them beside the option's "?".
+  const option = page.add(`${CHILD_PREFIX}silent-payment-option`);
+  option.classList.add("field-heading-row");
+  const label = page.add(`${CHILD_PREFIX}silent-payment-label`, "label", option);
+  const checkbox = page.add(`${CHILD_PREFIX}include-silent-payment`, "input", label);
+  const child = openChild({
+    document,
+    mnemonic: () => PARENT_MNEMONIC,
+    mnemonicToSeed,
+    createWorker: inProcessWorker,
+    installSilentPaymentFeature,
+    cryptoReady: () => true,
+    secretsRevealed: () => false,
+    setSecretsRevealed: () => undefined,
+  });
+  const controls = child.controls();
+  if (controls === null) throw new Error("The child workspace must open with its controls.");
+  const tab = byId(`${CHILD_PREFIX}silent-payment-tab`);
+  const panel = byId(`${CHILD_PREFIX}silent-payment-panel`);
+  const state = () => [
+    option.hidden,
+    checkbox.disabled,
+    checkbox.checked,
+    tab.hidden,
+    panel.hidden,
+  ];
+  const choose = (family: string) => {
+    controls.coin.value = family;
+    controls.coin.dispatchEvent(new Event("change"));
+    child.cancelScheduledRefresh();
+  };
+  expect(child.adapter()?.id).toMatch(/^bitcoin-/u);
+  checkbox.checked = true;
+  checkbox.dispatchEvent(new Event("change"));
+  tab.click();
+  expect(state()).toEqual([false, false, true, false, false]);
+  for (const family of ["ethereum", "solana", "cardano", "dash"]) {
+    choose(family);
+    expect(state(), family).toEqual([true, true, true, true, true]);
+    tab.click();
+    expect(panel.hidden, family).toBe(true);
+  }
+  choose("bitcoin");
+  expect(state()).toEqual([false, false, true, false, true]);
+  child.clear();
   vi.unstubAllGlobals();
 });
 

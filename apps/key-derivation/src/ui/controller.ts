@@ -5,6 +5,7 @@ import { CoinFamilyCatalog, type PhraseSeedReaders } from "@ckd/coins/registry-b
 import {
   applySharedDerivationControls,
   readControls,
+  silentPaymentsOffered,
   type DerivationFeatureTab,
 } from "./inputs.js";
 import { DerivationErrorText } from "./derivation-error-text.js";
@@ -432,6 +433,9 @@ export class KeyDerivationController {
       applySharedDerivationControls(this.#adapter, remembered.values, remembered.shared),
     );
     this.#workspaceTabs.sync();
+    // A coin without Silent Payments keeps no Bitcoin result and no running work in their panel.
+    if (!silentPaymentsOffered(next, this.#silentPaymentFeature !== undefined))
+      this.#releaseOwnedPart(() => this.#silentPaymentFeature?.clear());
     this.#view.clearMessages();
     this.#view.hideSearchResult();
     if (autoDerive && this.#mnemonicDiagnostic.mayBeComplete()) void this.#derivation.run(true);

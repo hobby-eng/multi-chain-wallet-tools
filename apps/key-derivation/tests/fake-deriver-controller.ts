@@ -25,6 +25,39 @@ function deferred<T>(): Deferred<T> {
   return { promise, resolve, reject };
 }
 
+/** The fixture's Bitcoin variant, under which the page offers Silent Payments. */
+const FIXTURE_ADAPTER = Object.freeze({
+  id: "bitcoin-bip44",
+  label: "Bitcoin",
+  variantLabel: "BIP44",
+  networkControl: true,
+  silentPayments: true,
+  defaults: { network: "mainnet", account: 0, branch: 0, start: 0, count: 1 },
+  batchSize: 1,
+});
+
+/** A variant of another coin, without Silent Payments. */
+export const FIXTURE_OTHER_ADAPTER = Object.freeze({
+  ...FIXTURE_ADAPTER,
+  id: "other-coin",
+  label: "Other coin",
+  silentPayments: undefined,
+});
+
+/** The fixture's coins, chosen by the coin control's value: "bitcoin" or "other". */
+const FIXTURE_COINS = Object.freeze({
+  coinFamilies: [
+    { id: "bitcoin", label: "Bitcoin" },
+    { id: "other", label: "Other coin" },
+  ],
+  getAdapterFamilyId: (adapter: { id: string }) =>
+    adapter.id === FIXTURE_OTHER_ADAPTER.id ? "other" : "bitcoin",
+  getCoinAdapter: (id: string) =>
+    id === FIXTURE_OTHER_ADAPTER.id ? FIXTURE_OTHER_ADAPTER : FIXTURE_ADAPTER,
+  getDefaultCoinAdapter: (family: string) =>
+    family === "other" ? FIXTURE_OTHER_ADAPTER : FIXTURE_ADAPTER,
+});
+
 /** The actual controller and feature are installed; its view is a small explicit contract stub. */
 export function installControllerFixture(
   page: RecoveryTestPage,
@@ -175,19 +208,8 @@ export function installControllerFixture(
       return pending.promise;
     },
   );
-  const adapter = {
-    id: "bitcoin-bip44",
-    label: "Bitcoin",
-    variantLabel: "BIP44",
-    networkControl: true,
-    defaults: { network: "mainnet", account: 0, branch: 0, start: 0, count: 1 },
-    batchSize: 1,
-  };
   const dependencies = {
-    coinFamilies: [{ id: "bitcoin", label: "Bitcoin" }],
-    getAdapterFamilyId: () => "bitcoin",
-    getCoinAdapter: () => adapter,
-    getDefaultCoinAdapter: () => adapter,
+    ...FIXTURE_COINS,
     buildInfo: {},
     generateMnemonic: () => fixture.otherPhrase,
     // Distinct byte markers make the new-source dispatch observable without deriving any seed.
@@ -206,8 +228,8 @@ export function installControllerFixture(
       ready: async () => undefined,
       selfTest: async () => selfTest,
       deriveSilentPayment,
-      derive: async () => ({
-        id: adapter.id,
+      derive: async (adapterId: string) => ({
+        id: adapterId,
         rows: [{ index: 0, basic: [], advanced: [] }],
         basicSummary: [],
         summary: [],

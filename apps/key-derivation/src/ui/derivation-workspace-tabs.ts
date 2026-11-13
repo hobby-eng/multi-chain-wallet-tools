@@ -1,7 +1,9 @@
 import type { CoinAdapter } from "@ckd/coins/registry.js";
 import {
   markSelectedProtocolTab,
+  offerFeatureOption,
   readControls,
+  silentPaymentsOffered,
   syncFeatureTabVisibility,
   type DerivationFeatureTab,
 } from "./inputs.js";
@@ -56,7 +58,7 @@ export class DerivationWorkspaceTabs {
     ] as const) {
       controls.checkbox?.addEventListener("change", () => this.#sync(feature, controls));
       controls.tab?.addEventListener("click", () => {
-        if (feature === "silent-payment" && !options.silentPaymentAvailable) return;
+        if (feature === "silent-payment" && !this.#silentPaymentOffered()) return;
         if (feature === "coinjoin" && options.adapter().coinJoin === undefined) return;
         options.activate(feature);
       });
@@ -120,6 +122,10 @@ export class DerivationWorkspaceTabs {
     this.select(null);
   }
 
+  #silentPaymentOffered(): boolean {
+    return silentPaymentsOffered(this.#options.adapter(), this.#options.silentPaymentAvailable);
+  }
+
   #sync(
     feature: Exclude<DerivationFeatureTab, null>,
     controls: { checkbox: HTMLInputElement | null; tab: HTMLButtonElement | null },
@@ -127,14 +133,12 @@ export class DerivationWorkspaceTabs {
     const { checkbox, tab } = controls;
     if (checkbox === null || tab === null) return;
     if (feature === "silent-payment") {
-      const available = this.#options.silentPaymentAvailable;
-      const label = checkbox.closest<HTMLElement>("label");
-      if (label !== null) label.hidden = !available;
-      checkbox.disabled = !available;
-      if (!available) checkbox.checked = false;
-    }
-    syncFeatureTabVisibility(checkbox, tab);
-    if (!checkbox.checked && this.#active === feature) {
+      // Under a coin without Silent Payments the option and its "?" are hidden, and its tick is kept
+      // for Bitcoin's return, as the page keeps a coin's own options (adapter-settings.ts).
+      if (!this.#options.silentPaymentAvailable) checkbox.checked = false;
+      offerFeatureOption(checkbox, tab, this.#silentPaymentOffered());
+    } else syncFeatureTabVisibility(checkbox, tab);
+    if ((!checkbox.checked || checkbox.disabled) && this.#active === feature) {
       this.select(null);
       this.#options.schedule();
     }
