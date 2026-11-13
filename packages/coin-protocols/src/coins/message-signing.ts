@@ -83,9 +83,14 @@ export function formatsOnEveryRow(
 export class MessageSigners {
   readonly #owners: ReadonlyMap<string, CoinMessageSigning>;
 
-  constructor(coins: readonly CoinMessageSigning[]) {
+  /**
+   * `coins` are the build's coins, each one CoinMessageSigning or, for a coin whose rows sign with
+   * different keys or standards (Hedera's Ed25519 and ECDSA rows, Injective's ADR-036 and EIP-191),
+   * a list of parts, each owning its own formats and key.
+   */
+  constructor(coins: readonly (CoinMessageSigning | readonly CoinMessageSigning[])[]) {
     this.#owners = new Map(
-      coins.flatMap((coin) => Object.keys(coin.formats).map((format) => [format, coin])),
+      coins.flat().flatMap((part) => Object.keys(part.formats).map((format) => [format, part])),
     );
   }
 

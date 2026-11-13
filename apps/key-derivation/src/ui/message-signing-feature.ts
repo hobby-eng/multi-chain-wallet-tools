@@ -281,21 +281,22 @@ export class MessageSigningFeature implements Disposable {
 
   /**
    * The selected format's inputs for `message`: its fields and the row's public fields it names,
-   * admitted by the format's own check; undefined for a format that signs the message alone.
+   * undefined for a format that signs the message alone. The format's own check admits the message
+   * and the inputs either way.
    */
   #inputs(context: SigningContext, message: string): Record<string, string> | undefined {
     const text = this.#format.text();
-    if (text?.inputs === undefined && text?.rowInputs === undefined) return undefined;
-    const inputs = this.#format.inputValues();
-    for (const key of text.rowInputs ?? []) inputs[key] = context.publicFields.get(key) ?? "";
+    const carried = text?.inputs !== undefined || text?.rowInputs !== undefined;
+    const inputs = carried ? this.#format.inputValues() : {};
+    for (const key of text?.rowInputs ?? []) inputs[key] = context.publicFields.get(key) ?? "";
     try {
-      text.check?.(message, inputs);
+      text?.check?.(message, inputs);
     } catch (cause) {
       // Only the standard's coded refusals are the person's to read; anything else is a fault.
       if (cause instanceof Error && "code" in cause) throw new MessageInputRefusal(cause.message);
       throw cause;
     }
-    return inputs;
+    return carried ? inputs : undefined;
   }
 
   /** The public request of a pasted signature: the row's address, its network and the format. */

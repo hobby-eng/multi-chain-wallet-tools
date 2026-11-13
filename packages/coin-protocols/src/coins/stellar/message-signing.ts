@@ -3,7 +3,8 @@
 import { base64 } from "@scure/base";
 import { DerivationSecretsError } from "@ckd/core/secrets.js";
 import { STRKEY_PUBLIC_KEY, STRKEY_SECRET_SEED } from "@ckd/core/strkey.js";
-import { base64Signature, ed25519CoinSigning } from "../message-signing-ed25519.js";
+import { ed25519CoinSigning } from "../message-signing-ed25519.js";
+import { base64Signature } from "../message-signing-response.js";
 import { sep53SignedBytes } from "./message-signing-sep53.js";
 import { STELLAR_PROFILES } from "./profiles.js";
 import { stellarAccountId, strKeyPayload } from "./strkey.js";

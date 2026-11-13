@@ -5,11 +5,8 @@
 import { base64, hex } from "@scure/base";
 import { bytesToHex, hexToBytes, wipe } from "@ckd/core/crypto.js";
 import { DerivationSecretsError } from "@ckd/core/secrets.js";
-import {
-  ed25519CoinSigning,
-  responseSignature,
-  type Ed25519Format,
-} from "../message-signing-ed25519.js";
+import { ed25519CoinSigning, type Ed25519Format } from "../message-signing-ed25519.js";
+import { responseSignature } from "../message-signing-response.js";
 import { MessageSigningFormatError, type MessageSigningRequest } from "../message-signing.js";
 import { tonAccountId } from "./address.js";
 import { tonWalletAccountId, type TonWalletVersion } from "./contracts.js";

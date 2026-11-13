@@ -6,6 +6,9 @@ const PHRASE = `${"abandon ".repeat(11)}about`;
 /** NEAR's and TON's fields beside the message; the nonce and the timestamp fill themselves. */
 const NEAR_INPUTS = { "#message-signer-input-recipient": "public.example" };
 const TON_INPUTS = { "#message-signer-input-domain": "public.example" };
+/** Keplr's StdSignature, ADR-036's response, and the Base64 SignatureMap of Hedera's. */
+const ADR036 = /^\{"pub_key":\{"type":"tendermint\/PubKeySecp256k1"/u;
+const SIGNATURE_MAP = /^Cm[A-Za-z0-9+/]+={0,2}$/u;
 /** The message of TON's binary payload, in hex, and the same bytes with one more. */
 const BYTES = { message: "4f66666c696e65", tampered: "4f66666c696e6521" };
 
@@ -69,6 +72,35 @@ const VARIANTS = [
     "TON Connect signData (binary)",
     { format: "ton-sign-data-binary", inputs: TON_INPUTS, ...BYTES },
   ],
+  ["cosmos", "cosmos", /^cosmos1/u, "Cosmos signArbitrary (ADR-036)", { output: ADR036 }],
+  [
+    "injective",
+    "injective",
+    /^inj1/u,
+    "Injective signArbitrary (ADR-036, Keccak-256)",
+    { menu: true, output: ADR036 },
+  ],
+  [
+    "injective",
+    "injective",
+    /^inj1/u,
+    "Injective personal_sign (EIP-191)",
+    { format: "injective-eip191", output: /^0x/u },
+  ],
+  [
+    "hedera",
+    "hedera",
+    /^0\.0\.302a/u,
+    "Hedera hedera_signMessage (HIP-820) · Ed25519",
+    { output: SIGNATURE_MAP },
+  ],
+  [
+    "hedera",
+    "hedera-ecdsa",
+    /^0x/u,
+    "Hedera hedera_signMessage (HIP-820) · ECDSA",
+    { output: SIGNATURE_MAP },
+  ],
 ];
 
 /**
@@ -119,6 +151,17 @@ async function bitcoinCashLegacy(page, message, cashAddrSignature) {
   await page.locator("#mode-basic").click();
 }
 
+/** Hedera signs ASCII text only (decision D5): the dialog refuses other text before any work. */
+async function refusesOtherThanAscii(page) {
+  await page.locator("#message-signer-message").fill("Grüße");
+  await page.locator("#sign-message-button").click();
+  await page.locator("#message-signer-error:not([hidden])").waitFor();
+  assert.equal(
+    await page.locator("#message-signer-error").innerText(),
+    "Hedera wallets count the length of other text differently; use ASCII text.",
+  );
+}
+
 /**
  * The Telegram wallet's row, whose key comes from a TON phrase: pasting one selects its tab, and its
  * W5 address signs and verifies.
@@ -161,10 +204,11 @@ export class MessageSigningCoinsCase {
         variant.tampered,
       );
       assert.equal(compact, false, `${adapter} offers no compact format`);
+      if (coin === "hedera") await refusesOtherThanAscii(page);
       await page.locator("#close-message-signer").click();
       if (adapter === "bitcoin-cash") await bitcoinCashLegacy(page, message, proof.signature);
     }
     await telegramWallet(page, message);
-    return "Litecoin (three address types), Dogecoin, Bitcoin Cash (CashAddr and legacy, one signature), Zcash, Ethereum, Ethereum Classic, Tron, Solana (both formats), Stellar, NEAR and TON (text, binary, and the Telegram wallet's row) sign and verify their own signatures in the page";
+    return "Litecoin (three address types), Dogecoin, Bitcoin Cash (CashAddr and legacy, one signature), Zcash, Ethereum, Ethereum Classic, Tron, Solana (both formats), Stellar, NEAR, TON (text, binary, and the Telegram wallet's row), Cosmos, Injective (ADR-036 and EIP-191) and Hedera (Ed25519 and ECDSA, ASCII only) sign and verify their own signatures in the page";
   }
 }

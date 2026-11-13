@@ -3,7 +3,8 @@
 // holds the key (name.near) is a binding only the network knows.
 import { base64, hex } from "@scure/base";
 import { ed25519HexSeed } from "@ckd/core/derived-private-key.js";
-import { ed25519CoinSigning, responseSignature } from "../message-signing-ed25519.js";
+import { ed25519CoinSigning } from "../message-signing-ed25519.js";
+import { responseSignature } from "../message-signing-response.js";
 import { canonicalNearImplicitAccount, nearImplicitAccount, nearKeyText } from "./account.js";
 import { nep413SignedBytes } from "./message-signing-nep413.js";
 import { NEAR_PROFILES } from "./profiles.js";

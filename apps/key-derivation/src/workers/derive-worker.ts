@@ -20,6 +20,9 @@ import { SOLANA_MESSAGE_SIGNING } from "@ckd/coins/solana/message-signing.js";
 import { STELLAR_MESSAGE_SIGNING } from "@ckd/coins/stellar/message-signing.js";
 import { NEAR_MESSAGE_SIGNING } from "@ckd/coins/near/message-signing.js";
 import { TON_MESSAGE_SIGNING } from "@ckd/coins/ton/message-signing.js";
+import { COSMOS_MESSAGE_SIGNING } from "@ckd/coins/cosmos/message-signing.js";
+import { INJECTIVE_MESSAGE_SIGNING } from "@ckd/coins/injective/message-signing.js";
+import { HEDERA_MESSAGE_SIGNING } from "@ckd/coins/hedera/message-signing.js";
 import { runBip85SelfTest } from "./bip85-self-test.js";
 import { runBitcoinBip38FullSelfTest } from "./bip38-self-test-bitcoin.js";
 import { runDashBip38FullSelfTest } from "./bip38-self-test-dash.js";
@@ -69,6 +72,9 @@ import {
   runTonMessageSigningFullSelfTest,
   runTonMessageSigningSelfTest,
 } from "./message-signer-self-test-ton.js";
+import { runCosmosMessageSigningSelfTest } from "./message-signer-self-test-cosmos.js";
+import { runInjectiveMessageSigningSelfTest } from "./message-signer-self-test-injective.js";
+import { runHederaMessageSigningSelfTest } from "./message-signer-self-test-hedera.js";
 import { runDashMasternodeFullSelfTest } from "./masternode-self-test-dash.js";
 import { runSilentPaymentSelfTest } from "./silent-payment-self-test.js";
 import { runTonKeyFullSelfTest } from "./ton-key-self-test.js";
@@ -87,6 +93,9 @@ const messageSigners = new MessageSigners([
   STELLAR_MESSAGE_SIGNING,
   NEAR_MESSAGE_SIGNING,
   TON_MESSAGE_SIGNING,
+  COSMOS_MESSAGE_SIGNING,
+  INJECTIVE_MESSAGE_SIGNING,
+  HEDERA_MESSAGE_SIGNING,
 ]);
 
 startDerivationWorker({
@@ -109,6 +118,9 @@ startDerivationWorker({
     runStellarMessageSigningSelfTest,
     runNearMessageSigningSelfTest,
     runTonMessageSigningSelfTest,
+    runCosmosMessageSigningSelfTest,
+    runInjectiveMessageSigningSelfTest,
+    runHederaMessageSigningSelfTest,
   ],
   fullSelfTests: [
     runBip322FullSelfTest,

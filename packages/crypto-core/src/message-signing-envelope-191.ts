@@ -1,12 +1,14 @@
-// The message envelope of EIP-191's version 0x45 ("personal_sign") and of TronWeb's
-// signMessageV2 (TIP-191): 0x19, "<name> Signed Message:\n", the message's length in bytes written
-// in decimal, then the message itself, hashed with Keccak-256. geth accounts.TextAndHash and
-// TronWeb src/utils/message.ts hashMessage write exactly these bytes.
+// The message envelope of EIP-191's version 0x45 ("personal_sign"), of TronWeb's signMessageV2
+// (TIP-191) and of Hedera's hedera_signMessage (HIP-820): 0x19, "<name> Signed Message:\n", the
+// message's length in bytes written in decimal, then the message itself, hashed with Keccak-256
+// where the chain signs a digest. geth accounts.TextAndHash, TronWeb src/utils/message.ts
+// hashMessage and hedera-wallet-connect's prefixMessageToSign write exactly these bytes, the last for
+// ASCII text, where its count of UTF-16 units is the count of bytes.
 import { keccak_256 } from "@noble/hashes/sha3.js";
 import { concatBytes } from "./crypto.js";
 
 /** The chains whose wallets sign messages in this envelope. */
-export type Envelope191Name = "Ethereum" | "TRON";
+export type Envelope191Name = "Ethereum" | "TRON" | "Hedera";
 
 /** EIP-191's version byte, which keeps a signed message from ever being an RLP transaction. */
 const VERSION = 0x19;
