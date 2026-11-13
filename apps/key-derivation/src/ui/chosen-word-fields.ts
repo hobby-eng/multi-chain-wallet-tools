@@ -12,7 +12,7 @@ const LONGEST_NUMBERED_POSITION = Math.max(...BIP39_WORD_COUNTS) - 1;
 
 /**
  * What a chosen word gives away and what it does not, in the words of mhfe new before 0.8.0
- * (src/bin/mhfe/chosen_words.rs, tell) and of mhfe's README as the owner approved them: a phrase
+ * (src/bin/mhfe/chosen_words.rs, tell) and of mhfe's README: a phrase
  * with any chosen word is recognisable. Shown whenever a word is chosen, with or without MHFE, since
  * a phrase of the Deriver may be encrypted with MHFE later.
  */
@@ -123,7 +123,7 @@ export class ChosenWordFields {
       container.append(row);
       // The page's own word hints by the letters a word begins with, as in every word field, below
       // the field once it is in its row. A browser list matched letters anywhere and looked unlike
-      // the page (owner, 2026-10-23).
+      // the page.
       attachBip39WordHints(word);
       return { position, word };
     });

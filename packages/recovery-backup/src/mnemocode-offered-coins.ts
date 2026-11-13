@@ -2,7 +2,7 @@
 // uses for them; MnemoCode reads the coin from the address. The full build offers every coin of
 // its MnemoCode file (OFFERED_COIN_IDS undefined here). A selective build with fewer coins, and the
 // Dash Community Edition, get a generated module of their own coins in place of this one
-// (tooling/key-derivation-composition.mjs), as the owner chose on 2026-10-07, so that it offers,
+// (tooling/key-derivation-composition.mjs), so that it offers,
 // and names, no coin it leaves out.
 export const OFFERED_COIN_IDS: readonly string[] | undefined = undefined;
 

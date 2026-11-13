@@ -1,5 +1,5 @@
 // The speed of the wallet-check draw on this computer, measured before a draw so that the page can
-// say how long a phrase takes on average (owner, 2026-11-11): the workers of a real draw run for a
+// say how long a phrase takes on average: the workers of a real draw run for a
 // second with a public passphrase and no chosen word, which changes the speed by less than 2%
 // (review of 2026-11-12), so that the person's words never reach a measurement. A measurement
 // starts only after the person ticks the option, chooses other threads or ticks TON's, never on

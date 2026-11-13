@@ -1,4 +1,4 @@
-// The order of every coin list of the tools (owner, 2026-11-11): Bitcoin first, then the other
+// The order of every coin list of the tools: Bitcoin first, then the other
 // coins alphabetically by the names the list shows. One rule for the Deriver's coin menus, the
 // Scanner's coin menu and picker, the Viewer's coin menu and the protocol lines that name coins, so
 // that a new coin takes its place by itself.

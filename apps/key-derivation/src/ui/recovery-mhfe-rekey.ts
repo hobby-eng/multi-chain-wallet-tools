@@ -44,11 +44,11 @@ const DETECTION_MISSES = "then an address or the phrase confirms";
 
 /**
  * The warning about the wallets other passwords open on the old container, as mhfe words it
- * (src/bin/mhfe/rekey.rs, the owner's final wording of 2026-10-08): one sentence, with a PIM that
+ * (src/bin/mhfe/rekey.rs): one sentence, with a PIM that
  * is not 0 named in its list. Every user is warned and asked nothing; a browser has memory level 0
  * only, which is never named.
  */
-/** The owner's wording: what the old container still opens, and that nothing of it goes yet. */
+/** mhfe's wording: what the old container still opens, and that nothing of it goes yet. */
 export const KEEP_FOR_OTHER_WALLETS =
   "Wallets that other passwords open on the old container do not move to the new one: keep the old " +
   "container, its passwords and its settings until you have moved their funds.";

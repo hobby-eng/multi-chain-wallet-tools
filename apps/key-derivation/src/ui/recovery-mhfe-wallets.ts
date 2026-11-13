@@ -34,7 +34,7 @@ import {
   type RecoveryFeatureContext,
 } from "./recovery-workspace-shared.js";
 
-/** The owner's choice (2026-10-06): a session closes itself after 10 minutes without an open. */
+/** A session closes itself after 10 minutes without an open. */
 const IDLE_CLOSE_MS = 10 * 60 * 1000;
 
 export class MhfeWalletsTab {

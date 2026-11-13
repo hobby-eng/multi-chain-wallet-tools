@@ -1,4 +1,4 @@
-// Every combination of the Deriver's generation options in the browser (owner, 2026-11-11: check
+// Every combination of the Deriver's generation options in the browser (check
 // every combination, and how the page looks while it runs). For each state of {MHFE wallet check,
 // TON, chosen words} the start line is under the Generate buttons within a moment of the click, a
 // screenshot shows the draw running and finished, and Node's own cryptography checks the phrase.

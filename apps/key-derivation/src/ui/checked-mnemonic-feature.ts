@@ -236,7 +236,7 @@ export class CheckedMnemonicFeature implements GenerationOption {
     const open = this.#state.enabled && !this.#failed;
     this.#box.disabled = !open;
     this.#panel.hidden = !this.#box.checked;
-    // The "?" explains the option before it is chosen (owner, 2026-10-23).
+    // The "?" explains the option before it is chosen.
     this.#help.hidden = false;
     this.#threads.setEnabled(this.#run === undefined);
     // "case-sensitive" stays in the page's own span, which keeps the word whole on a phone.

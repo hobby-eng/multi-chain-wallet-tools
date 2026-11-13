@@ -160,7 +160,7 @@ describe("the lines of a draw with the generation options", () => {
       text: "The phrase keeps about 232 of its 256 random bits (8 for TON's check and 16 for the MHFE wallet check): still far more than enough.",
       alert: false,
     });
-    // The owner's case: "happy" as the second word, with both checks.
+    // A reported case: "happy" as the second word, with both checks.
     expect(
       bitsOutlook({ ...NO_WISHES, chosen: [{ word: "happy", position: 2 }] }, [TON, CHECK]),
     ).toEqual({

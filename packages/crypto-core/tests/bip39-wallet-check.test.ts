@@ -69,7 +69,7 @@ describe("MHFE-WALLET-CHECK-SEED-1 in the Deriver", () => {
     );
     expect(fixed).toMatchObject({ randomness: "notRecommended", fixedPosition: true });
     expect(fixed.randomBits).toBeCloseTo(229, 0);
-    // With TON's 8 bits too, only wishes make the phrase not recommended (owner, 2026-11-11).
+    // With TON's 8 bits too, only wishes make the phrase not recommended.
     expect(
       checkedDrawOdds({ wordCount: 24, chosen: [], neverUse: [] }, WALLET_CHECK_BITS + 8),
     ).toMatchObject({ randomBits: 232, recommendedBits: 232, randomness: "ample" });
@@ -155,11 +155,11 @@ describe("the wallet-check draw with a precheck", () => {
   it("draws a phrase that passes TON's check and the wallet check, with TON's check first", async () => {
     // A public combined vector. BOTH passes TON's check (ton-mnemonic.test.ts); with a passphrase
     // it passes the wallet check once in 65,536 passphrases, so a public test passphrase was
-    // searched instead of a phrase (owner's decision, 2026-11-11): "TON wallet check 0", "… 1", …
+    // searched instead of a phrase: "TON wallet check 0", "… 1", …
     // in order, each BIP39 seed by Node's crypto.pbkdf2Sync(phrase, "mnemonic" + passphrase,
     // 2048, 64, "sha512") and its digest by Node's SHA-256 over the profile's tag, BE32(256) and
     // the seed, until the digest began with two zero bytes. "TON wallet check 23613" was the first:
-    // 23,614 tries, 18.8 s on one core of the owner's laptop (2026-11-12). Its digest is
+    // 23,614 tries, 18.8 s on one core of a test laptop (2026-11-12). Its digest is
     // 000001e3d5f8…, and every value here is recomputed by the page's own code.
     const both =
       "theme bubble daring setup grass park apart mountain orbit donate mosquito indicate lonely history strategy produce demand rookie demise myth flower length occur carry";

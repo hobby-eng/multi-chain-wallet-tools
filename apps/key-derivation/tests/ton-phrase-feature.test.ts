@@ -187,7 +187,7 @@ describe("the TON phrase in Generate & Derive", () => {
     expect(feature.active()).toBe(true);
     expect(changes()).toBe(1);
     expect(disabledButtons(element)).toEqual([12, 15, 18, 21]);
-    // Both options may be ticked together (owner, 2026-11-11).
+    // Both options may be ticked together.
     tick("wallet-check-enabled", true);
     expect(feature.active()).toBe(true);
     tick("ton-generation-enabled", true);

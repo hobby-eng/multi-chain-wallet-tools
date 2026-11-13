@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Prepares a Claude Code cloud session (Ubuntu 24.04, root) for this repository with the same
-# pinned toolchains as the owner's machine (AGENTS.md, Toolchains): Node.js from .node-version,
+# pinned toolchains as the main machine (AGENTS.md, Toolchains): Node.js from .node-version,
 # pnpm from package.json through Corepack, Rust and wasm-bindgen from tooling/toolchain-pins.json,
 # the Playwright browsers of the pinned Playwright, Docker, and the sibling repositories that
 # tooling and audits read next to this one. Each step is skipped when its result is already there,
-# so the script can run again. It installs into ../workingspace, as on the owner's machine, where
+# so the script can run again. It installs into ../workingspace, as on the main machine, where
 # tooling/rust-toolchain.mjs looks for Cargo first.
 #
 # Usage: bash tooling/cloud-setup.sh

@@ -1,5 +1,5 @@
 // The "?" of "Generate a phrase the Telegram wallet accepts" links to the security note on such a
-// phrase protected with MHFE (owner, 2026-11-12): the link is built from the one repository URL and
+// phrase protected with MHFE: the link is built from the one repository URL and
 // must land on a heading that exists, in every build with TON and in no build without it.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";

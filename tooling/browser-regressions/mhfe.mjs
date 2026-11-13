@@ -20,7 +20,7 @@ async function mhfeMadePassword(context, profile, run) {
   ])
     assert.equal(await page.locator(`#mhfe-${prefix}-password-kind legend`).textContent(), legend);
   // Change password warns every user about the wallets of other passwords and asks nothing, in
-  // the owner's wording, without advice to destroy the old container (mhfe 0.6.0).
+  // mhfe's wording, without advice to destroy the old container (mhfe 0.6.0).
   await page.locator('#mhfe-panel [data-operation-tab][aria-controls="mhfe-rekey-panel"]').click();
   const keepOld =
     "! Wallets that other passwords open on the old container do not move to the new one: keep the old container, its passwords and its settings until you have moved their funds.";
@@ -308,8 +308,8 @@ async function checkedMnemonic(context, profile, run) {
   const page = await open(context, profile, "key-derivation", run);
   const before = await storageSnapshot(page);
   assert.equal(await page.locator("#wallet-check-enabled").isChecked(), false);
-  // A new phrase is a new wallet: ordinary generation starts it without the old BIP39 passphrase
-  // (owner's decision, 2026-10-08); the MHFE wallet check below keeps the one it was drawn for.
+  // A new phrase is a new wallet: ordinary generation starts it without the old BIP39 passphrase;
+  // the MHFE wallet check below keeps the one it was drawn for.
   const exactPassphrase = "  ＴＲＥＺＯＲ  ";
   await page.evaluate(() => {
     // Zero entropy is Trezor's public vector at each BIP39 length; no random secrets in evidence.
@@ -348,7 +348,7 @@ async function checkedMnemonic(context, profile, run) {
   assert.equal(await page.locator("#error").isVisible(), false);
   assert.equal(await page.locator("#mnemonic").inputValue(), "");
   await page.locator("#passphrase").fill("TREZOR");
-  // One passphrase field, checked with Show (owner, 2026-10-25): its warning shows while it holds text.
+  // One passphrase field, checked with Show: its warning shows while it holds text.
   await page.locator("#passphrase-warning").waitFor({ state: "visible" });
   await page.locator("#toggle-passphrase").click();
   assert.equal(await page.locator("#passphrase").getAttribute("type"), "text");

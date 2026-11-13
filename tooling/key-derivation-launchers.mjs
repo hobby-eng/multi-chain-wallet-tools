@@ -6,7 +6,7 @@ import { BUILD_PROFILES, getToolBuild } from "./build-profiles.mjs";
 // The executable version of the Key Derivation Tool (apps/key-derivation/launcher) carries the
 // tool's page inside it: the whole Deriver, served to this computer only so that MHFE runs in fast
 // mode. Each one is built next to the page it embeds, in dist/, and named after it with a suffix
-// that tells the two apart in a release (owner, 2026-11-11): Wallet_Key_Derivation_Tool.html gives
+// that tells the two apart in a release: Wallet_Key_Derivation_Tool.html gives
 // Wallet_Key_Derivation_Tool_Desktop-linux-x86_64 and so on.
 
 /** What a launcher's name adds to the name of the page it embeds, before its platform. */

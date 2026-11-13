@@ -31,7 +31,7 @@ import {
 
 // The assets of a GitHub release are flat: plain file names in one folder. One checksum file,
 // CHECKSUM_MANIFEST_NAME, lists every other asset in the format `sha256sum -c` reads, sorted by file
-// name for the people who read it, and no asset has a checksum file of its own (owner, 2026-11-11),
+// name for the people who read it, and no asset has a checksum file of its own,
 // so that a user knows the one file to download and check. The checksum file the HTML build writes
 // next to each page (page-sidecar.mjs) stays in dist/: a release is made only from pages that still
 // match it. The release workflow's publishing job installs no dependencies, so this module and its

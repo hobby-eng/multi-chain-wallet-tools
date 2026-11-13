@@ -1,5 +1,5 @@
-// Guards against a silent loss of randomness in the chosen-word generator (owner's request,
-// 2026-10-08): a phrase from weak entropy is still a valid BIP39 phrase, since the checksum is
+// Guards against a silent loss of randomness in the chosen-word generator:
+// a phrase from weak entropy is still a valid BIP39 phrase, since the checksum is
 // calculated from whatever entropy results (Milk Sad, CVE-2023-39910; the Trust Wallet browser
 // extension, CVE-2023-31290). Fixed-seed samples are reproducible regression controls, not proof
 // of cryptographic entropy. Unit tests only; the page's startup suite has separate known answers.

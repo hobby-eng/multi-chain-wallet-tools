@@ -9,8 +9,8 @@ import { MhfeEncodeTab } from "../src/ui/recovery-mhfe-encode.js";
 import { MhfeEngine } from "../src/ui/recovery-mhfe-engine.js";
 import { type FakeElement, installPage, settle, withPackageValues } from "./fake-mhfe-page.js";
 
-// The Encode tab asks nothing about a BIP39 passphrase, as mhfe encrypt asks nothing (MHFE 0.6.0,
-// owner's decision of 2026-10-08): it leaves walletHasPassphrase out, and the list of what to keep
+// The Encode tab asks nothing about a BIP39 passphrase, as mhfe encrypt asks nothing (MHFE 0.6.0):
+// it leaves walletHasPassphrase out, and the list of what to keep
 // that the package returns names any passphrase of the wallet. Driven through the real tab with a
 // synthetic client; no WebAssembly or Argon2 runs.
 

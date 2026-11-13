@@ -66,7 +66,7 @@ Do not use `P1/P2/P3` or `H-01/M-01/L-01` as substitutes for finding identifiers
 | `fixed`          | A fix exists at the recorded commit, but the required verification has not yet passed or has not been performed.                                                  |
 | `verified`       | The recorded fix passed the stated regression and acceptance checks at the recorded verification commit. This does not imply that every possible case was tested. |
 | `deferred`       | Confirmed finding intentionally postponed; record the reason and remaining risk.                                                                                  |
-| `accepted`       | The repository owner explicitly accepted the remaining risk; record the decision evidence. A reviewer must not infer acceptance.                                  |
+| `accepted`       | The remaining risk was explicitly accepted as a project decision; record the decision's evidence (a commit, an issue or a document), without naming who made it. A reviewer must not infer acceptance.                                  |
 | `not-reproduced` | A previous allegation could not be reproduced within the stated scope; record attempts and limitations rather than claiming it impossible.                        |
 | `withdrawn`      | Evidence showed the reported finding was incorrect; retain the original ID and explain the correction.                                                            |
 | `duplicate`      | The same defect is tracked under another ID; specify `duplicateOf`.                                                                                               |

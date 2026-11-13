@@ -1,5 +1,5 @@
-// MnemoCode's self-test as the Deriver runs it on the person's button press, never at start (the
-// owner's rule): every case of each part of MnemoCode's WebAssembly that this build uses
+// MnemoCode's self-test as the Deriver runs it on the person's button press, never at start:
+// every case of each part of MnemoCode's WebAssembly that this build uses
 // (selfCheck* with `full`), the shares' and the cards' only where the build offers them, then the
 // checks that parts of the page add. It throws at the first difference.
 import { mnemocode, type MnemoCodeBinding } from "./mnemocode-engine.js";

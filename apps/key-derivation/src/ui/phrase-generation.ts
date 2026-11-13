@@ -1,5 +1,5 @@
 // One press of a Generate button in Generate & Derive with any combination of its generation
-// options (owner, 2026-11-11): a chosen word, a phrase the Telegram wallet accepts (TON's check)
+// options: a chosen word, a phrase the Telegram wallet accepts (TON's check)
 // and the MHFE wallet check. It routes the draw, shows it under the buttons from the click to its
 // end (generation-progress.ts), and keeps the outlook under the options: the bits a phrase keeps,
 // how long it takes on this computer, and what a passphrase kept with it means

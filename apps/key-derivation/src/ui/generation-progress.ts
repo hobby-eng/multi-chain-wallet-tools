@@ -1,4 +1,4 @@
-// The lines right under the Generate buttons (owner, 2026-11-11: a started job must visibly run):
+// The lines right under the Generate buttons (a started job must visibly run):
 // the start line within the click, the phrases tried, the time and the average at this speed while
 // a draw runs, Stop for a draw that can last, and how the draw ended. A refusal or failure of
 // generation is shown here too, not far below at the derivation's messages. generation-plan.ts

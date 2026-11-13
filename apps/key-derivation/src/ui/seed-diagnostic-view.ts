@@ -219,7 +219,7 @@ export class SeedDiagnosticView {
     fingerprint: string | null,
     revealed: boolean,
   ): void {
-    // Its values are drawn only while the phrase is shown, and then unblurred (owner, 2026-10-23).
+    // Its values are drawn only while the phrase is shown, and then unblurred.
     root.classList.toggle("diagnostic-revealed", revealed);
     if ("unavailable" in diagnostic) {
       this.unavailable(document, root, diagnostic.unavailable);

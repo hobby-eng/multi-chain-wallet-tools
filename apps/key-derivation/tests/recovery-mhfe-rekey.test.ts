@@ -279,7 +279,7 @@ describe("the owner's phrase question closes on every way out (AUD-022-API007)",
   });
 });
 
-describe("the warning about the wallets of other passwords (owner's wording, mhfe 0.6.0)", () => {
+describe("the warning about the wallets of other passwords (mhfe 0.6.0's wording)", () => {
   it("keeps the old container and gives no advice to destroy it", () => {
     expect(KEEP_FOR_OTHER_WALLETS).toBe(
       "Wallets that other passwords open on the old container do not move to the new one: keep the old container, its passwords and its settings until you have moved their funds.",

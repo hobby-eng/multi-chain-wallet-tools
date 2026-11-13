@@ -1,4 +1,4 @@
-// The SeedQR tab's hidden form (owner's request of 2026-11-11), the part of the tab that needs
+// The SeedQR tab's hidden form, the part of the tab that needs
 // MnemoCode and comes only with it (recovery-seedqr-hidden-selection.ts): Encode can keep a
 // Standard SeedQR as the hidden record of MnemoCode's hidden QR behind a decoy that ordinary
 // scanners show, and Decode's image import reads such a record before the visible text.

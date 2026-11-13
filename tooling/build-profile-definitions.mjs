@@ -112,7 +112,7 @@ export const BUILD_PROFILES = {
     editionName: "Dash Community Edition",
     brandName: "Dash Community Edition",
     releaseRepository: "hobby-eng/dash-wallet-tools",
-    // The owner's decision of 2026-11-11. The release workflow of hobby-eng/dash-wallet-tools must
+    // Dash gets the Desktop executables too. The release workflow of hobby-eng/dash-wallet-tools must
     // carry the Desktop jobs before any Dash release (RELEASING.md).
     desktopExecutables: true,
     capabilities: profileCapabilities["dash-community"].capabilities,

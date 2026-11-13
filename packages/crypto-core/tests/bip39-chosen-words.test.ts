@@ -292,7 +292,7 @@ describe("BIP39 phrase with chosen words", () => {
       "Chosen word 1 is not an English BIP39 word",
     );
     await refused({ wordCount: 12, chosen: [], neverUse: ["zooo"] }, "Never-use word 1 is not");
-    // One chosen word at every length (owner's decision, 2026-10-08).
+    // One chosen word at every length.
     expect(MOST_CHOSEN_WORDS).toBe(1);
     for (const wordCount of WORD_COUNTS)
       await refused(
@@ -314,7 +314,7 @@ describe("BIP39 phrase with chosen words", () => {
       { wordCount: 12, chosen: [{ word: "happy", position: 1 }], neverUse: ["happy"] },
       "also in the never-use list",
     );
-    // One word never to use, at every length (owner's decision, 2026-10-08).
+    // One word never to use, at every length.
     expect(MOST_NEVER_USE_WORDS).toBe(1);
     await refused(
       { wordCount: 12, chosen: [], neverUse: ["zoo", "abandon"] },

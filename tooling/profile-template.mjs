@@ -82,7 +82,7 @@ function coinMenuOptions(coins, selected) {
   return open === undefined ? markup : `${markup}</optgroup>`;
 }
 
-/** A "?" beside a hard option (owner, 2026-10-27: only where the meaning is not plain at once). */
+/** A "?" beside a hard option (only where the meaning is not plain at once). */
 function optionHelp(name, title, paragraphs) {
   return `<details class="recovery-help option-help"><summary class="help-mark" aria-label="${name}">?</summary><div class="recovery-help-popover"><h3>${title}</h3>${paragraphs.map((text) => `<p>${text}</p>`).join("")}</div></details>`;
 }

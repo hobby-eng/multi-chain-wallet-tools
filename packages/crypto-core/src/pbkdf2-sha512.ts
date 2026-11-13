@@ -1,5 +1,5 @@
 // PBKDF2-HMAC-SHA512 by the two engines of the Deriver's wallet-check draw: the browser's WebCrypto
-// and @noble/hashes. Measured on 2026-11-12 in dedicated workers on the owner's laptop, with a fresh
+// and @noble/hashes. Measured on 2026-11-12 in dedicated workers on a test laptop, with a fresh
 // password every call (Firefox answers a repeated one from a cache): WebCrypto is about 6 times
 // faster per call than JavaScript (Chromium: 4,723 against 730 runs a second at 390 iterations),
 // but Chromium runs every page's WebCrypto work on one thread of its own and Firefox on about two.

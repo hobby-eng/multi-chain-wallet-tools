@@ -6,7 +6,7 @@
 // mhfe takes no argument for a phrase, a container, a password, a BIP39 passphrase, an address or a
 // fingerprint; it asks for each at its own prompts, so none of them reaches a shell history. No
 // choice type below has a field for one, and `--passphrase-used`, whether a wallet has a BIP39
-// passphrase, is never written either (owner's decision of 2026-11-13): mhfe asks it instead.
+// passphrase, is never written either: mhfe asks it instead.
 import type { MhfeCoin, MhfeParameters, WordCount } from "@ckd/recovery-mhfe-wasm/core/client.js";
 import { MAX_BIP32_DEPTH, MAX_BIP32_INDEX } from "@ckd/core/bip32-limits.js";
 import { ErrorCatalog } from "@ckd/core/error-catalog.js";

@@ -1414,7 +1414,7 @@ label.candidate-choice {
   margin: 8px 0;
 }
 /* The search across coins and its options are rows of the source box, between the seed input mode
-   and the phrase, framed like the seed input mode row (owner, 2026-11-11). */
+   and the phrase, framed like the seed input mode row. */
 #seed-source-panel > :is(label.candidate-choice, #candidate-options) {
   margin: 0;
   padding: 12px 16px;

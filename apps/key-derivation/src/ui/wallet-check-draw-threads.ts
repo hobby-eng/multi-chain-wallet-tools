@@ -5,7 +5,7 @@
 
 /**
  * The threads a draw uses unless the person chooses others: the two WebCrypto workers, the fastest
- * measured on the owner's laptop in Chromium and Firefox (2026-11-12, sustained): more threads, in
+ * measured on a test laptop in Chromium and Firefox (2026-11-12, sustained): more threads, in
  * JavaScript, made the draw slower under the laptop's power limit and only added heat.
  */
 export const DEFAULT_DRAW_THREADS = 2;

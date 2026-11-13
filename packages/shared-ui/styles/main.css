@@ -555,7 +555,7 @@ textarea.concealed {
   gap: 8px;
   margin: 0 0 12px;
 }
-/* The lines of a draw right under the Generate buttons (owner, 2026-11-11: a started job must
+/* The lines of a draw right under the Generate buttons (a started job must
    visibly run): the start line from the click, the phrases tried and the time, Stop, and how the
    draw ended, in the look of a status line. Its refusals sit at the same place, as errors. */
 .generation-progress {
@@ -2320,7 +2320,7 @@ footer p {
   cursor: help;
 }
 
-/* A "?" mark is a small circle, as help marks usually are (owner, 2026-10-25). */
+/* A "?" mark is a small circle, as help marks usually are. */
 .recovery-help summary.help-mark {
   display: grid;
   place-items: center;
@@ -2375,8 +2375,8 @@ footer p {
   z-index: 13;
 }
 
-/* The generation options stand apart, each with its description (owner, 2026-10-23), in two columns
-   where the panel is wide enough (owner, 2026-11-11): the Generate buttons' 12px between rows, the form
+/* The generation options stand apart, each with its description, in two columns
+   where the panel is wide enough: the Generate buttons' 12px between rows, the form
    grid's 1rem between columns, and the chosen-words panel's 14px before the next framed box. A build
    without MHFE or TON has fewer options; they keep the same columns. */
 .generation-options {
@@ -2394,7 +2394,7 @@ footer p {
 }
 
 /* A checkbox option with a "?": the "?" follows the title on its line and the description sits below
-   the title (owner, 2026-11-11). The "?" stays out of the label, so that a click on it does not tick
+   the title. The "?" stays out of the label, so that a click on it does not tick
    the box, and the description is the box's aria-describedby. The look is that of a checkbox label. */
 .option-heading {
   display: grid;
@@ -3135,7 +3135,7 @@ footer p {
 }
 
 /* A row with a Show button is as tall as the button: there the "?" stays on the title's line,
-   centred as the title is (owner, 2026-11-11). */
+   centred as the title is. */
 .field-heading-row:has(> button) > .option-help {
   align-self: center;
 }
@@ -3156,7 +3156,7 @@ footer p {
   flex: none;
 }
 
-/* A heading row's control keeps a label's 8px below it, below a Show button too (owner, 2026-11-11). */
+/* A heading row's control keeps a label's 8px below it, below a Show button too. */
 .field-heading-row + :is(input, select, textarea, .protocol-tabs) {
   margin-top: 8px;
 }
@@ -3863,7 +3863,7 @@ label:has(> input[type="checkbox"]) small {
 }
 
 /* A warning note keeps clear space above and below, so that its box never touches the field,
-   label or option next to it (owner, 2026-10-23). */
+   label or option next to it. */
 .field-note.warning {
   margin: 10px 0;
   padding: 10px 12px;

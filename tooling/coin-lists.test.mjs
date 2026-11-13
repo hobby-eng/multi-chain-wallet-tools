@@ -1,5 +1,5 @@
-// Every coin list that the build composes shows Bitcoin first, then the other coins alphabetically
-// (owner, 2026-11-11): the Viewer's coin menu, the Inspector's chain menu, the Deriver's
+// Every coin list that the build composes shows Bitcoin first, then the other coins alphabetically:
+// the Viewer's coin menu, the Inspector's chain menu, the Deriver's
 // derivation-type help and the protocol lines of the footers.
 import { describe, expect, it } from "vitest";
 import { BUILD_PROFILES, applyProfileTemplate, getToolBuild } from "./build-profiles.mjs";

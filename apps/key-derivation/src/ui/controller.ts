@@ -510,8 +510,8 @@ export class KeyDerivationController {
     if (drawn === undefined) return;
     // A new phrase is a new wallet: an ordinary generation starts it without the BIP39
     // passphrase of the last one, which the field shows only as dots, so that no address of
-    // the new phrase is taken unnoticed from the wallet with that passphrase (owner's
-    // decision, 2026-10-08). The MHFE wallet check keeps it: the phrase was drawn for the
+    // the new phrase is taken unnoticed from the wallet with that passphrase.
+    // The MHFE wallet check keeps it: the phrase was drawn for the
     // passphrase confirmed there.
     const passphraseCleared = !drawn.keepsPassphrase && this.#view.passphrase.value !== "";
     if (!drawn.keepsPassphrase) this.#view.passphrase.value = "";
