@@ -1,3 +1,4 @@
+import { MAX_BIP32_DEPTH } from "@ckd/core/bip32-limits.js";
 import { DESCRIPTOR_FRAGMENTS } from "./descriptor-fragments.js";
 import { fragmentBodies, splitTopLevelArguments } from "./balanced-syntax.js";
 
@@ -12,7 +13,7 @@ export const CONSENSUS_LIMITS = Object.freeze({
   maximumScriptElementBytes: 520,
   maximumScriptBytes: 10_000,
   maximumTaprootTreeDepth: 128,
-  maximumBip32Depth: 255,
+  maximumBip32Depth: MAX_BIP32_DEPTH,
   maximumBitcoinMoney: 21_000_000n * 100_000_000n,
   maximumDashMoney: 21_000_000n * 100_000_000n,
 });

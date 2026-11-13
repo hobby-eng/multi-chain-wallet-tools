@@ -484,9 +484,16 @@ export class PhraseLengthChoice {
 
   /** The length chosen, 0 to detect it; throws while none is chosen. */
   value(): 0 | WordCount {
+    const chosen = this.chosen();
+    if (chosen === undefined)
+      throw new Error("Choose how many words your original seed phrase has.");
+    return chosen;
+  }
+
+  /** The length chosen, 0 to detect it, or undefined while none is chosen. */
+  chosen(): 0 | WordCount | undefined {
     const value = this.#select.value;
-    if (value === "") throw new Error("Choose how many words your original seed phrase has.");
-    return Number(value) as 0 | WordCount;
+    return value === "" ? undefined : (Number(value) as 0 | WordCount);
   }
 
   /** Calls `listener` when another answer is chosen. */

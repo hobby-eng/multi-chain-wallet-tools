@@ -12,6 +12,8 @@ import { InputRevision } from "./recovery-input-revision.js";
 import type { MhfeEngine } from "./recovery-mhfe-engine.js";
 import { showContainerFacts } from "./recovery-mhfe-decode.js";
 import { MhfeContainerPreview } from "./recovery-mhfe-container-preview.js";
+import { assertRunsHere, MemoryLevelField, MhfeCommandView } from "./recovery-mhfe-command.js";
+import { CheckCommandSource } from "./recovery-mhfe-command-sources.js";
 import { ContainerField, ContainerPassword, PhraseLengthChoice } from "./recovery-mhfe-fields.js";
 import { MarkedContainer } from "./recovery-mhfe-marked-container.js";
 import { NoLengthQuestion } from "./recovery-mhfe-no-length.js";
@@ -74,6 +76,8 @@ export class MhfeCheckTab {
   #foundBy: string | undefined;
   /** Whether the container read last has the phrase + passphrase check: 24 words. */
   #offersWalletCheck = false;
+  readonly #commandSource: CheckCommandSource;
+  readonly #command: MhfeCommandView;
 
   constructor(context: RecoveryFeatureContext, engine: MhfeEngine) {
     this.#context = context;
@@ -90,11 +94,29 @@ export class MhfeCheckTab {
     );
     this.#reference = new WalletReferenceField(engine, "check");
     this.#noLength = new NoLengthQuestion(engine, "check", this.#status);
+    this.#commandSource = new CheckCommandSource(
+      new MemoryLevelField("check"),
+      this.#password.pim,
+      this.#length,
+      this.#reference,
+    );
+    this.#command = new MhfeCommandView(context, engine, this.#commandSource, {
+      prefix: "check",
+      panel: required<HTMLElement>("#mhfe-check-panel"),
+      gated: [
+        required<HTMLButtonElement>("#mhfe-check"),
+        required<HTMLButtonElement>("#mhfe-check-missing-run"),
+      ],
+    });
+    // The coin chosen once the list loads, Dash at once in the Dash edition, goes into --coin.
+    this.#reference.onCoinsLoaded(() => this.#command.refresh());
     this.#marked = new MarkedContainer(context, engine, {
       prefix: "check",
       field: this.#container,
       status: this.#status,
       recovery: this.#password,
+      // Refused before the container is read: the package would work at level 0.
+      guard: () => assertRunsHere(this.#commandSource),
       resume: (foundBy) => {
         this.#foundBy = foundBy;
         this.#start();
@@ -117,6 +139,7 @@ export class MhfeCheckTab {
       this.#reference.offer("builtInCheck", facts.builtInCheckLengths.length > 0);
       this.#offersWalletCheck = facts.offersWalletCheck;
       this.#offerWalletCheck();
+      this.#command.refresh();
     });
     // As mhfe check offers it: the phrase + passphrase check only once a passphrase is typed.
     this.#reference.passphrase.input.addEventListener("input", () => this.#offerWalletCheck());
@@ -174,6 +197,8 @@ export class MhfeCheckTab {
   }
 
   async #check(run: MhfeRun, current: () => boolean): Promise<MhfeTaskOutcome> {
+    // The level first, as the other tabs refuse it: the reference is refused before the read too.
+    assertRunsHere(this.#commandSource);
     const kind = this.#reference.kind;
     const reference = this.#compared();
     const read = await this.#marked.read(run);

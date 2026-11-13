@@ -180,20 +180,134 @@ function mhfeMemoryNote(runs, elsewhere) {
   return `<p class="field-note mhfe-memory-note">${runs}: ${MHFE_BROWSER_LEVEL_LIMIT}. ${elsewhere}</p>`;
 }
 
-const MHFE_OPENS_ONLY_IN_MHFE =
-  "A container made at a higher level opens only in the mhfe command-line program";
+/** Where every MHFE tab sends a level it does not run: one text for each memory note. */
+const MHFE_COMMAND_BELOW = "whose command appears below once a PIM or a higher level is chosen.";
 
-/** The memory notes of the MHFE tabs: Encode, which offers every level, and the others. */
+/** The memory notes of the MHFE tabs: Encode, those that open a container, and Change password. */
 const MHFE_MEMORY_NOTES = {
   encode: mhfeMemoryNote(
     "This tab encrypts at memory level 0 only, and Encrypt is off at a higher level",
-    "A higher level is for the mhfe command-line program, whose command appears below once a PIM or a higher level is chosen.",
+    `A higher level is for the mhfe command-line program, ${MHFE_COMMAND_BELOW}`,
   ),
-  open: mhfeMemoryNote("This tab runs memory level 0 (2 GiB) only", `${MHFE_OPENS_ONLY_IN_MHFE}.`),
+  open: mhfeMemoryNote(
+    "This tab runs memory level 0 only, and its button is off at a higher level",
+    `A container made at a higher level opens in the mhfe command-line program, ${MHFE_COMMAND_BELOW}`,
+  ),
   rekey: mhfeMemoryNote(
-    "This tab runs memory level 0 (2 GiB) only",
-    `${MHFE_OPENS_ONLY_IN_MHFE}, and only mhfe rekey gives the new container a higher level.`,
+    "This tab runs memory level 0 only, for the old and the new container, and Change the password is off at a higher level",
+    `A higher level, old or new, is for the mhfe command-line program, ${MHFE_COMMAND_BELOW}`,
   ),
+};
+
+/** Shared by the memory level of every MHFE tab; one text, no copies in the page. */
+const MHFE_MEMORY_LEVEL_HELP = optionHelp("What the memory level is", "Memory level", [
+  "The memory of every Argon2 call, shown beside each level. It doubles every two levels, and the time of the encryption and of every recovery grows with it.",
+  "Level 0, the default, needs no note. A container made at another level opens only at that same level, on a computer with that much free memory, and nothing in the container records the level: write it down with the password, and choose a level that the computer you will recover on can provide.",
+]);
+
+/** The memory level choice of an MHFE tab, `#mhfe-{prefix}-memory-level`, filled by the page. */
+function mhfeMemoryLevel(prefix, label) {
+  return `<div class="field-heading-row"><label for="mhfe-${prefix}-memory-level">${label}</label>${MHFE_MEMORY_LEVEL_HELP}</div><select id="mhfe-${prefix}-memory-level"></select>`;
+}
+
+/** The end of every mhfe command's safety note: where mhfe recommends running it. */
+const MHFE_COMMAND_ADVICE =
+  "Run it as mhfe recommends: on a trusted, non-persistent live system started from a USB stick, with the network disconnected.";
+
+/** The note beside a command whose new password mhfe makes. */
+const MHFE_COMMAND_MADE = "mhfe makes the password itself and shows it once.";
+
+/**
+ * The mhfe command block of an MHFE tab, `#mhfe-{prefix}-command`, which the page fills and shows
+ * (recovery-mhfe-command.ts). `notes` are shown or hidden by the page, each named
+ * `#mhfe-{prefix}-command-{name}`; `fixed` are always shown; `safety` says what is not copied.
+ */
+function mhfeCommandBlock(prefix, { notes = [], fixed = [], safety }) {
+  const id = `mhfe-${prefix}-command`;
+  return [
+    `<div id="${id}" class="mhfe-command" hidden>`,
+    '<p class="mhfe-command-title">The mhfe command with these settings</p>',
+    `<div class="mhfe-command-line"><code id="${id}-text"></code><button id="${id}-copy" class="secondary compact" type="button">Copy</button></div>`,
+    `<p id="${id}-status" class="field-note" role="status" aria-live="polite"></p>`,
+    ...notes.map(
+      ({ name, text, shown }) =>
+        `<p id="${id}-${name}" class="field-note"${shown ? "" : " hidden"}>${text}</p>`,
+    ),
+    ...fixed.map((text) => `<p class="field-note">${text}</p>`),
+    `<p class="field-note">${safety} ${MHFE_COMMAND_ADVICE}</p>`,
+    "</div>",
+  ].join("");
+}
+
+/** The memory levels and mhfe commands of the MHFE tabs, by their markers in the page. */
+const MHFE_COMMAND_MARKUP = {
+  __MHFE_ENCRYPT_MEMORY_LEVEL__: mhfeMemoryLevel("encrypt", "Memory level"),
+  __MHFE_DECRYPT_MEMORY_LEVEL__: mhfeMemoryLevel("decrypt", "Memory level"),
+  __MHFE_CHECK_MEMORY_LEVEL__: mhfeMemoryLevel("check", "Memory level"),
+  __MHFE_REKEY_MEMORY_LEVEL__: mhfeMemoryLevel("rekey", "Memory level of the old container"),
+  __MHFE_REKEY_NEW_MEMORY_LEVEL__: mhfeMemoryLevel(
+    "rekey-new",
+    "Memory level of the new container",
+  ),
+  __MHFE_WALLETS_MEMORY_LEVEL__: mhfeMemoryLevel("wallets", "Memory level"),
+  __MHFE_ENCRYPT_COMMAND__: mhfeCommandBlock("encrypt", {
+    notes: [
+      {
+        name: "length",
+        text: "24 words has no option: for a 12- to 21-word phrase, mhfe asks how long the container should be, and Enter keeps 24 words.",
+        shown: true,
+      },
+      { name: "made", text: MHFE_COMMAND_MADE, shown: false },
+    ],
+    safety:
+      "The seed phrase is not copied here. mhfe asks for it, and for the password, as soon as the command runs, so neither stays in the terminal history. The command itself, with its PIM and memory level, does stay in the shell history; plain mhfe encrypt asks for them at its prompts instead.",
+  }),
+  __MHFE_DECRYPT_COMMAND__: mhfeCommandBlock("decrypt", {
+    notes: [
+      {
+        name: "more",
+        text: "To recover with more passwords, choose Add another password at mhfe's private prompt: it asks for each one's PIM and memory level, and Enter keeps these. No option carries them, so the shell history does not show how many there are.",
+        shown: true,
+      },
+      {
+        name: "one",
+        text: "With 12 to 21 words stated, mhfe takes one password from a 24-word container, its own, and asks nothing about a BIP39 passphrase: to recover with more passwords, choose Detect automatically or 24 words.",
+        shown: false,
+      },
+    ],
+    safety:
+      "The container phrase and the password are not copied here: mhfe asks for them as soon as the command runs, and for a 24-word reading whether the original seed phrase has a BIP39 passphrase, so none of them stays in the terminal history. The command itself, with its PIM, memory level and word count, does stay in the shell history; plain mhfe decrypt asks for the PIM and memory level at its prompts instead.",
+  }),
+  __MHFE_CHECK_COMMAND__: mhfeCommandBlock("check", {
+    notes: [
+      {
+        name: "list",
+        text: "mhfe has no option for the phrase + passphrase check, so it asks what to compare with: choose from its list.",
+        shown: true,
+      },
+    ],
+    safety:
+      "The container phrase, the password, the BIP39 passphrase and the address or fingerprint are not copied here. mhfe asks for each as soon as the command runs, so none of them stays in the terminal history. The command itself, with its PIM, memory level, kind of reference, word count, coin and path, does stay in the shell history; plain mhfe check asks for the PIM, the memory level and what to compare with at its prompts instead.",
+  }),
+  __MHFE_REKEY_COMMAND__: mhfeCommandBlock("rekey", {
+    notes: [
+      { name: "made", text: MHFE_COMMAND_MADE, shown: false },
+      {
+        name: "path",
+        text: "mhfe rekey has no option for one derivation path: it reads the coin from the address and searches its usual range. For an address outside that range, confirm by the fingerprint.",
+        shown: false,
+      },
+    ],
+    safety:
+      "The container phrase, both passwords, the BIP39 passphrase and the address or fingerprint are not copied here. mhfe asks for each as soon as the command runs, so none of them stays in the terminal history. The command itself, with both PIMs and memory levels and the word count, does stay in the shell history; plain mhfe rekey asks for them at its prompts instead.",
+  }),
+  __MHFE_WALLETS_COMMAND__: mhfeCommandBlock("wallets", {
+    fixed: [
+      "mhfe 0.8.0 has no command of its own for hidden wallets: they are part of mhfe decrypt, and this is its command, the same as Decode's. Type a hidden wallet's password at its prompt, or choose Add another password for several, and answer its question about a BIP39 passphrase as for the main wallet. Unlike this tab, mhfe also shows a reading that passes a check, marked, and opens a same-length container too.",
+    ],
+    safety:
+      "The container phrase and the passwords are not copied here. mhfe asks for them, and whether the main wallet has a BIP39 passphrase, as soon as the command runs, so none of them stays in the terminal history. The command itself, with its PIM and memory level, does stay in the shell history; plain mhfe decrypt asks for them at its prompts instead.",
+  }),
 };
 
 /**
@@ -570,6 +684,7 @@ export class ProfileTemplate {
       __MHFE_ENCODE_MEMORY_NOTE__: MHFE_MEMORY_NOTES.encode,
       __MHFE_MEMORY_NOTE__: MHFE_MEMORY_NOTES.open,
       __MHFE_REKEY_MEMORY_NOTE__: MHFE_MEMORY_NOTES.rekey,
+      ...MHFE_COMMAND_MARKUP,
       __DERIVATION_TYPE_HELP__: derivationHelp,
       __BIP85_TAB__: bip85Tab,
       __BIP85_TOGGLE__: bip85Toggle,

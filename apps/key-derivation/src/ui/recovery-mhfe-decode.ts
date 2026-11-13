@@ -11,6 +11,8 @@ import type {
   MhfeRecovery,
 } from "@ckd/recovery-mhfe-wasm/core/client.js";
 import { MhfeContainerPreview } from "./recovery-mhfe-container-preview.js";
+import { assertRunsHere, MemoryLevelField, MhfeCommandView } from "./recovery-mhfe-command.js";
+import { DecryptCommandSource } from "./recovery-mhfe-command-sources.js";
 import { fingerprintLine, renderPhrase } from "./recovery-mhfe-cards.js";
 import type { MhfeEngine } from "./recovery-mhfe-engine.js";
 import type { MhfeRun } from "./recovery-mhfe-run.js";
@@ -95,6 +97,8 @@ export class MhfeDecodeTab {
   readonly #marked: MarkedContainer;
   readonly #task: MhfeTask;
   readonly #preview: MhfeContainerPreview;
+  readonly #commandSource: DecryptCommandSource;
+  readonly #command: MhfeCommandView;
 
   constructor(context: RecoveryFeatureContext, engine: MhfeEngine) {
     this.#context = context;
@@ -111,11 +115,27 @@ export class MhfeDecodeTab {
     required<HTMLElement>("#mhfe-decrypt-check-passphrase-note").textContent =
       `${WALLET_CHECK_EXPLANATION} Leave it empty for none.`;
     this.#sourceWords.addEventListener("change", () => this.#adaptToLength());
+    this.#commandSource = new DecryptCommandSource(
+      "decrypt",
+      new MemoryLevelField("decrypt"),
+      () => this.#passwords.used.map(({ pim }) => pim),
+      this.#length,
+    );
+    this.#command = new MhfeCommandView(context, engine, this.#commandSource, {
+      prefix: "decrypt",
+      panel: required<HTMLElement>("#mhfe-restore-panel"),
+      gated: [
+        required<HTMLButtonElement>("#mhfe-decrypt"),
+        required<HTMLButtonElement>("#mhfe-decrypt-missing-run"),
+      ],
+    });
     this.#marked = new MarkedContainer(context, engine, {
       prefix: "decrypt",
       field: this.#container,
       status: this.#status,
       recovery: this.#password,
+      // Refused before the container is read: the package would work at level 0.
+      guard: () => assertRunsHere(this.#commandSource),
       resume: () => this.#start(),
     });
     this.#task = new MhfeTask(context, engine, {
@@ -132,6 +152,7 @@ export class MhfeDecodeTab {
     this.#preview = new MhfeContainerPreview(engine, this.#container, this.#status, (facts) => {
       this.#length.adapt(facts);
       this.#adaptToContainer(facts);
+      this.#command.refresh();
     });
     required<HTMLButtonElement>("#mhfe-decrypt").addEventListener("click", () => this.#start());
   }

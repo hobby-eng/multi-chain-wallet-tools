@@ -155,13 +155,14 @@ async function recoveryHelp(page) {
   await clickStep(page.locator("#recovery-backup-mode"), "Open Recover & Back Up");
   // One help per recovery panel plus the option helps. MHFE adds the container length, the repair
   // words of Encode, Change password and Repair, the wallet check, the password kinds, the
-  // custom PIM of each of its six forms and Encode's memory level. MnemoCode adds the option helps of Encode,
+  // custom PIM of each of its six forms and the memory level of each of its six (Change password
+  // has one for the old and one for the new container). MnemoCode adds the option helps of Encode,
   // Re-encode and Decode, the split, the restore, the forgotten words, the share repair, and each
   // wallet question, including the share repair's own question and Decode's for codes marked ?.
   // Codex32 adds the unsplit secret. The Multisig wallet has its panel's help only.
   // Generate & Derive has option helps of its own (the wallet check); count only this workspace's.
   const recoveryHelp = "#recovery-workspace .recovery-help";
-  assert.equal(await page.locator(recoveryHelp).count(), 37);
+  assert.equal(await page.locator(recoveryHelp).count(), 42);
   const firstHelp = page.locator(recoveryHelp).first();
   await firstHelp.locator("summary").hover();
   await page.waitForFunction(

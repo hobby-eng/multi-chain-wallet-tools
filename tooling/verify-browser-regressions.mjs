@@ -58,7 +58,7 @@ const {
   mhfeCustomPath,
   mhfeMadePassword,
   mhfeInputLifecycle,
-  mhfeEncryptCommand,
+  mhfeCommand,
   mhfePendingInputs,
   mhfeContainerPreviews,
 } = MhfeBrowserCases;
@@ -270,8 +270,8 @@ for (const browserName of (process.env.BROWSER_ENGINES ?? "chromium,firefox").sp
         execute: (context, run) => mhfeInputLifecycle(context, profile, run),
       });
       cases.push({
-        name: "mhfe-encrypt-command",
-        execute: (context, run) => mhfeEncryptCommand(context, profile, run),
+        name: "mhfe-command",
+        execute: (context, run) => mhfeCommand(context, profile, run),
       });
       cases.push({
         name: "mhfe-pending-inputs",
