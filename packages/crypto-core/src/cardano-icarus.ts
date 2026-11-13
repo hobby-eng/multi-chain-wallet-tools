@@ -1,9 +1,9 @@
 // CIP-3's Icarus master key of a Cardano wallet from a BIP39 phrase (cardano-foundation/CIPs @7720fed
-// CIP-0003/Icarus.md, read 2026-11-13), which Yoroi, Lace, Daedalus and Trezor derive (Eternl is said
-// to as well; its code is closed and was not checked), and Trezor's 24-word variant of it: the
-// phrase's entropy and passphrase, read as BIP39 reads them, given to cardano-root.ts. The page
-// computes this root as the seed of the Cardano variants, as it computes BIP39's seed for the
-// others; coin-protocols/src/bip32-ed25519.ts derives the keys below it.
+// CIP-0003/Icarus.md, read 2026-11-13), which Yoroi, Lace, Daedalus's Shelley wallets and Trezor
+// derive (Eternl may as well; its code is closed and no source for it was checked), and Trezor's
+// 24-word variant of it: the phrase's entropy and passphrase, read as BIP39 reads them, given to
+// cardano-root.ts. The page computes this root as the seed of the Cardano variants, as it computes
+// BIP39's seed for the others; coin-protocols/src/bip32-ed25519.ts derives the keys below it.
 import { utf8ToBytes } from "@noble/hashes/utils.js";
 import { englishMnemonicToEntropy } from "./bip39.js";
 import { cardanoIcarusRootOf, type CardanoIcarusMaster } from "./cardano-root.js";

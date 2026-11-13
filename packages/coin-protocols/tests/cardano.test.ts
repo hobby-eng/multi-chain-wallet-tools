@@ -306,6 +306,16 @@ describe("Cardano's rows", () => {
         ["privateKey", true],
       ]);
       expect(row?.basic[0]?.role).toBe("paymentAddress");
+      // Their QR codes hold the address alone: wallets scan plain addresses, not CIP-13's
+      // web+cardano: link.
+      expect(
+        [...(row?.basic ?? []), ...(row?.advanced ?? [])]
+          .filter(({ role }) => role === "paymentAddress")
+          .map(({ key, paymentUriScheme }) => [key, paymentUriScheme]),
+      ).toEqual([
+        ["address", undefined],
+        ["enterpriseAddress", undefined],
+      ]);
       expect(row?.advanced.map(({ key, secret, role }) => [key, secret, role])).toEqual([
         ["path", false, undefined],
         ["enterpriseAddress", false, "paymentAddress"],

@@ -36,6 +36,14 @@ import { ToolProtocolFooter, selectedCoins } from "./tool-protocol-footer.mjs";
 /** ID prefix of every control in the derived (BIP85 child) wallet workspace. */
 const CHILD_WALLET_ID_PREFIX = "bip85-wallet-";
 
+/**
+ * The child workspace's note on Cardano, shown while Cardano is its coin (data-coin-family-note,
+ * bip85-child-wallet-feature.ts) and removed from builds without Cardano
+ * (applyKeyDerivationFeatureTemplate): the child wallet derives from BIP39's seed of the child
+ * phrase, so it offers Cardano's Ledger tab only.
+ */
+const CHILD_WALLET_CARDANO_NOTE = `<p id="${CHILD_WALLET_ID_PREFIX}cardano-note" class="field-note span-three nested-standard-content" data-coin-family-note="cardano" hidden>Cardano has only its Ledger tab here: this workspace derives from the child phrase's BIP39 seed. Yoroi, Lace, Daedalus (Shelley wallets) and Trezor read a child phrase with Icarus; their addresses appear under Icarus when the child phrase is entered as the recovery phrase above.</p>`;
+
 /** The texts of `parts`, each about the coin or coin group `name`, in the coin lists' order. */
 function inCoinListOrder(parts) {
   return orderCoins(parts, ({ name }) => name).map(({ text }) => text);
@@ -141,6 +149,10 @@ const DERIVATION_TYPE_COPY = {
   hedera: {
     name: "Hedera",
     text: "the Ed25519 and ECDSA keys of the Hedera SDK; the network numbers an account (0.0.N) when it is created.",
+  },
+  cardano: {
+    name: "Cardano",
+    text: "each tab is one of CIP-3's master keys: Icarus, the key of Yoroi, Lace, Daedalus (Shelley wallets), Trust Wallet and Trezor; Ledger, the key of Ledger devices and BitBox02, made from BIP39's seed; Icarus-Trezor, the key of Trezor wallets made from 24 words with older firmware. Ledger's addresses always differ from the other two; Icarus-Trezor's differ from Icarus's only for 24 words, and below 24 words the two tabs are equal. Every tab derives m/1852'/1815'/account'/role/index (CIP-1852), and Role chooses receive addresses, change addresses or the stake key.",
   },
   ton: {
     name: "TON",
@@ -402,7 +414,7 @@ function bip85Markup(profile, derivationHelp) {
             <div class="form-grid">
               <div class="span-two"><label for="bip85-wallet-coin">Coin</label><select id="bip85-wallet-coin"></select></div>
               <div id="bip85-wallet-network-field" class="nested-standard-content"><label for="bip85-wallet-network">Network</label><select id="bip85-wallet-network"></select></div>
-              <div class="protocol-tabs-field span-three"><div class="field-heading-row"><label id="bip85-wallet-tabs-label">Derivation type</label>${derivationHelp}</div><div id="bip85-wallet-tabs" class="protocol-tabs primary-mode-tabs" role="radiogroup" aria-labelledby="bip85-wallet-tabs-label">${childSilentPayment.tab}</div></div>${childSilentPayment.toggle === "" ? "" : `<div class="feature-tab-options span-three">${childSilentPayment.toggle}</div>`}${childSilentPayment.panel}
+              <div class="protocol-tabs-field span-three"><div class="field-heading-row"><label id="bip85-wallet-tabs-label">Derivation type</label>${derivationHelp}</div><div id="bip85-wallet-tabs" class="protocol-tabs primary-mode-tabs" role="radiogroup" aria-labelledby="bip85-wallet-tabs-label">${childSilentPayment.tab}</div></div>${CHILD_WALLET_CARDANO_NOTE}${childSilentPayment.toggle === "" ? "" : `<div class="feature-tab-options span-three">${childSilentPayment.toggle}</div>`}${childSilentPayment.panel}
               <div id="bip85-wallet-legacy-field" hidden><input id="bip85-wallet-legacy-toggle" type="checkbox" hidden></div>
               <div id="bip85-wallet-account-field" class="nested-standard-content"><label id="bip85-wallet-account-label" for="bip85-wallet-account">Account</label><input id="bip85-wallet-account" type="number" value="0" min="0" max="2147483647"></div>
               <div id="bip85-wallet-branch-field" class="nested-standard-content"><label id="bip85-wallet-branch-label" for="bip85-wallet-branch-input">Branch</label><input id="bip85-wallet-branch-input" type="number" value="0" min="0" max="2147483647"><select id="bip85-wallet-branch-select" hidden></select></div>

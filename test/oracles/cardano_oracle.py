@@ -2,16 +2,18 @@
 Deriver's TypeScript: BIP39 entropy, CIP-3's Icarus, Icarus-Trezor and Ledger roots, BIP32-Ed25519
 (Khovratovich and Law, the "V2" children of cardano-serialization-lib and Trezor), CIP-19 addresses
 and CIP-5 bech32 texts. It first reproduces published vectors (CIP-3, CIP-11, CIP-19,
-cardano-serialization-lib, cardano-addresses, Trezor's fixtures), then checks the inputs and the own
-values that the Deriver's Cardano self-test and unit tests hold
+cardano-serialization-lib, cardano-addresses, Trezor's fixtures, BIP85's 12-word child), then checks
+the inputs and the own values that the Deriver's Cardano self-test, unit tests and browser case hold
 (packages/verification/src/derivation-self-test-cardano.ts, packages/coin-protocols/tests/
-cardano.test.ts). The English BIP39 word list is the installed @scure/bip39 one, refused unless its
+cardano.test.ts, tooling/browser-cases/cardano.mjs); BIP85's BIP39 application uses bip32_oracle.py's
+BIP32 derivation. The English BIP39 word list is the installed @scure/bip39 one, refused unless its
 SHA-256 is that of BIP39's english.txt. Run from this folder."""
 import hashlib
 import hmac
 import re
 from pathlib import Path
 
+from bip32_oracle import B58, ckd
 from ed25519_oracle import G, P, _mul, bip39_seed, check
 
 WORDLIST = Path(__file__).resolve().parents[2] / "node_modules/@scure/bip39/wordlists/english.js"
@@ -31,6 +33,21 @@ def entropy_of(phrase):
     entropy = int(bits[:-checksum], 2).to_bytes((len(bits) - checksum) // 8, "big")
     assert format(hashlib.sha256(entropy).digest()[0], "08b")[:checksum] == bits[-checksum:]
     return entropy
+
+
+def phrase_of(entropy):
+    bits = "".join(format(byte, "08b") for byte in entropy)
+    bits += "".join(format(byte, "08b") for byte in hashlib.sha256(entropy).digest())[: len(entropy) // 4]
+    return " ".join(WORDS[int(bits[i : i + 11], 2)] for i in range(0, len(bits), 11))
+
+
+def bip85_phrase(master, words, index):
+    """BIP85's BIP39 application: the English phrase of m/83696968'/39'/0'/words'/index'."""
+    node = master
+    for level in (83696968, 39, 0, words, index):
+        node = ckd(node, level + HARDENED)
+    k = hmac.new(b"bip-entropy-from-k", node[0].to_bytes(32, "big"), hashlib.sha512).digest()
+    return phrase_of(k[: words * 4 // 3])
 
 
 def root_bits(key):
@@ -213,6 +230,23 @@ def deriver():
         check(f"{name} m/1852'/1815'/0'/0/5", address(root, 0, 0, 5), fifth)
 
 
+def child_wallet():
+    # BIP85's published 12-word child of its xprv (bitcoin/bips bip-0085.mediawiki), then the own
+    # value of the browser case (tooling/browser-cases/cardano.mjs): the 12-word child, index 0, of
+    # cardano-serialization-lib's phrase, and its first base address under Ledger.
+    xprv = 0
+    for char in "xprv9s21ZrQH143K2LBWUUQRFXhucrQqBpKdRRxNVq2zBqsx8HVqFk2uYo8kmbaLLHRdqtQpUm98uKfu3vca1LqdGhUtyoFnCNkfmXRyPXLjbKb":
+        xprv = xprv * 58 + B58.index(char)
+    data = xprv.to_bytes(82, "big")
+    assert hashlib.sha256(hashlib.sha256(data[:78]).digest()).digest()[:4] == data[78:]
+    check("BIP85 12-word child", bip85_phrase((int.from_bytes(data[46:78], "big"), data[13:45]), 12, 0), "girl mad pet galaxy egg matter matrix prison refuse sense ordinary nose")
+    seed = hmac.new(b"Bitcoin seed", bip39_seed("test walk nut penalty hip pave soap entry language right filter choice"), hashlib.sha512).digest()
+    child = bip85_phrase((int.from_bytes(seed[:32], "big"), seed[32:]), 12, 0)
+    check("BIP85 12-word child of the CSL phrase", child, "bike relax legend rely potato boat pulp journey barrel decorate two bring")
+    check("Its Ledger m/1852'/1815'/0'/0/0", address(ledger_root(bip39_seed(child)), 0, 0, 0), "addr1qyrsgsdts7tgf5xsrfuq2u3anyq2wtwehtkyd58qy44vh6kgca7ldrtxc4lrlltnmwv04cn5a8j86qzaqvcsfjz9ccssdum093")
+
+
 if __name__ == "__main__":
     published()
     deriver()
+    child_wallet()

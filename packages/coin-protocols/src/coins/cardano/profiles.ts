@@ -74,15 +74,15 @@ export class CardanoProfile extends CoinVariant {
 }
 
 /**
- * Cardano's variants (CIP-3): Icarus, the master key of Yoroi, Lace, Daedalus and Trezor from a
- * BIP39 phrase; Ledger's, which Ledger devices and BitBox02 derive from the BIP39 seed; and
+ * Cardano's variants (CIP-3): Icarus, the master key of Yoroi, Lace, Daedalus's Shelley wallets and
+ * Trezor from a BIP39 phrase; Ledger's, which Ledger devices and BitBox02 derive from the BIP39 seed; and
  * Icarus-Trezor, Trezor's for 24-word wallets made with older firmware.
  */
 export const CARDANO_PROFILES: readonly CardanoProfile[] = Object.freeze([
   new CardanoProfile({
     adapterId: "cardano",
     group: "Cardano",
-    variantLabel: "Icarus · Yoroi, Lace, Daedalus, Trezor",
+    variantLabel: "Icarus · Yoroi, Lace, Daedalus (Shelley wallets), Trezor",
     master: "icarus",
     defaultVariant: true,
   }),

@@ -407,7 +407,13 @@ export class Bip85ChildWallet {
     this.#adapter = next;
     this.#clearResults();
     configureControls(next, this.#controls, this.#registry);
+    this.#showCoinNotes(this.#options.getAdapterFamilyId(next));
     this.#scheduleRefresh();
+  };
+  /** A note of the workspace about one coin (data-coin-family-note) shows while that coin is chosen. */
+  readonly #showCoinNotes = (familyId: string): void => {
+    const notes = this.#workspace?.querySelectorAll<HTMLElement>("[data-coin-family-note]") ?? [];
+    for (const note of notes) note.hidden = note.dataset.coinFamilyNote !== familyId;
   };
   readonly #initialize = (): void => {
     if (this.#controls !== null) return;

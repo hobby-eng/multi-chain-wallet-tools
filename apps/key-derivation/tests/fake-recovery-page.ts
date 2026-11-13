@@ -85,6 +85,17 @@ export class RecoveryTestElement extends FakeElement {
     this.append(...nodes);
   }
 
+  /** Native insertion before the first child, as the child wallet moves its secrets toggle home. */
+  prepend(...nodes: (RecoveryTestElement | string)[]): void {
+    for (const [offset, node] of nodes.entries()) {
+      if (node instanceof RecoveryTestElement) {
+        node.remove();
+        node.parentElement = this;
+      }
+      this.children.splice(offset, 0, node);
+    }
+  }
+
   before(...nodes: (RecoveryTestElement | string)[]): void {
     const parent = this.parentElement;
     if (parent === null) return;

@@ -84,5 +84,14 @@ describe("coin-owned modules and known answers in selective builds", () => {
     expect(applyKeyDerivationFeatureTemplate(template, options(["tron"]))).not.toContain(
       "ton-generation",
     );
+    // The child wallet's note on its one Cardano tab comes with Cardano.
+    const child =
+      '<section id="bip85-wallet-workspace"><p id="bip85-wallet-cardano-note" data-coin-family-note="cardano" hidden>Cardano has only its Ledger tab here.</p></section>';
+    expect(applyKeyDerivationFeatureTemplate(child, options(["cardano"]))).toContain(
+      "bip85-wallet-cardano-note",
+    );
+    expect(applyKeyDerivationFeatureTemplate(child, options(["bitcoin", "ton"]))).toBe(
+      '<section id="bip85-wallet-workspace"></section>',
+    );
   });
 });

@@ -45,10 +45,10 @@ const MASTER_NAMES: Readonly<Record<CardanoMaster, string>> = Object.freeze({
 });
 
 const NOT_DERIVED =
-  "Byron-era addresses (Ae2…, DdzFF…) are not derived. The stake key is role 2, index 0, the one Cardano's wallets use (CIP-11).";
+  "Byron-era wallets are not derived: neither CIP-3's Byron master key of Daedalus's Byron wallets nor any Byron address (Ae2…, DdzFF…). Nor are Trezor's Shamir (SLIP-39) wallets, whose Cardano keys come from SLIP-23. The stake key is role 2, index 0, the one Cardano's wallets use (CIP-11).";
 const NOTICES: Readonly<Record<CardanoMaster, readonly string[]>> = Object.freeze({
   icarus: [
-    "Yoroi, Lace and Trust Wallet use no BIP39 passphrase: with a passphrase, these keys match Trezor's, not those wallets'. Eternl is said to use the same keys; its code is closed and was not checked.",
+    "Yoroi, Lace and Trust Wallet use no BIP39 passphrase: with a passphrase, these keys match Trezor's, not those wallets'. Eternl and Typhon may use the same keys, but no source for it was checked: their code is closed.",
     NOT_DERIVED,
   ],
   ledger: [

@@ -15,6 +15,7 @@ import { GenerationMatrixCase } from "./browser-cases/generation-matrix.mjs";
 import { CopyFeedbackCase } from "./browser-cases/copy-feedback.mjs";
 import { Bip85ManualStartCase } from "./browser-cases/bip85-manual-start.mjs";
 import { SingleKeyCoinsCase } from "./browser-cases/single-key-coins.mjs";
+import { CardanoCase } from "./browser-cases/cardano.mjs";
 import { MessageSigningCoinsCase } from "./browser-cases/message-signing-coins.mjs";
 import { EvmNetworkCandidatesCase } from "./browser-cases/evm-network-candidates.mjs";
 import { AccountCoinCandidatesCase } from "./browser-cases/account-coin-candidates.mjs";
@@ -163,6 +164,16 @@ for (const browserName of (process.env.BROWSER_ENGINES ?? "chromium,firefox").sp
           },
         });
       }
+      // Cardano's tabs in the Multi-Chain Edition; Dash Community has none of it.
+      cases.push({
+        name: "cardano",
+        execute: async (context, run) => {
+          const page = await open(context, profile, "key-derivation", run);
+          run.checks.push(
+            await (profile.id === "multi-chain" ? CardanoCase.run(page) : CardanoCase.absent(page)),
+          );
+        },
+      });
       // The single-key coins are the Multi-Chain Edition's only.
       if (profile.id === "multi-chain") {
         cases.push({

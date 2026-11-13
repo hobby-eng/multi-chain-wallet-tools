@@ -311,3 +311,28 @@ it.each(["raw", "core"])(
     expect(privateButton.disabled).toBe(true);
   },
 );
+
+it("shows a note of the workspace about one coin only while that coin is chosen", () => {
+  const f = fixture();
+  const workspace = f.page.require("bip85-wallet-workspace");
+  const note = (id: string, family: string) => {
+    const element = f.page.add(id, "p", workspace);
+    element.dataset.coinFamilyNote = family;
+    element.hidden = true;
+    return element;
+  };
+  const cardano = note("bip85-wallet-cardano-note", "cardano");
+  const solana = note("synthetic-solana-note", "solana");
+  const choose = (family: string) => {
+    f.controls.coin.value = family;
+    f.controls.coin.dispatchEvent(new Event("change"));
+    f.child.cancelScheduledRefresh();
+  };
+  choose("cardano");
+  expect([cardano.hidden, solana.hidden]).toEqual([false, true]);
+  choose("solana");
+  expect([cardano.hidden, solana.hidden]).toEqual([true, false]);
+  choose("bitcoin");
+  expect([cardano.hidden, solana.hidden]).toEqual([true, true]);
+  f.child.clear();
+});

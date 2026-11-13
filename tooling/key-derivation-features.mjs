@@ -169,6 +169,9 @@ export function applyKeyDerivationFeatureTemplate(template, features) {
   // A TON phrase's option and note come with TON (tooling/single-key-coins.mjs TON_PHRASE_MODULES),
   // and so does the link of its "?".
   if (!features.hasCoin("ton")) rendered = removeBalancedElement(rendered, "ton-generation");
+  // The child wallet's note on its one Cardano tab comes with Cardano.
+  if (!features.hasCoin("cardano"))
+    rendered = removeBalancedElement(rendered, "bip85-wallet-cardano-note");
   // The passport names only what this build contains.
   if (!features.has("mhfe")) rendered = removeBalancedElement(rendered, "passport-mhfe-dependency");
   if (!features.has("mnemocode"))
