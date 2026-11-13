@@ -5,6 +5,18 @@ export const BASE64_SIGNATURE = "Base64 signature";
 /** The label of a recoverable signature as Ethereum's and Tron's wallets write it. */
 export const HEX_RSV_SIGNATURE = "Signature (0x hex: r, s, v)";
 
+/** A field that a format asks for beside the message, such as NEAR's recipient. */
+export interface MessageInputText {
+  /** The input's key in the request (MessageSigningRequest.inputs). */
+  readonly key: string;
+  readonly label: string;
+  readonly help: string;
+  /** Whether it may stay empty; a required input is the standard's to refuse. */
+  readonly optional?: boolean;
+  /** What the dialog fills in when it opens: 32 random bytes in hex, or the current Unix seconds. */
+  readonly initial?: "nonce" | "now";
+}
+
 /** What the page says about one signing format. */
 export interface MessageFormatText {
   /** The format and its standard, in the dialog's Format line and the format menu. */
@@ -15,6 +27,17 @@ export interface MessageFormatText {
   readonly notes: readonly string[];
   /** Whether its signature is the 65-byte compact form, which the dialog recognises when pasted. */
   readonly compact?: boolean;
+  /** The fields the format signs beside the message, in the dialog's order. */
+  readonly inputs?: readonly MessageInputText[];
+  /** The row's public fields that a request carries as inputs, such as TON's publicKey. */
+  readonly rowInputs?: readonly string[];
+  /** The message box's label and help when the message is not text, such as TON's hex bytes. */
+  readonly message?: { readonly label: string; readonly help: string };
+  /**
+   * The standard's own refusal of the message or the inputs, which the dialog runs before a seed
+   * is copied or a worker starts; its refusals name no input and are shown as they are.
+   */
+  check?(this: void, message: string, inputs: Readonly<Record<string, string>>): void;
 }
 
 /** A coin's message-signing offers: which formats each address field signs, and their texts. */

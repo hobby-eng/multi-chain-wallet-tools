@@ -1,4 +1,5 @@
 import type { MessageSigningRequest } from "@ckd/coins/message-signing.js";
+import type { Ed25519SigningError } from "@ckd/coins/message-signing-ed25519.js";
 import type { Bip322VerificationError } from "@ckd/core/bip322-verifier.js";
 import type { RecoverableSignatureError } from "@ckd/core/message-signing-recoverable.js";
 import {
@@ -39,10 +40,15 @@ const UNREADABLE = "This signature is not in the selected format.";
 // The verifiers' refusals of the pasted signature itself, by code; any other failure is the
 // tool's, and reads as FAILED.
 const SIGNATURE_REFUSALS: ReadonlyMap<unknown, string> = new Map<
-  CompactMessageError["code"] | Bip322VerificationError["code"] | RecoverableSignatureError["code"],
+  | CompactMessageError["code"]
+  | Bip322VerificationError["code"]
+  | RecoverableSignatureError["code"]
+  | Ed25519SigningError["code"],
   string
 >([
   ["INVALID_HEX", UNREADABLE],
+  // Not 64 bytes in the format's encoding, or a response without a signature member.
+  ["INVALID_SIGNATURE", UNREADABLE],
   ["INVALID_V", UNREADABLE],
   // TronWeb's verifyMessageV2 refuses the high-S twin of a signature: so does the dialog.
   ["HIGH_S", UNREADABLE],

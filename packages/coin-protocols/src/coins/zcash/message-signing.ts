@@ -9,6 +9,7 @@ export const ZCASH_MESSAGE_SIGNING = compactCoinSigning({
   magic: "Zcash Signed Message:\n",
   headers: "compressed",
   keys: (type) => (type === "p2pkh" ? ZCASH_KEYS : undefined),
-  adapters: ZCASH_PROFILES.map((profile) => profile.adapterId),
+  // Every row of the coin has a P2PKH address, the one type its format signs.
+  adapters: () => ZCASH_PROFILES.map((profile) => profile.adapterId),
   formats: { "zcash-compact": { name: "Zcash signmessage (t1)", signingType: "p2pkh" } },
 });

@@ -11,7 +11,7 @@ import {
 } from "@ckd/core/compact-message-internal.js";
 import type { Bip44CoinKeys } from "./bip44-coin.js";
 import {
-  MessageSigningFormatError,
+  ownFormat,
   type CoinMessageSigning,
   type MessageSigningRequest,
 } from "./message-signing.js";
@@ -31,8 +31,11 @@ export interface CompactCoinFacts {
   keys(type: CompactScriptType): Bip44CoinKeys | undefined;
   /** The coin's formats, by the format id its page policy offers. */
   readonly formats: Readonly<Record<string, CompactFormat>>;
-  /** The adapter ids of the coin's rows (CoinMessageSigning.adapters). */
-  readonly adapters: readonly string[];
+  /**
+   * The adapter ids of the coin's rows whose addresses have the script type `type`, which its
+   * formats sign (CoinMessageSigning.formats).
+   */
+  adapters(type: CompactScriptType): readonly string[];
   /**
    * The keys of the other address forms a signature proves, among the encoders' payment details
    * (Bitcoin Cash's "legacyAddress"); none by default, so that, for example, Litecoin's old 3… form
@@ -63,8 +66,7 @@ function provenAddresses(
 /** The compact message signing of one coin, for its derivation worker. */
 export function compactCoinSigning(facts: CompactCoinFacts): CoinMessageSigning {
   const parameters = (format: string): CompactMessageParameters => {
-    const own = Object.hasOwn(facts.formats, format) ? facts.formats[format] : undefined;
-    if (own === undefined) throw new MessageSigningFormatError("UNSUPPORTED_FORMAT");
+    const own = ownFormat(facts.formats, format);
     return {
       magic: facts.magic,
       format: own.name,
@@ -75,8 +77,14 @@ export function compactCoinSigning(facts: CompactCoinFacts): CoinMessageSigning 
     };
   };
   return Object.freeze({
-    formats: Object.freeze(Object.keys(facts.formats)),
-    adapters: Object.freeze([...facts.adapters]),
+    formats: Object.freeze(
+      Object.fromEntries(
+        Object.entries(facts.formats).map(([format, { signingType }]) => [
+          format,
+          Object.freeze([...facts.adapters(signingType)]),
+        ]),
+      ),
+    ),
     sign: (privateKey: Uint8Array, request: MessageSigningRequest) =>
       signCompactMessage(privateKey, request.address, request.message, parameters(request.format)),
     verify: (request: MessageSigningRequest, signature: string) =>

@@ -28,6 +28,10 @@ async function selfTests(context, profile, run) {
     "Ethereum personal_sign",
     "Ethereum Classic personal_sign",
     "Tron signMessageV2",
+    "Solana signMessage and off-chain",
+    "Stellar SEP-53",
+    "NEAR NEP-413",
+    "TON Connect signData",
   ]) {
     const check = new RegExp(`${name} message signature`, "u");
     if (profile.id === "multi-chain") assert.match(startupChecks, check);

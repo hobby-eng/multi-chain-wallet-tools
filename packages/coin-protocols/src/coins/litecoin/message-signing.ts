@@ -21,7 +21,12 @@ export const LITECOIN_MESSAGE_SIGNING = compactCoinSigning({
     const profile = LITECOIN_PROFILES.find((candidate) => candidate.purpose === PURPOSES[type]);
     return profile === undefined ? undefined : litecoinKeys(profile);
   },
-  adapters: LITECOIN_PROFILES.map((profile) => profile.adapterId),
+  // Each format signs only the variant of its address type: Litecoin Core's untyped signature is
+  // never made for a SegWit row.
+  adapters: (type) =>
+    LITECOIN_PROFILES.filter((profile) => profile.purpose === PURPOSES[type]).map(
+      (profile) => profile.adapterId,
+    ),
   formats: {
     "litecoin-compact-legacy": { name: "Litecoin Core signmessage", signingType: "p2pkh" },
     "litecoin-compact-nested": {

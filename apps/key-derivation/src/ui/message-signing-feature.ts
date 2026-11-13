@@ -31,7 +31,11 @@ export interface MessageSigningFeatureOptions {
   document: Document;
   mainSource(): WalletSource;
   bip85Source(): WalletSource;
-  mnemonicToSeed: typeof import("@ckd/core/bip39.js").mnemonicToSeed;
+  /**
+   * The seed of a source's phrase for its own adapter: BIP39's, or for TON's Telegram wallet the
+   * TON phrase's entropy.
+   */
+  seedOf(adapter: CoinAdapter, mnemonic: string, passphrase: string): Uint8Array;
   /** The client copies a borrowed seed before returning its response promise. */
   createWorker(): SigningWorker;
   copy(button: HTMLButtonElement, text: string): void;
@@ -48,6 +52,8 @@ interface SigningContext {
   readonly source: "main" | "bip85";
   readonly resultId: string;
   readonly resultBranch: ResultBranch;
+  /** The row's public fields, which a format may carry as inputs (MessageFormatText.rowInputs). */
+  readonly publicFields: ReadonlyMap<string, string>;
 }
 
 const REFUSALS = {
@@ -72,9 +78,19 @@ class MessageSigningUiError extends Error {
   }
 }
 
+/** A format's own refusal of its message or inputs (MessageFormatText.check); it names no input. */
+class MessageInputRefusal extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "MessageInputRefusal";
+  }
+}
+
 /** The text of a refusal raised by the dialog itself, which names no input; else undefined. */
 function pageRefusalText(cause: unknown): string | undefined {
-  return cause instanceof SigningMessageError || cause instanceof MessageSigningUiError
+  return cause instanceof SigningMessageError ||
+    cause instanceof MessageSigningUiError ||
+    cause instanceof MessageInputRefusal
     ? cause.message
     : undefined;
 }
@@ -124,6 +140,8 @@ export class MessageSigningFeature implements Disposable {
     this.#events.listen(this.#ui.close, "click", this.close);
     this.#events.listen(this.#ui.dialog, "cancel", this.close);
     this.#events.listen(this.#ui.message, "input", () => this.#edited());
+    const inputs = this.#format.inputs;
+    if (inputs !== null) this.#events.listen(inputs, "input", () => this.#edited());
     const select = this.#format.select;
     if (select !== null)
       this.#events.listen(select, "change", () => {
@@ -174,6 +192,11 @@ export class MessageSigningFeature implements Disposable {
       source,
       resultId: result.id,
       resultBranch: branch,
+      publicFields: new Map(
+        [...row.basic, ...row.advanced]
+          .filter((field) => !field.secret)
+          .map((field) => [field.key, field.value]),
+      ),
     };
     this.#format.show(offered);
     this.#ui.address.textContent = address;
@@ -256,6 +279,25 @@ export class MessageSigningFeature implements Disposable {
     return source === "bip85" ? this.#options.bip85Source() : this.#options.mainSource();
   }
 
+  /**
+   * The selected format's inputs for `message`: its fields and the row's public fields it names,
+   * admitted by the format's own check; undefined for a format that signs the message alone.
+   */
+  #inputs(context: SigningContext, message: string): Record<string, string> | undefined {
+    const text = this.#format.text();
+    if (text?.inputs === undefined && text?.rowInputs === undefined) return undefined;
+    const inputs = this.#format.inputValues();
+    for (const key of text.rowInputs ?? []) inputs[key] = context.publicFields.get(key) ?? "";
+    try {
+      text.check?.(message, inputs);
+    } catch (cause) {
+      // Only the standard's coded refusals are the person's to read; anything else is a fault.
+      if (cause instanceof Error && "code" in cause) throw new MessageInputRefusal(cause.message);
+      throw cause;
+    }
+    return inputs;
+  }
+
   /** The public request of a pasted signature: the row's address, its network and the format. */
   #verificationTarget(): MessageVerificationTarget {
     const context = this.#context;
@@ -264,10 +306,17 @@ export class MessageSigningFeature implements Disposable {
     const message = this.#ui.message.value;
     SigningMessage.require(message, true);
     const format = this.#selection();
+    const inputs = this.#inputs(context, message);
     const compactAlternative = this.#format.compactAlternative();
     return {
       adapterId: context.resultId,
-      request: { format, address: context.address, message, network: context.network },
+      request: {
+        format,
+        address: context.address,
+        message,
+        network: context.network,
+        ...(inputs === undefined ? {} : { inputs }),
+      },
       label: this.#format.label(),
       ...(compactAlternative === undefined ? {} : { compactAlternative }),
     };
@@ -284,11 +333,13 @@ export class MessageSigningFeature implements Disposable {
     if (this.#disposed) return;
     const active = this.#context;
     let format: MessageSigningFormat;
+    let inputs: Record<string, string> | undefined;
     try {
       if (active === undefined) throw new MessageSigningUiError("ADDRESS_GONE");
       if (!this.#options.cryptoReady()) throw new MessageSigningUiError("SELF_TEST");
       SigningMessage.require(this.#ui.message.value);
       format = this.#selection();
+      inputs = this.#inputs(active, this.#ui.message.value);
       this.#cancel();
     } catch (cause) {
       this.#failure(cause);
@@ -318,7 +369,7 @@ export class MessageSigningFeature implements Disposable {
           includeCoinJoin,
         ).plans.find((candidate) => candidate.kind === active.resultBranch);
         if (plan === undefined) throw new MessageSigningUiError("BRANCH_GONE");
-        const seed = this.#options.mnemonicToSeed(source.mnemonic, source.passphrase);
+        const seed = this.#options.seedOf(source.adapter, source.mnemonic, source.passphrase);
         try {
           if (revision !== this.#revision || this.#context !== active) return;
           SigningMessage.require(this.#ui.message.value);
@@ -329,6 +380,7 @@ export class MessageSigningFeature implements Disposable {
             active.addressKey,
             this.#ui.message.value,
             format,
+            inputs,
           );
         } finally {
           seed.fill(0);

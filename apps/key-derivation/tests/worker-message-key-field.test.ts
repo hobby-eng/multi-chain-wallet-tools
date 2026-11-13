@@ -6,6 +6,11 @@ import { BITCOIN_MESSAGE_SIGNING } from "@ckd/coins/bitcoin/message-signing.js";
 import { ETHEREUM_MESSAGE_SIGNING } from "@ckd/coins/ethereum/message-signing.js";
 import { ETHEREUM_CLASSIC_MESSAGE_SIGNING } from "@ckd/coins/ethereum-classic/message-signing.js";
 import { TRON_MESSAGE_SIGNING } from "@ckd/coins/tron/message-signing.js";
+import { LITECOIN_MESSAGE_SIGNING } from "@ckd/coins/litecoin/message-signing.js";
+import { SOLANA_MESSAGE_SIGNING } from "@ckd/coins/solana/message-signing.js";
+import { STELLAR_MESSAGE_SIGNING } from "@ckd/coins/stellar/message-signing.js";
+import { NEAR_MESSAGE_SIGNING } from "@ckd/coins/near/message-signing.js";
+import { TON_MESSAGE_SIGNING } from "@ckd/coins/ton/message-signing.js";
 import { mnemonicToSeed } from "@ckd/core/bip39.js";
 import { clearDerivationResult } from "@ckd/core/secrets.js";
 import { TEST_MNEMONIC } from "@ckd/test-support/helpers.js";
@@ -19,6 +24,11 @@ const signers = new MessageSigners([
   ETHEREUM_MESSAGE_SIGNING,
   ETHEREUM_CLASSIC_MESSAGE_SIGNING,
   TRON_MESSAGE_SIGNING,
+  LITECOIN_MESSAGE_SIGNING,
+  SOLANA_MESSAGE_SIGNING,
+  STELLAR_MESSAGE_SIGNING,
+  NEAR_MESSAGE_SIGNING,
+  TON_MESSAGE_SIGNING,
 ]);
 const input = () => ({
   seed: mnemonicToSeed(TEST_MNEMONIC),
@@ -73,7 +83,12 @@ async function send(data: Record<string, unknown>, admit = true) {
   return { reply: messages.find((message) => "id" in message), derived };
 }
 
-const signing = async (adapterId: string, format: string, addressKey = "address") => ({
+const signing = async (
+  adapterId: string,
+  format: string,
+  addressKey = "address",
+  inputs?: Record<string, string>,
+) => ({
   type: "sign-message",
   adapterId,
   input: input(),
@@ -81,6 +96,7 @@ const signing = async (adapterId: string, format: string, addressKey = "address"
   addressKey,
   message: "Public admission fixture",
   format,
+  ...(inputs === undefined ? {} : { inputs }),
 });
 
 it("signs an Ethereum row with the key from the field its coin names", async () => {
@@ -118,11 +134,55 @@ it.each([
   ],
   ["Tron's format on an Ethereum row", "ethereum", "tron-tip191", "address"],
   ["Ethereum's format on a Cosmos row", "cosmos", "ethereum-eip191", "address"],
+  [
+    "Litecoin Core's untyped format on a nested SegWit row",
+    "litecoin-nested-segwit",
+    "litecoin-compact-legacy",
+    "address",
+  ],
+  ["Solana's format on a NEAR row", "near", "solana-raw", "address"],
+  ["SEP-53 on a Solana row", "solana", "stellar-sep53", "address"],
 ])("refuses %s before deriving anything", async (_name, adapterId, format, addressKey) => {
   const { reply, derived } = await send(await signing(adapterId, format, addressKey));
   expect(reply).toMatchObject({ ok: false, errorCode: "NOT_FOR_ROW" });
   expect(derived).toEqual([]);
 });
+
+const NEAR_INPUTS = { recipient: "public.example", nonce: "00".repeat(32) };
+const TON_INPUTS = { domain: "public.example", timestamp: "1700000000" };
+
+it.each([
+  ["solana", "solana-raw", "address", undefined],
+  ["solana-ledger", "solana-offchain-v0", "address", undefined],
+  ["stellar", "stellar-sep53", "address", undefined],
+  ["near", "near-nep413", "address", NEAR_INPUTS],
+  ["ton-trust", "ton-sign-data-text", "address", TON_INPUTS],
+  ["ton-ledger", "ton-sign-data-text", "addressv3R2", TON_INPUTS],
+  // The Telegram wallet's row, whose key comes from a TON phrase's entropy, at its W5 address.
+  ["ton", "ton-sign-data-text", "address", TON_INPUTS],
+] as const)(
+  "signs a %s row in %s with the Ed25519 key its coin reads from the row",
+  async (adapterId, format, addressKey, inputs) => {
+    const request = await signing(adapterId, format, addressKey, inputs);
+    const { reply, derived } = await send(request);
+    expect(reply).toMatchObject({ ok: true, type: "sign-message", result: { verified: true } });
+    expect(derived).toEqual([adapterId]);
+    if (reply === undefined || !("ok" in reply) || !reply.ok || reply.type !== "sign-message")
+      return;
+    const publicKey = await rowValue(adapterId, "publicKey");
+    const verification = {
+      format,
+      address: request.address,
+      message: request.message,
+      network: "mainnet" as const,
+      ...(inputs === undefined ? {} : { inputs: { ...inputs, publicKey } }),
+    };
+    expect(await signers.verify(verification, reply.result.signature)).toBe(true);
+    expect(await signers.verify({ ...verification, message: "61" }, reply.result.signature)).toBe(
+      false,
+    );
+  },
+);
 
 it("refuses to verify a format for a row of another coin", async () => {
   const { reply } = await send({

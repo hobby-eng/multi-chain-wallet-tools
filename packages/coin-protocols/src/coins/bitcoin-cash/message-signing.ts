@@ -11,7 +11,8 @@ export const BITCOIN_CASH_MESSAGE_SIGNING = compactCoinSigning({
   headers: "core",
   keys: (type) => (type === "p2pkh" ? BITCOIN_CASH_KEYS : undefined),
   otherForms: ["legacyAddress"],
-  adapters: BITCOIN_CASH_PROFILES.map((profile) => profile.adapterId),
+  // Every row of the coin has a P2PKH address, the one type its format signs.
+  adapters: () => BITCOIN_CASH_PROFILES.map((profile) => profile.adapterId),
   formats: {
     "bitcoin-cash-compact": { name: "Bitcoin signmessage (Bitcoin Cash)", signingType: "p2pkh" },
   },

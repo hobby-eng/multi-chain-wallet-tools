@@ -21,6 +21,10 @@ import { ZCASH_MESSAGE_SIGNING_POLICY } from "./message-signing-policy-zcash.js"
 import { ETHEREUM_MESSAGE_SIGNING_POLICY } from "./message-signing-policy-ethereum.js";
 import { ETHEREUM_CLASSIC_MESSAGE_SIGNING_POLICY } from "./message-signing-policy-ethereum-classic.js";
 import { TRON_MESSAGE_SIGNING_POLICY } from "./message-signing-policy-tron.js";
+import { SOLANA_MESSAGE_SIGNING_POLICY } from "./message-signing-policy-solana.js";
+import { STELLAR_MESSAGE_SIGNING_POLICY } from "./message-signing-policy-stellar.js";
+import { NEAR_MESSAGE_SIGNING_POLICY } from "./message-signing-policy-near.js";
+import { TON_MESSAGE_SIGNING_POLICY } from "./message-signing-policy-ton.js";
 
 export const installMessageSigningFeature = createMessageSigningInstaller(
   combineMessageSigningPolicies(
@@ -33,5 +37,9 @@ export const installMessageSigningFeature = createMessageSigningInstaller(
     ETHEREUM_MESSAGE_SIGNING_POLICY,
     ETHEREUM_CLASSIC_MESSAGE_SIGNING_POLICY,
     TRON_MESSAGE_SIGNING_POLICY,
+    SOLANA_MESSAGE_SIGNING_POLICY,
+    STELLAR_MESSAGE_SIGNING_POLICY,
+    NEAR_MESSAGE_SIGNING_POLICY,
+    TON_MESSAGE_SIGNING_POLICY,
   ),
 );
