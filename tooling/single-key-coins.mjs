@@ -12,6 +12,19 @@ const ENVELOPE_SIGNING = [
 ];
 
 /**
+ * The modules of ADR-036's signing (SHARED_MODULES), which Cosmos and Injective share: the sign
+ * document, the secp256k1 signature without a recovery id, the reading of a wallet's response, and
+ * the page's texts.
+ */
+const ADR036_SIGNING = [
+  "message-signing-adr036",
+  "message-signing-secp256k1",
+  "message-signing-public-key",
+  "message-signing-response",
+  "message-signing-policy-adr036",
+];
+
+/**
  * coin id → the names its modules export, the kinds of derivation it uses, and the shared modules
  * (SHARED_MODULES) its own modules import.
  */
@@ -53,42 +66,72 @@ export const SINGLE_KEY_COINS = Object.freeze({
     kinds: ["bip44"],
     shared: ["keccak-account", ...ENVELOPE_SIGNING, "message-signing-policy-evm"],
   },
-  cosmos: { prefix: "COSMOS", derivation: "cosmosDerivation", kinds: ["bip44"], shared: [] },
+  cosmos: {
+    prefix: "COSMOS",
+    derivation: "cosmosDerivation",
+    kinds: ["bip44"],
+    shared: [...ADR036_SIGNING],
+  },
   injective: {
     prefix: "INJECTIVE",
     derivation: "injectiveDerivation",
     kinds: ["bip44"],
-    shared: ["keccak-account"],
+    shared: ["keccak-account", ...ADR036_SIGNING, ...ENVELOPE_SIGNING],
   },
   solana: {
     prefix: "SOLANA",
     derivation: "solanaDerivation",
     kinds: ["ed25519"],
-    shared: ["slip10-ed25519", "message-signing-ed25519"],
+    shared: ["slip10-ed25519", "message-signing-ed25519", "message-signing-public-key"],
   },
   stellar: {
     prefix: "STELLAR",
     derivation: "stellarDerivation",
     kinds: ["ed25519"],
-    shared: ["slip10-ed25519", "crc16", "message-signing-ed25519"],
+    shared: [
+      "slip10-ed25519",
+      "crc16",
+      "message-signing-ed25519",
+      "message-signing-public-key",
+      "message-signing-response",
+    ],
   },
   near: {
     prefix: "NEAR",
     derivation: "nearDerivation",
     kinds: ["ed25519"],
-    shared: ["slip10-ed25519", "message-signing-ed25519"],
+    shared: [
+      "slip10-ed25519",
+      "message-signing-ed25519",
+      "message-signing-public-key",
+      "message-signing-response",
+    ],
   },
   hedera: {
     prefix: "HEDERA",
     derivation: "hederaDerivation",
     kinds: ["ed25519", "bip44"],
-    shared: ["slip10-ed25519", "keccak-account"],
+    shared: [
+      "slip10-ed25519",
+      "keccak-account",
+      "message-signing-ed25519",
+      "message-signing-secp256k1",
+      "message-signing-public-key",
+      "message-signing-envelope-191",
+      "message-signing-response",
+    ],
   },
   ton: {
     prefix: "TON",
     derivation: "tonDerivation",
     kinds: ["ed25519"],
-    shared: ["slip10-ed25519", "crc16", "message-signing-ed25519"],
+    shared: [
+      "slip10-ed25519",
+      "crc16",
+      "message-signing-ed25519",
+      "message-signing-public-key",
+      "message-signing-response",
+    ],
   },
 });
 
@@ -184,8 +227,19 @@ export const SHARED_MODULES = Object.freeze({
     marker: "/message-signing-policy-evm.ts",
     ownCoins: ["ethereum"],
   },
-  // The Ed25519 message signing of Solana, Stellar, NEAR and TON, only with message-signing.
+  // The Ed25519 message signing of Solana, Stellar, NEAR, TON and Hedera's Ed25519 rows, only with
+  // message-signing; and the reading of a wallet's response, which every account coin but Solana
+  // shares.
   "message-signing-ed25519": { marker: "/coins/message-signing-ed25519.ts", ownCoins: [] },
+  // The signing against a public key that the Ed25519 coins and the secp256k1 standards without a
+  // recovery id share.
+  "message-signing-public-key": { marker: "/coins/message-signing-public-key.ts", ownCoins: [] },
+  "message-signing-response": { marker: "/coins/message-signing-response.ts", ownCoins: [] },
+  // The secp256k1 signatures without a recovery id of ADR-036 and Hedera's ECDSA rows, and
+  // ADR-036's sign document of Cosmos and Injective, also only with message-signing.
+  "message-signing-secp256k1": { marker: "/coins/message-signing-secp256k1.ts", ownCoins: [] },
+  "message-signing-adr036": { marker: "/coins/message-signing-adr036.ts", ownCoins: [] },
+  "message-signing-policy-adr036": { marker: "/message-signing-policy-adr036.ts", ownCoins: [] },
 });
 
 /** Whether a build with the coins `hasCoin` admits needs the shared module `name`. */

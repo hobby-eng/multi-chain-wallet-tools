@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { COIN_ADAPTERS } from "@ckd/coins/registry.js";
+import { COIN_ADAPTERS, COIN_FAMILIES } from "@ckd/coins/registry.js";
 import { MessageSigners } from "@ckd/coins/message-signing.js";
 import { BITCOIN_MESSAGE_SIGNING } from "@ckd/coins/bitcoin/message-signing.js";
 import { DASH_MESSAGE_SIGNING } from "@ckd/coins/dash/message-signing.js";
@@ -14,6 +14,9 @@ import { SOLANA_MESSAGE_SIGNING } from "@ckd/coins/solana/message-signing.js";
 import { STELLAR_MESSAGE_SIGNING } from "@ckd/coins/stellar/message-signing.js";
 import { NEAR_MESSAGE_SIGNING } from "@ckd/coins/near/message-signing.js";
 import { TON_MESSAGE_SIGNING } from "@ckd/coins/ton/message-signing.js";
+import { COSMOS_MESSAGE_SIGNING } from "@ckd/coins/cosmos/message-signing.js";
+import { INJECTIVE_MESSAGE_SIGNING } from "@ckd/coins/injective/message-signing.js";
+import { HEDERA_MESSAGE_SIGNING } from "@ckd/coins/hedera/message-signing.js";
 import { combineMessageSigningPolicies } from "../src/ui/message-signing-policy.js";
 import { BITCOIN_MESSAGE_SIGNING_POLICY } from "../src/ui/message-signing-policy-bitcoin.js";
 import { DASH_MESSAGE_SIGNING_POLICY } from "../src/ui/message-signing-policy-dash.js";
@@ -28,6 +31,9 @@ import { SOLANA_MESSAGE_SIGNING_POLICY } from "../src/ui/message-signing-policy-
 import { STELLAR_MESSAGE_SIGNING_POLICY } from "../src/ui/message-signing-policy-stellar.js";
 import { NEAR_MESSAGE_SIGNING_POLICY } from "../src/ui/message-signing-policy-near.js";
 import { TON_MESSAGE_SIGNING_POLICY } from "../src/ui/message-signing-policy-ton.js";
+import { COSMOS_MESSAGE_SIGNING_POLICY } from "../src/ui/message-signing-policy-cosmos.js";
+import { INJECTIVE_MESSAGE_SIGNING_POLICY } from "../src/ui/message-signing-policy-injective.js";
+import { HEDERA_MESSAGE_SIGNING_POLICY } from "../src/ui/message-signing-policy-hedera.js";
 
 const coins = [
   BITCOIN_MESSAGE_SIGNING,
@@ -43,6 +49,9 @@ const coins = [
   STELLAR_MESSAGE_SIGNING,
   NEAR_MESSAGE_SIGNING,
   TON_MESSAGE_SIGNING,
+  COSMOS_MESSAGE_SIGNING,
+  INJECTIVE_MESSAGE_SIGNING,
+  HEDERA_MESSAGE_SIGNING,
 ];
 const signers = new MessageSigners(coins);
 const policies = combineMessageSigningPolicies(
@@ -59,6 +68,9 @@ const policies = combineMessageSigningPolicies(
   STELLAR_MESSAGE_SIGNING_POLICY,
   NEAR_MESSAGE_SIGNING_POLICY,
   TON_MESSAGE_SIGNING_POLICY,
+  COSMOS_MESSAGE_SIGNING_POLICY,
+  INJECTIVE_MESSAGE_SIGNING_POLICY,
+  HEDERA_MESSAGE_SIGNING_POLICY,
 );
 const FIELDS = [
   "address",
@@ -81,11 +93,18 @@ describe("the worker admits every format that the page offers, for the row that 
   });
 
   it("offers every format the worker admits, on the row it admits it for", () => {
-    for (const coin of coins)
-      for (const [format, adapters] of Object.entries(coin.formats))
+    for (const part of coins.flat())
+      for (const [format, adapters] of Object.entries(part.formats))
         for (const adapterId of adapters)
           // Dash's CoinJoin rows sign through their own worker adapter, under the core row's offer.
           if (adapterId !== "dash-core-coinjoin") expect(offered(adapterId)).toContain(format);
+  });
+
+  it("offers signing on an address of every coin but XRP, which has no common standard", () => {
+    const unsigned = COIN_FAMILIES.filter(
+      (family) => !family.adapters.some((adapter) => offered(adapter.id).size > 0),
+    ).map((family) => family.id);
+    expect(unsigned).toEqual(["xrp"]);
   });
 
   it("admits Dash's CoinJoin rows, whose worker adapter is their own", () => {
@@ -99,6 +118,10 @@ describe("the worker admits every format that the page offers, for the row that 
     expect(signers.admit("stellar-sep53", "stellar")?.field).toBe("privateKey");
     expect(signers.admit("near-nep413", "near")?.field).toBe("privateKeyHex");
     expect(signers.admit("ton-sign-data-binary", "ton")?.field).toBe("privateKey");
+    expect(signers.admit("cosmos-adr036", "cosmos")?.field).toBe("privateKey");
+    expect(signers.admit("injective-eip191", "injective")?.field).toBe("privateKey");
+    expect(signers.admit("hedera-hip820-ed25519", "hedera")?.field).toBe("privateKeyHex");
+    expect(signers.admit("hedera-hip820-ecdsa", "hedera-ecdsa")?.field).toBe("privateKey");
     expect(signers.admit("litecoin-compact-legacy", "litecoin-legacy")).toBeUndefined();
   });
 
@@ -111,6 +134,12 @@ describe("the worker admits every format that the page offers, for the row that 
     ["solana-raw", "near"],
     ["stellar-sep53", "solana"],
     ["ton-sign-data-text", "stellar"],
+    ["cosmos-adr036", "injective"],
+    ["injective-adr036", "cosmos"],
+    ["injective-eip191", "ethereum"],
+    ["hedera-hip820-ed25519", "hedera-ecdsa"],
+    ["hedera-hip820-ecdsa", "hedera"],
+    ["hedera-hip820-ecdsa", "ethereum"],
   ])("refuses %s on a %s row, whose address type or coin does not sign it", (format, adapterId) => {
     expect(() => signers.admit(format, adapterId)).toThrow(
       expect.objectContaining({ code: "NOT_FOR_ROW" }),

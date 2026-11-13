@@ -32,6 +32,9 @@ async function selfTests(context, profile, run) {
     "Stellar SEP-53",
     "NEAR NEP-413",
     "TON Connect signData",
+    "Cosmos ADR-036",
+    "Injective ADR-036 and EIP-191",
+    "Hedera HIP-820",
   ]) {
     const check = new RegExp(`${name} message signature`, "u");
     if (profile.id === "multi-chain") assert.match(startupChecks, check);

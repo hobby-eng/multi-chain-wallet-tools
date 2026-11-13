@@ -25,6 +25,9 @@ import { SOLANA_MESSAGE_SIGNING_POLICY } from "./message-signing-policy-solana.j
 import { STELLAR_MESSAGE_SIGNING_POLICY } from "./message-signing-policy-stellar.js";
 import { NEAR_MESSAGE_SIGNING_POLICY } from "./message-signing-policy-near.js";
 import { TON_MESSAGE_SIGNING_POLICY } from "./message-signing-policy-ton.js";
+import { COSMOS_MESSAGE_SIGNING_POLICY } from "./message-signing-policy-cosmos.js";
+import { INJECTIVE_MESSAGE_SIGNING_POLICY } from "./message-signing-policy-injective.js";
+import { HEDERA_MESSAGE_SIGNING_POLICY } from "./message-signing-policy-hedera.js";
 
 export const installMessageSigningFeature = createMessageSigningInstaller(
   combineMessageSigningPolicies(
@@ -41,5 +44,8 @@ export const installMessageSigningFeature = createMessageSigningInstaller(
     STELLAR_MESSAGE_SIGNING_POLICY,
     NEAR_MESSAGE_SIGNING_POLICY,
     TON_MESSAGE_SIGNING_POLICY,
+    COSMOS_MESSAGE_SIGNING_POLICY,
+    INJECTIVE_MESSAGE_SIGNING_POLICY,
+    HEDERA_MESSAGE_SIGNING_POLICY,
   ),
 );

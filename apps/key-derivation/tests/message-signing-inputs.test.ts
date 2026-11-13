@@ -1,6 +1,7 @@
 // The dialog's fields beside the message (MessageFormatText.inputs), on the actual feature, worker
-// client and coin policies: NEAR's recipient, nonce and callback URL, and TON's domain, timestamp and
-// the row's public key. The browser's Worker is the only fake.
+// client and coin policies: NEAR's recipient, nonce and callback URL, TON's domain, timestamp and the
+// row's public key, and the row key and message rules of Cosmos and Hedera. The browser's Worker is
+// the only fake.
 import { afterEach, describe, expect, it } from "vitest";
 import { field, paymentAddressField } from "@ckd/core/types.js";
 import {
@@ -14,6 +15,8 @@ import { NEAR_MESSAGE_SIGNING_POLICY } from "../src/ui/message-signing-policy-ne
 import { TON_MESSAGE_SIGNING_POLICY } from "../src/ui/message-signing-policy-ton.js";
 import { SOLANA_MESSAGE_SIGNING_POLICY } from "../src/ui/message-signing-policy-solana.js";
 import { STELLAR_MESSAGE_SIGNING_POLICY } from "../src/ui/message-signing-policy-stellar.js";
+import { COSMOS_MESSAGE_SIGNING_POLICY } from "../src/ui/message-signing-policy-cosmos.js";
+import { HEDERA_MESSAGE_SIGNING_POLICY } from "../src/ui/message-signing-policy-hedera.js";
 
 afterEach(releaseSigningFixtures);
 
@@ -135,6 +138,42 @@ describe("the dialog's fields beside the message", () => {
   });
 });
 
+describe("the account coins' row key and message rules", () => {
+  const COMPRESSED_KEY = "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
+
+  it("carries a Cosmos row's compressed key with the request, and draws no field", async () => {
+    const address = "cosmos1w508d6qejxtdg4y5r3zarvary0c5xw7k6ah60c";
+    const f = signingFixture("cosmos", () => true, {
+      policy: COSMOS_MESSAGE_SIGNING_POLICY,
+      fields: [
+        paymentAddressField("address", "Address", address),
+        field("publicKey", "Compressed public key", COMPRESSED_KEY),
+        field("privateKey", "Private key", "private fixture value", true),
+      ],
+      address,
+    });
+    expect(f.native.page.require("message-signer-inputs").hidden).toBe(true);
+    const request = await signed(f);
+    expect(request?.inputs).toEqual({ publicKey: COMPRESSED_KEY });
+  });
+
+  it("refuses a Hedera message that is not ASCII before any work", async () => {
+    const address =
+      "0.0.302a300506032b6570032100a2ef13761b644a651a1a4ac666eafbac419c97282f8af5c33f58d732e73e5a55";
+    const f = signingFixture("hedera", () => true, {
+      policy: HEDERA_MESSAGE_SIGNING_POLICY,
+      fields: [paymentAddressField("address", "Account alias (HIP-32)", address)],
+      address,
+    });
+    f.message.value = "Grüße";
+    expect(await signed(f)).toBeUndefined();
+    expect(f.seeds).toHaveLength(0);
+    expect(f.native.page.require("message-signer-error").textContent).toBe(
+      "Hedera wallets count the length of other text differently; use ASCII text.",
+    );
+  });
+});
+
 describe("the Ed25519 coins' offers", () => {
   const policies = combineMessageSigningPolicies(
     SOLANA_MESSAGE_SIGNING_POLICY,
@@ -155,6 +194,23 @@ describe("the Ed25519 coins' offers", () => {
     ["ton-ledger", "bounceableW5", []],
   ])("offers on %s's %s field the formats %j", (resultId, addressKey, formats) => {
     expect(policies.offer(resultId, addressKey)).toEqual(formats);
+  });
+
+  it("refuses a Solana off-chain message over version 0's limit in the dialog, before any work", async () => {
+    const address = "FVen3X669xLzsi6N2V91DoiyzHzg1uAgqiT8jZ9nS96Z";
+    const f = signingFixture("solana", () => true, {
+      policy: SOLANA_MESSAGE_SIGNING_POLICY,
+      fields: [paymentAddressField("address", "Address", address)],
+      address,
+    });
+    const select = f.native.page.require("message-signer-format-select");
+    select.value = "solana-offchain-v0";
+    select.dispatchEvent(new Event("change"));
+    f.message.value = "a".repeat(65516);
+    expect(await signed(f)).toBeUndefined();
+    expect(f.native.page.require("message-signer-error").textContent).toBe(
+      "Solana's off-chain message holds at most 65515 bytes.",
+    );
   });
 
   it("refuses a Solana off-chain message over version 0's limit on the page", () => {

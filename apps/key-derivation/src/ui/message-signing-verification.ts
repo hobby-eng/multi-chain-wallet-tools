@@ -1,5 +1,5 @@
 import type { MessageSigningRequest } from "@ckd/coins/message-signing.js";
-import type { Ed25519SigningError } from "@ckd/coins/message-signing-ed25519.js";
+import type { PublicKeySigningError } from "@ckd/coins/message-signing-public-key.js";
 import type { Bip322VerificationError } from "@ckd/core/bip322-verifier.js";
 import type { RecoverableSignatureError } from "@ckd/core/message-signing-recoverable.js";
 import {
@@ -43,7 +43,7 @@ const SIGNATURE_REFUSALS: ReadonlyMap<unknown, string> = new Map<
   | CompactMessageError["code"]
   | Bip322VerificationError["code"]
   | RecoverableSignatureError["code"]
-  | Ed25519SigningError["code"],
+  | PublicKeySigningError["code"],
   string
 >([
   ["INVALID_HEX", UNREADABLE],

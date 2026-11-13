@@ -45,7 +45,12 @@ export type MessageSigningFormat =
   | "stellar-sep53"
   | "near-nep413"
   | "ton-sign-data-text"
-  | "ton-sign-data-binary";
+  | "ton-sign-data-binary"
+  | "cosmos-adr036"
+  | "injective-adr036"
+  | "injective-eip191"
+  | "hedera-hip820-ed25519"
+  | "hedera-hip820-ecdsa";
 
 export type WorkerRequest =
   | { id: number; type: "derive"; adapterId: string; input: CoinDerivationInput }

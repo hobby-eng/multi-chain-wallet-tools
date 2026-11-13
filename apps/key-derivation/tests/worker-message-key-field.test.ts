@@ -11,6 +11,9 @@ import { SOLANA_MESSAGE_SIGNING } from "@ckd/coins/solana/message-signing.js";
 import { STELLAR_MESSAGE_SIGNING } from "@ckd/coins/stellar/message-signing.js";
 import { NEAR_MESSAGE_SIGNING } from "@ckd/coins/near/message-signing.js";
 import { TON_MESSAGE_SIGNING } from "@ckd/coins/ton/message-signing.js";
+import { COSMOS_MESSAGE_SIGNING } from "@ckd/coins/cosmos/message-signing.js";
+import { INJECTIVE_MESSAGE_SIGNING } from "@ckd/coins/injective/message-signing.js";
+import { HEDERA_MESSAGE_SIGNING } from "@ckd/coins/hedera/message-signing.js";
 import { mnemonicToSeed } from "@ckd/core/bip39.js";
 import { clearDerivationResult } from "@ckd/core/secrets.js";
 import { TEST_MNEMONIC } from "@ckd/test-support/helpers.js";
@@ -29,6 +32,9 @@ const signers = new MessageSigners([
   STELLAR_MESSAGE_SIGNING,
   NEAR_MESSAGE_SIGNING,
   TON_MESSAGE_SIGNING,
+  COSMOS_MESSAGE_SIGNING,
+  INJECTIVE_MESSAGE_SIGNING,
+  HEDERA_MESSAGE_SIGNING,
 ]);
 const input = () => ({
   seed: mnemonicToSeed(TEST_MNEMONIC),
@@ -142,6 +148,8 @@ it.each([
   ],
   ["Solana's format on a NEAR row", "near", "solana-raw", "address"],
   ["SEP-53 on a Solana row", "solana", "stellar-sep53", "address"],
+  ["Hedera's ECDSA format on its Ed25519 row", "hedera", "hedera-hip820-ecdsa", "address"],
+  ["Injective's ADR-036 on a Cosmos row", "cosmos", "injective-adr036", "address"],
 ])("refuses %s before deriving anything", async (_name, adapterId, format, addressKey) => {
   const { reply, derived } = await send(await signing(adapterId, format, addressKey));
   expect(reply).toMatchObject({ ok: false, errorCode: "NOT_FOR_ROW" });
@@ -160,8 +168,14 @@ it.each([
   ["ton-ledger", "ton-sign-data-text", "addressv3R2", TON_INPUTS],
   // The Telegram wallet's row, whose key comes from a TON phrase's entropy, at its W5 address.
   ["ton", "ton-sign-data-text", "address", TON_INPUTS],
+  ["hedera", "hedera-hip820-ed25519", "address", undefined],
+  // The secp256k1 rows whose signatures carry no recovery id: verification reads the row's key.
+  ["cosmos", "cosmos-adr036", "address", undefined],
+  ["injective", "injective-adr036", "address", undefined],
+  ["injective", "injective-eip191", "address", undefined],
+  ["hedera-ecdsa", "hedera-hip820-ecdsa", "address", undefined],
 ] as const)(
-  "signs a %s row in %s with the Ed25519 key its coin reads from the row",
+  "signs a %s row in %s with the key its coin reads from the row",
   async (adapterId, format, addressKey, inputs) => {
     const request = await signing(adapterId, format, addressKey, inputs);
     const { reply, derived } = await send(request);
@@ -175,7 +189,8 @@ it.each([
       address: request.address,
       message: request.message,
       network: "mainnet" as const,
-      ...(inputs === undefined ? {} : { inputs: { ...inputs, publicKey } }),
+      // Every request carries the row's public key, which only some standards read.
+      inputs: { ...inputs, publicKey },
     };
     expect(await signers.verify(verification, reply.result.signature)).toBe(true);
     expect(await signers.verify({ ...verification, message: "61" }, reply.result.signature)).toBe(
