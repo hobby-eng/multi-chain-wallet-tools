@@ -7,6 +7,9 @@ export const BIP32_HARDENED_OFFSET = 2 ** 31;
 /** The highest ordinary (non-hardened) index. */
 export const MAX_BIP32_INDEX = BIP32_HARDENED_OFFSET - 1;
 
+/** The deepest key, as an extended key keeps its depth in one byte: the most steps of a path. */
+export const MAX_BIP32_DEPTH = 255;
+
 /** How many ordinary indices one branch has: the most addresses a scan of one branch can ask. */
 export const BIP32_BRANCH_SIZE = BIP32_HARDENED_OFFSET;
 

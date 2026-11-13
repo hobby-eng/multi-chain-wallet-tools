@@ -6,7 +6,8 @@
 // what to keep names any passphrase of the wallet (mhfe docs/BROWSER-PACKAGE.md).
 import { NewContainerResult } from "./recovery-mhfe-cards.js";
 import { MhfeInputText } from "@ckd/recovery-backup/mhfe-input-text.js";
-import { EncryptCommandView, EncryptSettings } from "./recovery-mhfe-command.js";
+import { MhfeCommandView } from "./recovery-mhfe-command.js";
+import { EncryptSettings } from "./recovery-mhfe-command-sources.js";
 import type { MhfeEngine } from "./recovery-mhfe-engine.js";
 import type { MhfeRun } from "./recovery-mhfe-run.js";
 import { PasswordField, PasswordReview, StrengthNote, reviewSaid } from "./recovery-mhfe-fields.js";
@@ -62,7 +63,11 @@ export class MhfeEncodeTab {
       () => this.#settings.runsHere(),
     );
     this.#settings = new EncryptSettings(this.#newPassword);
-    new EncryptCommandView(context, engine, this.#settings);
+    new MhfeCommandView(context, engine, this.#settings, {
+      prefix: "encrypt",
+      panel: required<HTMLElement>("#mhfe-create-panel"),
+      gated: [required<HTMLButtonElement>("#mhfe-encrypt")],
+    });
     this.#result = new NewContainerResult(
       required<HTMLElement>("#mhfe-encrypt-result"),
       engine,

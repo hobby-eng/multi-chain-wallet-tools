@@ -1439,49 +1439,7 @@
               invisible control characters are refused. Letter case and spaces count: lowercase words with single spaces
               are the easiest to type again years later.
             </p>
-            <div class="field-heading-row">
-              <label for="mhfe-encrypt-memory-level">Memory level</label>
-              <details class="recovery-help option-help">
-                <summary class="help-mark" aria-label="What the memory level is">?</summary>
-                <div class="recovery-help-popover">
-                  <h3>Memory level</h3>
-                  <p>
-                    The memory of every Argon2 call, shown beside each level. It doubles every two levels, and the time
-                    of the encryption and of every recovery grows with it.
-                  </p>
-                  <p>
-                    Level 0, the default, needs no note. A container made at another level opens only at that same
-                    level, on a computer with that much free memory, and nothing in the container records the level:
-                    write it down with the password, and choose a level that the computer you will recover on can
-                    provide.
-                  </p>
-                </div>
-              </details>
-            </div>
-            <select id="mhfe-encrypt-memory-level"></select>
-            __MHFE_ENCODE_MEMORY_NOTE__
-            <div id="mhfe-encrypt-command" class="mhfe-command" hidden>
-              <p class="mhfe-command-title">The mhfe command with these settings</p>
-              <div class="mhfe-command-line">
-                <code id="mhfe-encrypt-command-text"></code>
-                <button id="mhfe-encrypt-command-copy" class="secondary compact" type="button">Copy</button>
-              </div>
-              <p id="mhfe-encrypt-command-status" class="field-note" role="status" aria-live="polite"></p>
-              <p id="mhfe-encrypt-command-length" class="field-note">
-                24 words has no option: for a 12- to 21-word phrase, mhfe asks how long the container should be, and
-                Enter keeps 24 words.
-              </p>
-              <p id="mhfe-encrypt-command-made" class="field-note" hidden>
-                mhfe makes the password itself and shows it once.
-              </p>
-              <p class="field-note">
-                The seed phrase is not copied here. mhfe asks for it, and for the password, as soon as the command runs,
-                so neither stays in the terminal history. The command itself, with its PIM and memory level, does stay
-                in the shell history; plain mhfe encrypt asks for them at its prompts instead. Run it as mhfe
-                recommends: on a trusted, non-persistent live system started from a USB stick, with the network
-                disconnected.
-              </p>
-            </div>
+            __MHFE_ENCRYPT_MEMORY_LEVEL__ __MHFE_ENCODE_MEMORY_NOTE__ __MHFE_ENCRYPT_COMMAND__
             <div class="actions">
               <button class="primary" id="mhfe-encrypt" type="button" data-heavy-job>Encrypt</button>
               <button class="secondary" id="mhfe-encrypt-stop" type="button" hidden>Cancel</button>
@@ -1755,7 +1713,7 @@
               >PIM (1–1023)
               <input id="mhfe-decrypt-pim" type="number" min="1" step="1" value="1" />
             </label>
-            __MHFE_MEMORY_NOTE__
+            __MHFE_DECRYPT_MEMORY_LEVEL__ __MHFE_MEMORY_NOTE__
             <div id="mhfe-decrypt-more-passwords"></div>
             <p id="mhfe-decrypt-several-note" class="warning-callout">
               With several passwords, all their seed phrases are shown on one screen. Each appears under its password as
@@ -1793,6 +1751,7 @@
               <input id="mhfe-decrypt-check-passphrase" type="password" autocomplete="off" />
               <p id="mhfe-decrypt-check-passphrase-note" class="field-note"></p>
             </div>
+            __MHFE_DECRYPT_COMMAND__
             <p class="warning-callout">The seed phrase will be shown: recover only on a trusted offline computer.</p>
             <div class="actions">
               <button class="primary" id="mhfe-decrypt" type="button" data-heavy-job>Restore phrase</button>
@@ -2077,7 +2036,7 @@
               >PIM (1–1023)
               <input id="mhfe-check-pim" type="number" min="1" step="1" value="1" />
             </label>
-            __MHFE_MEMORY_NOTE__
+            __MHFE_CHECK_MEMORY_LEVEL__ __MHFE_MEMORY_NOTE__
             <div id="mhfe-check-passphrase-field">
               <div class="field-heading-row">
                 <label for="mhfe-check-passphrase">BIP39 passphrase of the wallet, or empty if it has none</label>
@@ -2169,6 +2128,7 @@
               </label>
               <p class="field-note">A fingerprint is a quick 32-bit check; an address is stronger.</p>
             </div>
+            __MHFE_CHECK_COMMAND__
             <div class="actions">
               <button class="primary" id="mhfe-check" type="button" data-heavy-job>Rehearse the recovery</button>
               <button class="secondary" id="mhfe-check-stop" type="button" hidden>Cancel</button>
@@ -2512,6 +2472,7 @@
               >PIM (1–1023)
               <input id="mhfe-rekey-pim" type="number" min="1" step="1" value="1" />
             </label>
+            __MHFE_REKEY_MEMORY_LEVEL__
             <p class="field-note" id="mhfe-rekey-builtin-note" hidden>
               Confirmed by its built-in check at this length: it confirms the password and settings, not the wallet.
             </p>
@@ -2754,7 +2715,7 @@
               >PIM (1–1023)
               <input id="mhfe-rekey-new-pim" type="number" min="1" step="1" value="1" />
             </label>
-            __MHFE_REKEY_MEMORY_NOTE__
+            __MHFE_REKEY_NEW_MEMORY_LEVEL__ __MHFE_REKEY_MEMORY_NOTE__
             <fieldset class="choice-group">
               <legend>Repair words for the container phrase?</legend>
               <div data-mhfe-repair-choices="mhfe-rekey-repair-count" data-mhfe-allow-none>
@@ -2784,6 +2745,7 @@
                 </div>
               </details>
             </div>
+            __MHFE_REKEY_COMMAND__
             <div class="actions">
               <button class="primary" id="mhfe-rekey" type="button" data-heavy-job>Change the password</button>
               <button class="secondary" id="mhfe-rekey-stop" type="button" hidden>Cancel</button>
@@ -2796,7 +2758,8 @@
           <section id="mhfe-wallets-panel" class="backup-operation" role="tabpanel" data-operation-panel hidden>
             <p class="field-note">
               Every password other than the container's own opens another valid 24-word wallet on a 24-word container.
-              Each password you type here shows the wallet it opens. More: “mhfe wallets” in the mhfe README.
+              Each password you type here shows the wallet it opens. More: “Several passwords and hidden wallets” in the
+              mhfe README.
             </p>
             <div id="mhfe-wallets-warning" class="warning-callout">
               Nothing is created or stored: the container and each password give the same wallet every time. Fund a
@@ -3063,7 +3026,7 @@
               >PIM (1–1023)
               <input id="mhfe-wallets-pim" type="number" min="1" step="1" value="1" />
             </label>
-            __MHFE_MEMORY_NOTE__
+            __MHFE_WALLETS_MEMORY_LEVEL__ __MHFE_MEMORY_NOTE__
             <div class="mhfe-password-field">
               <div class="field-heading-row">
                 <label for="mhfe-wallets-main-passphrase"
@@ -3084,6 +3047,7 @@
               Part of the main wallet; it is NOT the container password. It is asked every time and used only to refuse
               hidden wallets that would pass the main wallet's check.
             </p>
+            __MHFE_WALLETS_COMMAND__
             <div class="actions">
               <button class="primary" id="mhfe-wallets-start" type="button" data-heavy-job>Start session</button>
               <button class="secondary" id="mhfe-wallets-stop" type="button" hidden>Cancel</button>

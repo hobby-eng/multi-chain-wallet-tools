@@ -1,11 +1,14 @@
 import { RenderedSecrets } from "./secrets.js";
 import { DerivationErrorText } from "./derivation-error-text.js";
-// The Hidden wallets tab of the MHFE panel (`mhfe wallets`): on a 24-word container every password
-// other than the container's own opens another valid wallet. A session holds the Argon2 work area;
+// The Hidden wallets tab of the MHFE panel: on a 24-word container every password other than the
+// container's own opens another valid wallet. mhfe 0.8.0 has no command of its own for them: they
+// are part of `mhfe decrypt`, whose command this tab shows. A session holds the Argon2 work area;
 // each password typed shows the wallet it opens. Nothing is listed or counted, on screen or in a
 // status line, and the session closes itself after a while without use.
 import { MhfeError, type MhfeHiddenWallets } from "@ckd/recovery-mhfe-wasm/core/client.js";
 import { InputRevision } from "./recovery-input-revision.js";
+import { assertRunsHere, MemoryLevelField, MhfeCommandView } from "./recovery-mhfe-command.js";
+import { DecryptCommandSource } from "./recovery-mhfe-command-sources.js";
 import { weakPasswordText } from "./recovery-mhfe-encode.js";
 import type { MhfeEngine } from "./recovery-mhfe-engine.js";
 import { MarkedContainer } from "./recovery-mhfe-marked-container.js";
@@ -46,6 +49,8 @@ export class MhfeWalletsTab {
   readonly #openButton = required<HTMLButtonElement>("#mhfe-wallets-open");
   readonly #container: ContainerField;
   readonly #pim = new PimField("wallets");
+  readonly #level = new MemoryLevelField("wallets");
+  readonly #commandSource = new DecryptCommandSource("wallets", this.#level, () => [this.#pim]);
   readonly #mainPassphrase = new PasswordField(
     "mhfe-wallets-main-passphrase",
     "BIP39 passphrase of the main wallet",
@@ -98,7 +103,17 @@ export class MhfeWalletsTab {
       field: this.#container,
       status: this.#status,
       recovery: { pim: this.#pim },
+      // Refused before the container is read: the package would work at level 0.
+      guard: () => assertRunsHere(this.#commandSource),
       resume: () => this.#start(),
+    });
+    new MhfeCommandView(context, engine, this.#commandSource, {
+      prefix: "wallets",
+      panel: required<HTMLElement>("#mhfe-wallets-panel"),
+      gated: [
+        required<HTMLButtonElement>("#mhfe-wallets-start"),
+        required<HTMLButtonElement>("#mhfe-wallets-missing-run"),
+      ],
     });
     required<HTMLButtonElement>("#mhfe-wallets-start").addEventListener("click", () =>
       this.#start(),
@@ -352,7 +367,12 @@ export class MhfeWalletsTab {
 
   #lockInputs(locked: boolean): void {
     const session = this.#session;
-    for (const input of [this.#container.textarea, this.#pim, this.#mainPassphrase.input]) {
+    for (const input of [
+      this.#container.textarea,
+      this.#pim,
+      this.#level,
+      this.#mainPassphrase.input,
+    ]) {
       if (locked && this.#session !== session) return;
       input.disabled = locked;
     }

@@ -173,6 +173,7 @@ export class DecryptPasswords {
       added.entry.remove();
     }
     this.#show();
+    this.#changed();
   }
 
   /** Another set of passwords drops a result shown for the former set, as typing does. */

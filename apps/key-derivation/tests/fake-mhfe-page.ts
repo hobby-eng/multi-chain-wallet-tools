@@ -112,6 +112,8 @@ export class FakeElement extends EventTarget {
     this.children.splice(0, this.children.length, ...nodes);
   }
   after(): void {}
+  /** The fake keeps no parent, so removing an element changes nothing else. */
+  remove(): void {}
   closest(): FakeElement | null {
     return this.label;
   }

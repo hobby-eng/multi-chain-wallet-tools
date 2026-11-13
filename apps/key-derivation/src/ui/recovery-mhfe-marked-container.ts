@@ -59,6 +59,12 @@ export interface MarkedContainerHost {
     settings?(run: MhfeRun): Promise<RecoverySettings | MhfeWaiting>;
   };
   /**
+   * Refuses settings the browser cannot run, such as a memory level above 0: before the container
+   * phrase is read, and before a search that recovers candidates, which would work at level 0. A
+   * search with the container's own wallet recovers nothing and needs no such settings.
+   */
+  readonly guard?: () => void;
+  /**
    * Starts the tab's operation again, with the repaired or found container phrase in the field;
    * `foundBy` says what the container's own wallet was matched by, for a check's list of matches.
    */
@@ -106,11 +112,21 @@ export class MarkedContainer {
       "Hide",
       "repair words",
     );
-    const { recovery } = host;
+    const { recovery, guard } = host;
     const settings = recovery.settings?.bind(recovery);
     this.#search = new MissingWordsSearch(context, engine, host.prefix, this.#status, {
-      ...(settings === undefined ? {} : { settings }),
-      pim: (maxPim) => recovery.pim.settled(maxPim),
+      ...(settings === undefined
+        ? {}
+        : {
+            settings: async (run: MhfeRun) => {
+              guard?.();
+              return settings(run);
+            },
+          }),
+      pim: (maxPim) => {
+        guard?.();
+        return recovery.pim.settled(maxPim);
+      },
       found: (found) => this.#offerFound(found),
       back: () => this.#typeAgain(),
     });
@@ -166,6 +182,7 @@ export class MarkedContainer {
     run: MhfeRun,
     action: (written: MhfeInputText, repair: MhfeRepair) => Promise<Result>,
   ): Promise<Result> {
+    this.#host.guard?.();
     const repair = await run.step(() => this.#engine.repair());
     using written = new MhfeInputText(this.#host.field.value);
     return await action(written, repair);

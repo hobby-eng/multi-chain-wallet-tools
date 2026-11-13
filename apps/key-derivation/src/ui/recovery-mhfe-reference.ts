@@ -5,6 +5,7 @@
 // command-line tool shows it.
 import type { MhfeCoin, MhfeReference } from "@ckd/recovery-mhfe-wasm/core/client.js";
 import type { MhfeWallet } from "@ckd/recovery-mhfe-wasm/wallet/wallet.js";
+import { ErrorCatalog } from "@ckd/core/error-catalog.js";
 import type { MhfeEngine } from "./recovery-mhfe-engine.js";
 import { inCoinMenuOrder } from "./coin-menu-order.js";
 import { describe } from "./recovery-mhfe-status.js";
@@ -20,6 +21,10 @@ const DESCRIBE_DELAY_MS = 400;
 const FROM_ADDRESS = "from-address";
 /** Shared by every address-reference control, including the search and recovery questions. */
 const ADDRESS_PATH_LABEL = "Only one derivation path";
+/** The refusal of a ticked path field without a path, before any work and in the mhfe command. */
+const PATH_ERRORS = new ErrorCatalog("wallet.mhfe-path", {
+  empty: () => `Type the derivation path, or turn off ${ADDRESS_PATH_LABEL}.`,
+});
 
 /** "A or B", "A, B or C", as mhfe lists coins (style::or_list). */
 function orList(names: readonly string[]): string {
@@ -165,12 +170,16 @@ export class AddressPathChoice {
     return this.#visible && this.#use.checked;
   }
 
+  /** Whether `error` is the refusal of a ticked field without a path (options()). */
+  static refused(error: unknown): error is Error {
+    return PATH_ERRORS.matches(error, ["empty"]);
+  }
+
   /** A checked empty field must not silently ask MHFE for its standard search. */
   options(): { path?: string } {
     if (!this.chosen) return {};
     const path = this.#input.value.trim();
-    if (path === "")
-      throw new Error(`Type the derivation path, or turn off ${ADDRESS_PATH_LABEL}.`);
+    if (path === "") throw PATH_ERRORS.create("empty", []);
     return { path };
   }
 
@@ -211,6 +220,8 @@ export class WalletReferenceField {
   #revision = 0;
   /** Whether the built-in check asks the passphrase: its length is detected. */
   #passphraseAsked = false;
+  /** Called once the coins are offered, which no event announces (onCoinsLoaded). */
+  readonly #coinsLoaded: (() => void)[] = [];
 
   /**
    * `prefix` names the fields, as in `#mhfe-{prefix}-address`. With `question` (Change password),
@@ -261,6 +272,33 @@ export class WalletReferenceField {
   /** Offers a kind only where the container has it, as `readContainer()` says. */
   offer(kind: ReferenceKind, offered: boolean): void {
     if (offerAnswer(`#mhfe-${this.#prefix}-ref-${kind}`, offered)) this.#showFields();
+  }
+
+  /**
+   * What the mhfe command carries of the reference: its kind, and an address's coin and one path,
+   * never the address or the fingerprint, which mhfe asks for at its prompt. Undefined while no kind
+   * is chosen; throws the path field's refusal while it is ticked and empty.
+   */
+  commandReference(): { kind: ReferenceKind; coin?: MhfeCoin; path?: string } | undefined {
+    const kind = this.kind;
+    if (kind !== "address") return kind === undefined ? undefined : { kind };
+    return { kind, ...this.#coin.option(), ...this.#path.options() };
+  }
+
+  /**
+   * Calls `listener` once the coins of an address are offered. The list loads on first use and
+   * fills its choice without an event, and in the Dash edition that choice is Dash at once.
+   */
+  onCoinsLoaded(listener: () => void): void {
+    this.#coinsLoaded.push(listener);
+  }
+
+  /**
+   * Whether an address is searched at one path only, which mhfe rekey cannot do. A coin chosen
+   * matters less: without one, mhfe searches every coin whose form the address has, that one too.
+   */
+  searchesOnePath(): boolean {
+    return this.kind === "address" && this.#path.chosen;
   }
 
   /** An address or a fingerprint of the wallet: the references that also confirm a rekey. */
@@ -351,6 +389,7 @@ export class WalletReferenceField {
     try {
       await this.#coin.load();
       this.#scheduleDescription();
+      for (const listener of this.#coinsLoaded) listener();
     } catch (cause) {
       this.#search.textContent = describe(cause, "The coins could not be loaded.");
     }

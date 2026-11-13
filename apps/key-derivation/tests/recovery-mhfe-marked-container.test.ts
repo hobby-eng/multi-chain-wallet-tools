@@ -57,7 +57,7 @@ function button(element: FakeElement | string, label: string): FakeElement | und
   return undefined;
 }
 
-function setup(written: string, found = true, pendingSearch?: Promise<void>) {
+function setup(written: string, found = true, pendingSearch?: Promise<void>, guard?: () => void) {
   const element = installPage(RADIO_GROUPS);
   const gate = new RecoveryJobGate();
   gate.setReady(true);
@@ -139,6 +139,7 @@ function setup(written: string, found = true, pendingSearch?: Promise<void>) {
           pim: 0,
         }),
       },
+      ...(guard === undefined ? {} : { guard }),
       resume,
     },
   );
@@ -150,6 +151,13 @@ function setup(written: string, found = true, pendingSearch?: Promise<void>) {
   const result$ = () => element("#mhfe-decrypt-marked-result");
   const status = () => element("#mhfe-decrypt-marked-status").textContent;
   return { element, calls, resume, ready, press, result: result$, status };
+}
+
+/** Chooses an answer of a radio group as a person does, and lets the block follow it. */
+function choose(page: ReturnType<typeof setup>, group: string, value: string): void {
+  for (const [id, radioValue] of RADIO_GROUPS[group]!)
+    page.element(`#${id}`).checked = radioValue === value;
+  page.element(`#${M}`).dispatchEvent(new Event("change"));
 }
 
 describe("a container phrase with words marked ?", () => {
@@ -184,13 +192,12 @@ describe("a container phrase with words marked ?", () => {
     expect(page.element("#mhfe-container").value).toBe(CONTAINER);
     expect(page.resume).toHaveBeenCalledOnce();
   });
+});
 
-  /** Chooses an answer of a radio group as a person does, and lets the block follow it. */
-  const choose = (page: ReturnType<typeof setup>, group: string, value: string): void => {
-    for (const [id, radioValue] of RADIO_GROUPS[group]!)
-      page.element(`#${id}`).checked = radioValue === value;
-    page.element(`#${M}`).dispatchEvent(new Event("change"));
-  };
+describe("a search for words marked ? without the repair words", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
 
   it("finds word 24 by the container's own fingerprint, with no passphrase, and says by what", async () => {
     const page = setup(markedAt(24));
@@ -302,6 +309,12 @@ describe("a container phrase with words marked ?", () => {
       },
     });
     expect(texts(page.result())).toContain("Found word 24: peace, with your wallet.");
+  });
+});
+
+describe("what a search for words marked ? passes on", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   for (const known of ["container", "original"] as const) {
@@ -465,3 +478,43 @@ function pickRefusal(refuse: () => unknown): unknown {
   }
   return undefined;
 }
+
+describe("a tab's guard of its settings, such as a memory level the browser cannot run", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /** A guard as a tab's memory level gives it: closed once the level is set above 0. */
+  const LEVEL = "A browser runs memory level 0 only: recover at level 2 with the mhfe command.";
+  function guarded() {
+    let closed = false;
+    const page = setup(markedAt(24), true, undefined, () => {
+      if (closed) throw new Error(LEVEL);
+    });
+    return { ...page, close: () => (closed = true) };
+  }
+
+  it("refuses before the container phrase is read", async () => {
+    const page = guarded();
+    page.close();
+    await expect(page.ready()).rejects.toThrow(LEVEL);
+    expect(page.element("#mhfe-decrypt-marked").hidden).toBe(true);
+  });
+
+  it("refuses a search that recovers candidates, and not one with the container's own wallet", async () => {
+    const page = guarded();
+    await page.ready();
+    await page.press("#mhfe-decrypt-marked-no-card");
+    page.close();
+    choose(page, `${M}-known`, "original");
+    page.element(`#${M}-reference`).value = "73c5da0a";
+    choose(page, `${M}-passphrase-used`, "no");
+    await page.press(`#${M}-run`);
+    expect(page.status()).toBe(LEVEL);
+    expect(page.calls).toEqual([]);
+    choose(page, `${M}-known`, "container");
+    page.element(`#${M}-reference`).value = "487a156e";
+    await page.press(`#${M}-run`);
+    expect(page.calls[0]).toMatchObject({ name: "searchDecoy" });
+  });
+});

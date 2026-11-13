@@ -10,6 +10,8 @@ import {
 import { NewContainerResult } from "./recovery-mhfe-cards.js";
 import { showContainerFacts } from "./recovery-mhfe-decode.js";
 import { MhfeContainerPreview } from "./recovery-mhfe-container-preview.js";
+import { assertRunsHere, MemoryLevelField, MhfeCommandView } from "./recovery-mhfe-command.js";
+import { RekeyCommandSource } from "./recovery-mhfe-command-sources.js";
 import { weakPasswordText } from "./recovery-mhfe-encode.js";
 import type { MhfeEngine } from "./recovery-mhfe-engine.js";
 import {
@@ -94,6 +96,8 @@ export class MhfeRekeyTab {
   /** The answer about the wallet's passphrase given with the first confirmation. */
   #walletHasPassphrase = false;
   readonly #confirmAgain: ConfirmAgainPrompt;
+  readonly #commandSource: RekeyCommandSource;
+  readonly #command: MhfeCommandView;
 
   constructor(context: RecoveryFeatureContext, engine: MhfeEngine) {
     this.#context = context;
@@ -119,8 +123,19 @@ export class MhfeRekeyTab {
       { password: this.#newPassword, repeat: this.#newRepeat },
       this.#status,
       context.jobs,
+      // Read only once the person chooses a kind, after the settings below exist.
+      () => this.#commandSource.runsHere(),
     );
     this.#reference = new WalletReferenceField(engine, "rekey", this.#walletPassphrase);
+    this.#commandSource = this.#commandSettings();
+    this.#command = new MhfeCommandView(context, engine, this.#commandSource, {
+      prefix: "rekey",
+      panel: required<HTMLElement>("#mhfe-rekey-panel"),
+      gated: [
+        required<HTMLButtonElement>("#mhfe-rekey"),
+        required<HTMLButtonElement>("#mhfe-rekey-missing-run"),
+      ],
+    });
     this.#confirmAgain = new ConfirmAgainPrompt({
       host: required<HTMLElement>("#mhfe-rekey-owner"),
       status: this.#status,
@@ -137,6 +152,8 @@ export class MhfeRekeyTab {
       field: this.#container,
       status: this.#status,
       recovery: this.#old,
+      // Refused before the container is read: the package would work at level 0.
+      guard: () => assertRunsHere(this.#commandSource),
       resume: () => this.#start(),
     });
     this.#result = new NewContainerResult(
@@ -180,6 +197,28 @@ export class MhfeRekeyTab {
     required<HTMLButtonElement>("#mhfe-rekey").addEventListener("click", () => this.#start());
   }
 
+  /**
+   * The settings that `mhfe rekey` takes, read from the tab's choices. A level the browser cannot
+   * run, on either side, puts a password made away, and level 0 brings it back.
+   */
+  #commandSettings(): RekeyCommandSource {
+    const oldLevel = new MemoryLevelField("rekey");
+    const newLevel = new MemoryLevelField("rekey-new");
+    for (const level of [oldLevel, newLevel])
+      level.onChange(() => this.#newPasswordChoice.reconsider());
+    return new RekeyCommandSource({
+      oldLevel,
+      newLevel,
+      oldPim: this.#old.pim,
+      newPim: this.#newPim,
+      length: this.#length,
+      confirmation: () =>
+        this.#confirmationKind() === "builtInCheck" ? undefined : this.#reference.kind,
+      searchesOnePath: () => this.#reference.searchesOnePath(),
+      newPassword: this.#newPasswordChoice,
+    });
+  }
+
   /** The confirmation is asked again on a new page. */
   #clearAnswers(withConfirmation: boolean): void {
     if (withConfirmation) this.#reference.reset();
@@ -216,6 +255,7 @@ export class MhfeRekeyTab {
     // The question about the passphrase follows the choice of how to confirm, as in the
     // command-line tool; the built-in check needs no choice before it.
     this.#walletPassphrase.hidden = !builtIn && this.#reference.kind === undefined;
+    this.#command.refresh();
   }
 
   #start(): void {

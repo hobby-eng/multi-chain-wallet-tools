@@ -7,7 +7,7 @@ export class MhfeIntegrationModules {
     "/recovery-mhfe",
     "/checked-mnemonic",
     "/mhfe-check-result",
-    "/mhfe-encrypt-command",
+    "/mhfe-command",
     "/mhfe-input-text",
     "/mhfe-repair-choices",
   ]);

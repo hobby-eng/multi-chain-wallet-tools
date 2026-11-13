@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { MhfeInputLifecycleCase } from "../browser-cases/mhfe-input-lifecycle.mjs";
 import { MhfePendingInputCase } from "../browser-cases/mhfe-pending-input-lifecycle.mjs";
 import { MhfeContainerAdaptationCase } from "../browser-cases/mhfe-container-adaptation.mjs";
-import { MhfeEncryptCommandCase } from "../browser-cases/mhfe-encrypt-command.mjs";
+import { MhfeCommandCase } from "../browser-cases/mhfe-command.mjs";
 import { RandomFixtures } from "../browser-cases/random-fixtures.mjs";
 import { createHash } from "node:crypto";
 import { entropyToMnemonic, mnemonicToSeedSync } from "@scure/bip39";
@@ -486,14 +486,14 @@ export class MhfeBrowserCases {
       "MHFE exact public repair and raw Encode/repair admission without an Argon2 recovery",
     );
   };
-  /** Encode's memory level and the mhfe command beside it, without an Argon2 run. */
-  static mhfeEncryptCommand = async (context, profile, run) => {
+  /** The memory level and the mhfe command on every MHFE tab, without an Argon2 run. */
+  static mhfeCommand = async (context, profile, run) => {
     const { page, before } = await openBackupPanel(context, profile, run, "mhfe-panel");
-    run.checks.push(await new MhfeEncryptCommandCase(page).run());
+    run.checks.push(await new MhfeCommandCase(page, profile.id).run());
     assert.deepEqual(await storageSnapshot(page), before);
     assert.equal(run.requests.length, 0);
     run.checks.push(
-      "MHFE Encode's mhfe command: shown only for a PIM or memory level other than 0, exact for every choice, copied exactly with the phrase hidden and shown, Encrypt closed above level 0; storage/no HTTP",
+      "MHFE's mhfe command on Encode, Decode, Check, Change password and Hidden wallets: shown only for a PIM or memory level other than 0, exact for every choice, copied exactly, no secret and no passphrase answer in it, each tab's work closed above level 0, Hidden wallets with Decode's command; storage/no HTTP",
     );
   };
   /** Shared checkedMnemonic boundary for the native browser cases. */
