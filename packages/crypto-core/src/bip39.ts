@@ -13,6 +13,8 @@ import {
   bip39EntropyBytes,
   isBip39WordCount,
   type Bip39WordCount,
+  BIP39_SEED_BYTES,
+  BIP39_SEED_ITERATIONS,
 } from "./bip39-parameters.js";
 import { MnemonicFingerprint } from "./mnemonic-fingerprint.js";
 import { Bip39Input } from "./bip39-input.js";
@@ -50,7 +52,7 @@ export function mnemonicToSeed(mnemonic: string, passphrase = ""): Uint8Array {
   const password = utf8ToBytes(nfkd(assertValidMnemonic(mnemonic)));
   const salt = utf8ToBytes(`mnemonic${nfkd(passphrase)}`);
   try {
-    return pbkdf2(sha512, password, salt, { c: 2048, dkLen: 64 });
+    return pbkdf2(sha512, password, salt, { c: BIP39_SEED_ITERATIONS, dkLen: BIP39_SEED_BYTES });
   } finally {
     password.fill(0);
     salt.fill(0);

@@ -5,22 +5,14 @@
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { hmac } from "@noble/hashes/hmac.js";
 import { sha512 } from "@noble/hashes/sha2.js";
-import { assertIndex, BIP32_HARDENED_OFFSET } from "@ckd/core/bip32-limits.js";
 import { concatBytes, wipe } from "@ckd/core/crypto.js";
-
-const ED25519_SEED_KEY = new TextEncoder().encode("ed25519 seed");
+import { childNumber, ED25519_SEED_KEY } from "./ed25519-hd-common.js";
 
 /** A child number as BIP32 serializes it: four bytes, big-endian. */
 export function ser32(index: number): Uint8Array {
   const out = new Uint8Array(4);
   new DataView(out.buffer).setUint32(0, index >>> 0);
   return out;
-}
-
-/** A child number: an index below 2^31, offset when hardened; refuses any other index. */
-export function childNumber(index: number, hardened: boolean): number {
-  assertIndex(index, "Child index");
-  return hardened ? index + BIP32_HARDENED_OFFSET : index;
 }
 
 /** An Ed25519 key of SLIP-10: its 32-byte private key (the Ed25519 seed) and chain code. */
