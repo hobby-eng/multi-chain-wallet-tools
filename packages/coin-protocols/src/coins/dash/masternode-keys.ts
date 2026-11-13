@@ -9,7 +9,8 @@ import { bytesToNumberBE, numberToBytesBE } from "@noble/curves/utils.js";
 import { hmac } from "@noble/hashes/hmac.js";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { concatBytes as concat, wipe } from "@ckd/core/crypto.js";
-import { childNumber, ser32 } from "../../slip10-ed25519.js";
+import { childNumber } from "../../ed25519-hd-common.js";
+import { ser32 } from "../../slip10-ed25519.js";
 
 const BLS_SEED_KEY = new TextEncoder().encode("BLS HD seed");
 

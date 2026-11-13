@@ -8,6 +8,7 @@
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex, hexToBytes, utf8ToBytes } from "@noble/hashes/utils.js";
 import { generateMnemonicWithChosenWords, type ChosenWordsRequest } from "./bip39-chosen-words.js";
+import { BIP39_SEED_BYTES, BIP39_SEED_ITERATIONS } from "./bip39-parameters.js";
 import { ErrorCatalog } from "./error-catalog.js";
 import { webCryptoPbkdf2Sha512, type Pbkdf2Sha512 } from "./pbkdf2-sha512.js";
 import type { RandomBytes } from "./random-byte-source.js";
@@ -34,9 +35,6 @@ export const WALLET_CHECK_WORDS = 24;
 export const WALLET_CHECK_EXPECTED_DRAWS = 2 ** WALLET_CHECK_BITS;
 /** A draw gives up after this many times the expected draws, as MHFE's own draw did. */
 const DRAW_LIMIT_FACTOR = 64;
-const BIP39_ITERATIONS = 2048;
-/** BIP39's seed: 512 bits. */
-const SEED_BYTES = 64;
 
 /** T for a 64-byte BIP39 seed. */
 export function walletCheckDigest(seed: Uint8Array): Uint8Array {
@@ -89,7 +87,7 @@ export async function bip39Seed(
   const password = utf8ToBytes(nfkd(phrase));
   const salt = utf8ToBytes(`mnemonic${nfkd(passphrase)}`);
   try {
-    return await derive(password, salt, BIP39_ITERATIONS, SEED_BYTES);
+    return await derive(password, salt, BIP39_SEED_ITERATIONS, BIP39_SEED_BYTES);
   } finally {
     password.fill(0);
     salt.fill(0);

@@ -11,6 +11,10 @@ export { BIP39_WORD_COUNTS, type Bip39WordCount } from "./bip39-word-counts.js";
 /** Bits of one word: its index in the 2,048-word list. */
 export const BIP39_WORD_BITS = 11;
 
+/** BIP39's seed: PBKDF2-HMAC-SHA512 of the phrase, 2048 rounds, 512 bits. */
+export const BIP39_SEED_ITERATIONS = 2048;
+export const BIP39_SEED_BYTES = 64;
+
 const COUNT_LIST = orList(BIP39_WORD_COUNTS);
 
 /** Whether `value` is a word count that a BIP39 phrase can have. */
