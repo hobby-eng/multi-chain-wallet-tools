@@ -72,6 +72,23 @@ export interface CoinFieldRoles {
   privateKeys: string[];
 }
 
+/**
+ * A seed that is not BIP39's: "ton-phrase", the 64-byte entropy of a TON phrase
+ * (@ckd/core/ton-mnemonic.js), which is not a BIP39 phrase; "cardano-icarus" and
+ * "cardano-icarus-trezor", the 96-byte CIP-3 root of a BIP39 phrase and its passphrase
+ * (@ckd/core/cardano-icarus.js).
+ */
+export type SeedSource = "ton-phrase" | "cardano-icarus" | "cardano-icarus-trezor";
+
+/** The seed sources read from a BIP39 phrase, which a BIP85 child phrase has too. */
+export type PhraseSeedSource = Exclude<SeedSource, "ton-phrase">;
+
+/** How the page reads a phrase's seed under a seed source; the caller wipes the seed. */
+export type PhraseSeedReader = (phrase: string, passphrase: string) => Uint8Array;
+
+/** The readers of the phrase seed sources a build holds, each composed only with its coin. */
+export type PhraseSeedReaders = Readonly<Partial<Record<PhraseSeedSource, PhraseSeedReader>>>;
+
 /** Extension contract: the UI renders and exports only this protocol-neutral API. */
 export interface CoinAdapter {
   /** Labels for fixed leading path segments, sourced from pathPreview. */
@@ -94,9 +111,9 @@ export interface CoinAdapter {
   rangeControl?: false;
   /**
    * Where the derivation's seed comes from: BIP39's seed of the phrase and its passphrase when
-   * absent; "ton-phrase", the 64-byte entropy of a TON phrase (@ckd/core/ton-mnemonic.js).
+   * absent; otherwise its SeedSource.
    */
-  seedSource?: "ton-phrase";
+  seedSource?: SeedSource;
   controlLabels?: {
     account?: string;
     start?: string;

@@ -1,6 +1,7 @@
 import { BITCOIN_MATCHER } from "./address-targets.js";
 import { DASH_MATCHER } from "./matcher-targets-dash.js";
 import { BITCOIN_CASH_MATCHER } from "./matcher-targets-bitcoin-cash.js";
+import { CARDANO_MATCHER } from "./matcher-targets-cardano.js";
 import { COSMOS_MATCHER } from "./matcher-targets-cosmos.js";
 import { DOGECOIN_MATCHER } from "./matcher-targets-dogecoin.js";
 import { ETHEREUM_CLASSIC_MATCHER } from "./matcher-targets-ethereum-classic.js";
@@ -37,6 +38,7 @@ export const MULTI_CHAIN_MATCHER_COINS: readonly MatcherCoin[] = [
   NEAR_MATCHER,
   HEDERA_MATCHER,
   TON_MATCHER,
+  CARDANO_MATCHER,
 ];
 
 /** The matcher targets of the Multi-Chain Edition. */

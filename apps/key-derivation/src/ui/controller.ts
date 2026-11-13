@@ -1,6 +1,7 @@
 import { BIP39_WORD_COUNTS, type Bip39WordCount } from "@ckd/core/bip39-word-counts.js";
 import { isTabKey, tabIndexAfter } from "@ckd/ui/tabs.js";
 import type { CoinAdapter } from "@ckd/coins/registry.js";
+import { CoinFamilyCatalog, type PhraseSeedReaders } from "@ckd/coins/registry-base.js";
 import {
   applySharedDerivationControls,
   readControls,
@@ -39,6 +40,8 @@ interface KeyDerivationDependencies {
   installCheckedMnemonicFeature?: typeof import("./checked-mnemonic-feature.js").installCheckedMnemonicFeature;
   /** TON's phrase, in builds with TON: the Telegram wallet's seed and Telegram-compatible generation. */
   installTonPhraseFeature?: typeof import("./ton-phrase-feature.js").installTonPhraseFeature;
+  /** The seeds of the variants whose seedSource reads a BIP39 phrase, in builds with such a coin. */
+  phraseSeedReaders?: PhraseSeedReaders;
   mnemonicToSeed: typeof import("@ckd/core/bip39.js").mnemonicToSeed;
   runBip39SelfTest: typeof import("@ckd/bip39-self-test").runBip39SelfTest;
   runRecoveryBackupSelfTest: typeof import("@ckd/recovery-backup/self-test.js").runRecoveryBackupSelfTest;
@@ -244,17 +247,32 @@ export class KeyDerivationController {
   }
 
   /**
-   * The seed of the phrase for `adapter`: BIP39's seed with the passphrase, or for TON's Telegram
-   * wallet the TON phrase's entropy (TonPhraseFeature.seedFor).
+   * The seed of the phrase for `adapter`: BIP39's seed with the passphrase, the seed of its phrase
+   * seed source (#phraseSeed), or for TON's Telegram wallet the TON phrase's entropy
+   * (TonPhraseFeature.seedFor, which also refuses a TON phrase that is not BIP39's elsewhere).
    */
   readonly #seedFor = (adapter: CoinAdapter, mnemonic: string, passphrase = ""): Uint8Array => {
+    const phraseSeed = (phrase: string, secret: string) =>
+      this.#phraseSeed(adapter, phrase, secret);
     const ton = this.#tonPhrase;
-    if (ton !== undefined)
-      return ton.seedFor(adapter, mnemonic, passphrase, this.#dependencies.mnemonicToSeed);
-    if (adapter.seedSource !== undefined)
-      throw new Error("This build cannot read the seed of this protocol.");
-    return this.#dependencies.mnemonicToSeed(mnemonic, passphrase);
+    if (ton !== undefined) return ton.seedFor(adapter, mnemonic, passphrase, phraseSeed);
+    return phraseSeed(mnemonic, passphrase);
   };
+
+  /**
+   * The seed of a BIP39 `phrase` for `adapter`: BIP39's seed, or that of its seed source's reader
+   * (phraseSeedReaders); refused for a seed source this build cannot read, such as a TON phrase's.
+   */
+  #phraseSeed(adapter: CoinAdapter, phrase: string, passphrase: string): Uint8Array {
+    if (adapter.seedSource === undefined)
+      return this.#dependencies.mnemonicToSeed(phrase, passphrase);
+    const read =
+      adapter.seedSource === "ton-phrase"
+        ? undefined
+        : this.#dependencies.phraseSeedReaders?.[adapter.seedSource];
+    if (read === undefined) throw new Error("This build cannot read the seed of this protocol.");
+    return read(phrase, passphrase);
+  }
 
   /** The seed of the phrase for the current variant (#seedFor). */
   readonly #seedOf = (mnemonic: string, passphrase = ""): Uint8Array =>
@@ -286,21 +304,29 @@ export class KeyDerivationController {
       .find((adapter) => adapter.seedSource === "ton-phrase");
   }
 
+  /**
+   * The variants a BIP85 child wallet offers: its wallet derives from BIP39's seed of the child
+   * phrase, so only the variants of BIP39's seed (not TON's phrase, nor Cardano's Icarus roots), and
+   * each family's default among them.
+   */
+  #childRegistry() {
+    const coinFamilies = this.#dependencies.coinFamilies.map((family) => ({
+      ...family,
+      adapters: family.adapters.filter((adapter) => adapter.seedSource === undefined),
+    }));
+    return {
+      coinFamilies,
+      getDefaultCoinAdapter: (id: string) => new CoinFamilyCatalog(coinFamilies).defaultAdapter(id),
+    };
+  }
+
   #installChildWallet(): void {
     this.#bip85Feature =
       this.#dependencies.installBip85Feature?.({
         document: this.#view.document,
-        // A child phrase is drawn by BIP85, never a TON phrase: its variants are BIP39's only.
-        coinFamilies:
-          this.#tonPhrase === undefined
-            ? this.#dependencies.coinFamilies
-            : this.#dependencies.coinFamilies.map((family) => ({
-                ...family,
-                adapters: family.adapters.filter((adapter) => adapter.seedSource === undefined),
-              })),
+        ...this.#childRegistry(),
         getAdapterFamilyId: this.#dependencies.getAdapterFamilyId,
         getCoinAdapter: this.#dependencies.getCoinAdapter,
-        getDefaultCoinAdapter: this.#dependencies.getDefaultCoinAdapter,
         parentMnemonic: () => this.#view.mnemonic.value,
         parentPassphrase: () => this.#view.passphrase.value,
         isActive: () => this.#workspaceTabs.active === "bip85",

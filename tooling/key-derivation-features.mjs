@@ -197,7 +197,8 @@ export function applyKeyDerivationFeatureTemplate(template, features) {
 
 /**
  * The page's derivation feature modules of a build, as [feature, file in apps/key-derivation/src/ui,
- * exported installer]: each optional feature's, and a coin's own (the TON phrase comes with TON).
+ * exported installer]: each optional feature's, and a coin's own (the TON phrase comes with TON,
+ * Cardano's phrase seed readers with Cardano).
  */
 export function derivationFeatureModules(features) {
   return [
@@ -208,6 +209,12 @@ export function derivationFeatureModules(features) {
     .filter(([feature]) => features.has(feature))
     .concat(
       features.hasCoin("ton") ? [["ton", "ton-phrase-feature.ts", "installTonPhraseFeature"]] : [],
+    )
+    .concat(
+      // Cardano's Icarus variants read their CIP-3 roots on the page (tooling/single-key-coins.mjs).
+      features.hasCoin("cardano")
+        ? [["cardano", "cardano-seed-sources.ts", "phraseSeedReaders"]]
+        : [],
     );
 }
 

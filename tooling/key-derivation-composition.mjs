@@ -336,6 +336,7 @@ export function selectedWorkerEntry(root, profile, features) {
     // A coin's own protocols carry no feature name; they come and go with the coin.
     [null, "dash", "full", "runDashMasternodeFullSelfTest", "masternode-self-test-dash.ts"],
     [null, "ton", "full", "runTonKeyFullSelfTest", "ton-key-self-test.ts"],
+    [null, "cardano", "full", "runCardanoKeyFullSelfTest", "cardano-key-self-test.ts"],
   ].filter(
     ([feature, coin]) =>
       (feature === null || features.has(feature)) && (coin === null || features.hasCoin(coin)),
@@ -594,6 +595,11 @@ const sharedSourceMarkers = [
     label: "Ed25519-coin derivation (an Ed25519 coin)",
     needed: (features) => hasSingleKeyKind(features.hasCoin, "ed25519"),
     markers: [...SINGLE_KEY_SHARED_MARKERS.ed25519],
+  },
+  {
+    label: "BIP32-Ed25519 keys and CIP-3 roots (Cardano)",
+    needed: (features) => hasSingleKeyKind(features.hasCoin, "bip32-ed25519"),
+    markers: [...SINGLE_KEY_SHARED_MARKERS["bip32-ed25519"]],
   },
   {
     label: "Single-key coin self-test and matcher (a single-key coin)",

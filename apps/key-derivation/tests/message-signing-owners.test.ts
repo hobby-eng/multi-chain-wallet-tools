@@ -100,11 +100,11 @@ describe("the worker admits every format that the page offers, for the row that 
           if (adapterId !== "dash-core-coinjoin") expect(offered(adapterId)).toContain(format);
   });
 
-  it("offers signing on an address of every coin but XRP, which has no common standard", () => {
+  it("offers signing on an address of every coin but XRP, which has no common standard, and Cardano, whose CIP-8 signing is not offered yet", () => {
     const unsigned = COIN_FAMILIES.filter(
       (family) => !family.adapters.some((adapter) => offered(adapter.id).size > 0),
     ).map((family) => family.id);
-    expect(unsigned).toEqual(["xrp"]);
+    expect(unsigned).toEqual(["cardano", "xrp"]);
   });
 
   it("admits Dash's CoinJoin rows, whose worker adapter is their own", () => {

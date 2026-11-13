@@ -177,6 +177,19 @@ const TON = Object.freeze([
   "TON Ledger · m/44'/607'/0'/0'/i'/0'",
   "TON phrase check and wallet contracts W5, v4R2, v3R2",
 ]);
+const CARDANO = Object.freeze([
+  "cardano mainnet path metadata",
+  "cardano path boundary refusal",
+  "cardano-ledger mainnet path metadata",
+  "cardano-ledger path boundary refusal",
+  "cardano-icarus-trezor mainnet path metadata",
+  "cardano-icarus-trezor path boundary refusal",
+  "Cardano Icarus and Icarus-Trezor roots, without and with a passphrase · CIP-3",
+  "Cardano base, enterprise and stake addresses · CIP-19",
+  "Cardano change address and receive address #5",
+  "Cardano Icarus, Icarus-Trezor and Ledger account keys",
+  "Cardano root refusal of a BIP39 seed",
+]);
 const MULTI_CHAIN = Object.freeze({
   entry: "packages/verification/src/self-test.ts",
   run: "runCryptoSelfTest",
@@ -200,6 +213,7 @@ const MULTI_CHAIN = Object.freeze({
     ...NEAR,
     ...HEDERA,
     ...TON,
+    ...CARDANO,
   ]),
 });
 const DASH_COMMUNITY = Object.freeze({

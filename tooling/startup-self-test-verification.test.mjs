@@ -52,8 +52,8 @@ describe("startup report admission", () => {
 });
 
 describe("independent startup inventories", () => {
-  it("keeps the complete 138-case Multi-Chain and 39-case Dash worker inventories", () => {
-    expect(StartupSelfTestCatalog.multiChain.expectedChecks).toHaveLength(138);
+  it("keeps the complete 149-case Multi-Chain and 39-case Dash worker inventories", () => {
+    expect(StartupSelfTestCatalog.multiChain.expectedChecks).toHaveLength(149);
     expect(StartupSelfTestCatalog.dashCommunity.expectedChecks).toHaveLength(39);
     for (const catalog of [StartupSelfTestCatalog.multiChain, StartupSelfTestCatalog.dashCommunity])
       expect(

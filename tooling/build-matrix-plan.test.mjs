@@ -15,8 +15,10 @@ describe("exhaustive standalone build matrix", () => {
     // message-signing with one of them and neither Bitcoin nor Dash, refused before (142,897).
     // Ethereum, Ethereum Classic and Tron add 2,304 more: each alone now admits message-signing in
     // its 768 feature sets (147,505 before). Solana, Stellar, NEAR and TON add 3,072 the same way
-    // (149,809 before), and Cosmos, Injective and Hedera 2,304 more (152,881 before).
-    expect(plan).toHaveLength(155185);
+    // (149,809 before), and Cosmos, Injective and Hedera 2,304 more (152,881 before). Cardano, a
+    // coin of the single-key table without message signing yet, adds itself alone in the Deriver's
+    // 768 feature sets (155,185 before); the sets of all the table's coins only gain its name.
+    expect(plan).toHaveLength(155953);
     expect(new Set(plan.map(({ relativePath }) => relativePath)).size).toBe(plan.length);
   });
 
@@ -68,8 +70,8 @@ describe("bounded standalone build smoke matrix", () => {
 
   it("selects a stable unique subset of valid builds", () => {
     // Each of the nine account coins and of the EVM networks alone, in the Scanner and in the
-    // Viewer.
-    expect(smoke).toHaveLength(120);
+    // Viewer; Cardano alone in the Deriver (120 before).
+    expect(smoke).toHaveLength(121);
     expect(new Set(smoke.map(({ relativePath }) => relativePath)).size).toBe(smoke.length);
     for (const job of smoke) {
       expect(
