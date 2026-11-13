@@ -1,9 +1,14 @@
 // What every message-signing standard returns, and the admission of a signature that a person
 // pastes to verify. A signature is public, but its text still crosses into a worker: it is bounded
 // before it is copied (CORE-48).
+import { SigningMessage } from "./signing-message.js";
 
-/** The longest signature text admitted for verification; a BIP-322 full signature is far shorter. */
-const MAX_SIGNATURE_CHARACTERS = 4096;
+/**
+ * The longest signature text admitted for verification: the longest response the dialog writes,
+ * TON Connect's, which repeats the message, so that its own output always fits. JSON writes a
+ * character of the message as at most 6 (\u0001); the response's other members take less than 1 KiB.
+ */
+const MAX_SIGNATURE_CHARACTERS = 6 * SigningMessage.maxBytes + 1024;
 
 const REFUSALS = {
   INVALID_SIGNATURE_TEXT: "The signature must be text.",

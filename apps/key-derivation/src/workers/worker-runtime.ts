@@ -1,7 +1,7 @@
 import { combinedSelfTest } from "@ckd/verification/helpers.js";
 import type { RuntimeCoinAdapter } from "@ckd/coins/runtime-registry.js";
 import type { CryptoSelfTestReport } from "@ckd/self-test-types";
-import { DerivedPrivateKey } from "@ckd/core/derived-private-key.js";
+import { DerivedPrivateKey, type DerivedKeySource } from "@ckd/core/derived-private-key.js";
 import { clearDerivationResult, DerivationSecrets } from "@ckd/core/secrets.js";
 import { findDerivedAddress, findDerivedAddresses } from "@ckd/recovery/address-search.js";
 import type { WorkerMessage, WorkerRequest } from "./protocol.js";
@@ -47,10 +47,10 @@ interface WorkerDependencies {
     fields: readonly ResultField[],
   ): Promise<MessageSignature>;
   /**
-   * Admits a format for a row of an adapter, refusing one whose coin does not own it, and answers
-   * the row field that holds the key (MessageSigners.admit).
+   * Admits a format for a row of an adapter, refusing one that the row does not sign, and answers
+   * where the row keeps the key (MessageSigners.admit).
    */
-  admitMessageSigning?(this: void, format: string, adapterId: string): string | undefined;
+  admitMessageSigning?(this: void, format: string, adapterId: string): DerivedKeySource | undefined;
   /** Verifies a signature from public material alone (MessageSigners.verify). */
   verifyDerivedMessage?(
     this: void,
@@ -101,11 +101,11 @@ async function withDerivedPrivateKey<T>(
   input: Parameters<RuntimeCoinAdapter["derive"]>[0],
   address: string,
   addressKey: string,
-  keyField: string | undefined,
+  source: DerivedKeySource | undefined,
   use: (key: DerivedPrivateKey) => T | Promise<T>,
 ): Promise<T> {
   const result = await adapter.derive({ ...input, start: input.start, count: 1 });
-  using key = new DerivedPrivateKey(result, address, addressKey, keyField);
+  using key = new DerivedPrivateKey(result, address, addressKey, source);
   return await use(key);
 }
 
@@ -121,10 +121,17 @@ async function signMessage(
   const { signDerivedMessage: sign, admitMessageSigning: admit } = dependencies;
   if (sign === undefined || admit === undefined)
     throw new Error("Message signing is unavailable in this build profile.");
-  const { format, address, addressKey, message, input } = request;
-  const keyField = admit(format, request.adapterId);
-  return await withDerivedPrivateKey(adapter, input, address, addressKey, keyField, (key) =>
-    sign(key.bytes, { format, address, message, network: input.network }, key.fields),
+  const { format, address, addressKey, message, inputs, input } = request;
+  const source = admit(format, request.adapterId);
+  const signing = {
+    format,
+    address,
+    message,
+    network: input.network,
+    ...(inputs === undefined ? {} : { inputs }),
+  };
+  return await withDerivedPrivateKey(adapter, input, address, addressKey, source, (key) =>
+    sign(key.bytes, signing, key.fields),
   );
 }
 

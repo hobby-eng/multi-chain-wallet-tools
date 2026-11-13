@@ -15,14 +15,15 @@ export class MessageVerificationRoundTripCase {
 
   /**
    * Runs on the open dialog after `signature` of `message` came out, in either edition; answers
-   * whether the address offered a compact format, which was then checked too.
+   * whether the address offered a compact format, which was then checked too. `tampered` is another
+   * message in the same format, such as more hex bytes for a binary payload.
    */
-  async run(message, signature) {
+  async run(message, signature, tampered = `${message} tampered`) {
     const page = this.#page;
     const address = await page.locator("#message-signer-address").innerText();
     await page.locator("#message-verification-signature").fill(signature);
     await this.#verify(new RegExp(`^Valid for ${address} · `, "u"));
-    await page.locator("#message-signer-message").fill(`${message} tampered`);
+    await page.locator("#message-signer-message").fill(tampered);
     // An edit retires the earlier answer before anything is checked again.
     assert.equal(await page.locator("#message-verification-result").innerText(), "");
     await this.#verify(/^Not valid for this address · /u);

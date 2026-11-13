@@ -202,6 +202,7 @@ export class DerivationWorkerClient {
     addressKey: string,
     message: string,
     format: MessageSigningFormat,
+    inputs?: Readonly<Record<string, string>>,
   ): Promise<MessageSignature> {
     const seed = input.seed.slice();
     return this.#request<MessageSignature>(
@@ -214,6 +215,7 @@ export class DerivationWorkerClient {
         addressKey,
         message,
         format,
+        ...(inputs === undefined ? {} : { inputs }),
       },
       [seed.buffer],
     );

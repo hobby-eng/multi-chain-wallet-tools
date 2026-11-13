@@ -26,10 +26,23 @@ export function stellarAccountId(publicKey: Uint8Array): string {
   return strKey(STRKEY_PUBLIC_KEY, publicKey);
 }
 
+/**
+ * The 32-byte key of `value` when it is a key's StrKey under `version` with a valid checksum, else
+ * undefined; the decoded copy is wiped, since a seed is secret.
+ */
+export function strKeyPayload(version: number, value: string): Uint8Array | undefined {
+  if (strKeyVersion(value) !== version) return undefined;
+  const bytes = base32nopad.decode(value);
+  try {
+    const crc = crc16Xmodem(bytes.subarray(0, KEY_BODY_BYTES));
+    const valid = bytes[KEY_BODY_BYTES] === (crc & 0xff) && bytes[KEY_BODY_BYTES + 1] === crc >> 8;
+    return valid ? bytes.slice(1, KEY_BODY_BYTES) : undefined;
+  } finally {
+    wipe(bytes);
+  }
+}
+
 /** Whether `value` is the StrKey of a 32-byte Ed25519 public key (an account ID, "G…"). */
 export function isStellarAccountId(value: string): boolean {
-  if (strKeyVersion(value) !== STRKEY_PUBLIC_KEY) return false;
-  const bytes = base32nopad.decode(value);
-  const crc = crc16Xmodem(bytes.subarray(0, KEY_BODY_BYTES));
-  return bytes[KEY_BODY_BYTES] === (crc & 0xff) && bytes[KEY_BODY_BYTES + 1] === crc >> 8;
+  return strKeyPayload(STRKEY_PUBLIC_KEY, value) !== undefined;
 }

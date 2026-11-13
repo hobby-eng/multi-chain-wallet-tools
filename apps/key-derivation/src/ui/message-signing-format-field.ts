@@ -1,11 +1,20 @@
+import { SigningMessage } from "@ckd/core/signing-message.js";
 import type { MessageSigningFormat } from "../workers/protocol.js";
-import type { MessageSigningPolicy } from "./message-signing-policy.js";
+import { MessageSigningInputsField } from "./message-signing-inputs-field.js";
+import type { MessageFormatText, MessageSigningPolicy } from "./message-signing-policy.js";
 
-/** The dialog's format: its menu when an address offers several, its texts and its notes. */
+/** The message box's label for text, the default. */
+const MESSAGE_LABEL = "Message";
+
+/**
+ * The dialog's format: its menu when an address offers several, its texts, its notes and the
+ * fields it signs beside the message.
+ */
 export class MessageSigningFormatField {
   readonly #document: Document;
   readonly #policy: MessageSigningPolicy;
   readonly #ui;
+  readonly #inputs: MessageSigningInputsField;
   #offers: readonly MessageSigningFormat[] = [];
 
   constructor(document: Document, policy: MessageSigningPolicy, line: HTMLElement) {
@@ -16,8 +25,29 @@ export class MessageSigningFormatField {
       select: document.querySelector<HTMLSelectElement>("#message-signer-format-select"),
       notes: document.querySelector<HTMLElement>("#message-signer-notes"),
       output: document.querySelector<HTMLElement>("#message-signature-output-label"),
+      messageLabel: document.querySelector<HTMLElement>("#message-signer-message-label"),
+      messageHelp: document.querySelector<HTMLElement>("#message-signer-message-help"),
       line,
     };
+    this.#inputs = new MessageSigningInputsField(
+      document,
+      document.querySelector<HTMLElement>("#message-signer-inputs"),
+    );
+  }
+
+  /** The element whose `input` events, from every field of the format, the dialog listens to. */
+  get inputs(): HTMLElement | null {
+    return this.#inputs.container;
+  }
+
+  /** The selected format's texts, or undefined when the menu holds no offered format. */
+  text(): MessageFormatText | undefined {
+    return this.#policy.describe(this.selected());
+  }
+
+  /** The values of the selected format's fields, by input key. */
+  inputValues(): Record<string, string> {
+    return this.#inputs.values();
   }
 
   /** The menu whose `change` the dialog listens to, when the page has one. */
@@ -25,9 +55,13 @@ export class MessageSigningFormatField {
     return this.#ui.select;
   }
 
-  /** Shows an address's offers, its default selected; a menu only when there is a choice. */
+  /**
+   * Shows an address's offers, its default selected; a menu only when there is a choice. The
+   * fields of another address's formats are forgotten.
+   */
   show(offers: readonly MessageSigningFormat[]): void {
     this.#offers = offers;
+    this.#inputs.clear();
     const { field, select } = this.#ui;
     const choice = offers.length > 1 && field !== null && select !== null;
     if (select !== null) {
@@ -69,15 +103,18 @@ export class MessageSigningFormatField {
 
   /** The selected format's label, or empty text when the menu holds no offered format. */
   label(): string {
-    return this.#policy.describe(this.selected())?.label ?? "";
+    return this.text()?.label ?? "";
   }
 
-  /** Writes the selected format's label, notes and output label. */
+  /** Writes the selected format's label, notes, fields, message box and output label. */
   refresh(): void {
-    const text = this.#policy.describe(this.selected());
+    const text = this.text();
     this.#ui.line.textContent = text?.label ?? "";
-    const { notes, output } = this.#ui;
+    this.#inputs.show(text?.inputs ?? []);
+    const { notes, output, messageLabel, messageHelp } = this.#ui;
     if (output !== null) output.textContent = text?.output ?? "Signature";
+    if (messageLabel !== null) messageLabel.textContent = text?.message?.label ?? MESSAGE_LABEL;
+    if (messageHelp !== null) messageHelp.textContent = text?.message?.help ?? SigningMessage.help;
     if (notes === null) return;
     const texts = text?.notes ?? [];
     notes.replaceChildren(

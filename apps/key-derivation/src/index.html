@@ -5945,7 +5945,7 @@
           <select id="message-signer-format-select"></select>
         </div>
         <div id="message-signer-notes" hidden></div>
-        <label for="message-signer-message">Message</label>
+        <label id="message-signer-message-label" for="message-signer-message">Message</label>
         <textarea
           id="message-signer-message"
           rows="5"
@@ -5955,6 +5955,7 @@
           aria-describedby="message-signer-message-help"
         ></textarea>
         <p id="message-signer-message-help" class="help"></p>
+        <div id="message-signer-inputs" hidden></div>
         <div class="actions">
           <button class="primary" id="sign-message-button" type="button">Sign message</button>
         </div>

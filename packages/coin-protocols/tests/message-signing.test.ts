@@ -17,8 +17,7 @@ const DASH = {
 /** A coin double that records which of its operations ran. */
 function recordingCoin(formats: readonly string[], calls: string[]): CoinMessageSigning {
   return {
-    formats,
-    adapters: [],
+    formats: Object.fromEntries(formats.map((format) => [format, []])),
     sign: (_key, request) => {
       calls.push(`sign ${request.format}`);
       return { signature: "public", format: request.format, verified: true };

@@ -39,9 +39,9 @@ const FIRST_ADDRESSES = [
 ];
 
 /** ton-crypto's test phrase, a TON phrase that is not a BIP39 phrase, and its W5 address. */
-const TON_PHRASE =
+export const TON_PHRASE =
   "hospital stove relief fringe tongue always charge angry urge sentence again match nerve inquiry senior coconut label tumble carry category beauty bean road solution";
-const TON_W5 = "UQDSLOFVamNZzdy4LulclcCBEFkRReZ7WscBCLAw3Pg53h3h";
+export const TON_W5 = "UQDSLOFVamNZzdy4LulclcCBEFkRReZ7WscBCLAw3Pg53h3h";
 
 /** The first shown address of the result list, as the copy buttons name it. */
 const firstAddress = (page) =>

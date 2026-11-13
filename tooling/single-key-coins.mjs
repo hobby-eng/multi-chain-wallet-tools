@@ -64,19 +64,19 @@ export const SINGLE_KEY_COINS = Object.freeze({
     prefix: "SOLANA",
     derivation: "solanaDerivation",
     kinds: ["ed25519"],
-    shared: ["slip10-ed25519"],
+    shared: ["slip10-ed25519", "message-signing-ed25519"],
   },
   stellar: {
     prefix: "STELLAR",
     derivation: "stellarDerivation",
     kinds: ["ed25519"],
-    shared: ["slip10-ed25519", "crc16"],
+    shared: ["slip10-ed25519", "crc16", "message-signing-ed25519"],
   },
   near: {
     prefix: "NEAR",
     derivation: "nearDerivation",
     kinds: ["ed25519"],
-    shared: ["slip10-ed25519"],
+    shared: ["slip10-ed25519", "message-signing-ed25519"],
   },
   hedera: {
     prefix: "HEDERA",
@@ -88,7 +88,7 @@ export const SINGLE_KEY_COINS = Object.freeze({
     prefix: "TON",
     derivation: "tonDerivation",
     kinds: ["ed25519"],
-    shared: ["slip10-ed25519", "crc16"],
+    shared: ["slip10-ed25519", "crc16", "message-signing-ed25519"],
   },
 });
 
@@ -184,6 +184,8 @@ export const SHARED_MODULES = Object.freeze({
     marker: "/message-signing-policy-evm.ts",
     ownCoins: ["ethereum"],
   },
+  // The Ed25519 message signing of Solana, Stellar, NEAR and TON, only with message-signing.
+  "message-signing-ed25519": { marker: "/coins/message-signing-ed25519.ts", ownCoins: [] },
 });
 
 /** Whether a build with the coins `hasCoin` admits needs the shared module `name`. */

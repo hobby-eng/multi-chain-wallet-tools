@@ -16,6 +16,13 @@ export function signingSelfTestKeyHex(): string {
   return "01".padStart(64, "0");
 }
 
+/**
+ * The Ed25519 seed of RFC 8032's TEST 1 (section 7.1), a public test key: the coins with no
+ * published signature of a known key sign with it (check/c_vectors.py's answers).
+ */
+export const ED25519_SELF_TEST_SEED =
+  "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60";
+
 /** The private key 1, as the signer borrows it. */
 export function signingSelfTestKey(): Uint8Array {
   return hexToBytes(signingSelfTestKeyHex());
@@ -39,11 +46,15 @@ export function messageVerifierOf(
   return features.verifyDerivedMessage;
 }
 
-/** A known answer: a public key (hex), the request it signs and the signature it must give. */
+/**
+ * A known answer: a public key (hex), the request it signs and the signature it must give;
+ * `changed` is another message the signature must be refused for, the message and "!" by default.
+ */
 export interface SignedAnswer {
   readonly key: string;
   readonly request: MessageSigningRequest;
   readonly signature: string;
+  readonly changed?: string;
 }
 
 /**
@@ -54,6 +65,8 @@ export interface VerifiedAnswer {
   readonly request: MessageSigningRequest;
   readonly signature: string;
   readonly expected: boolean | string;
+  /** Another message a valid signature must be refused for, the message and "!" by default. */
+  readonly changed?: string;
 }
 
 /** The verifier's answer as text: "true", "false", or the code of its refusal. */
@@ -85,12 +98,12 @@ export async function checkSignedAnswers(
   const started = now();
   const sign = messageSignerOf(features);
   const verify = messageVerifierOf(features);
-  for (const { key, request, signature } of answers) {
+  for (const { key, request, signature, changed } of answers) {
     const signed = await sign(hexToBytes(key), request, []);
     expectEqual(`${name} signature`, signed.signature, signature);
     expectEqual(`${name} verification`, String(signed.verified), "true");
     expectEqual(`${name} verifier`, String(await verify(request, signature)), "true");
-    const other = { ...request, message: `${request.message}!` };
+    const other = { ...request, message: changed ?? `${request.message}!` };
     expectEqual(
       `${name} refusal of another message`,
       String(await verify(other, signature)),
@@ -111,10 +124,10 @@ export async function checkVerifiedAnswers(
 ): Promise<CryptoSelfTestReport> {
   const started = now();
   const verify = messageVerifierOf(features);
-  for (const { request, signature, expected } of answers) {
+  for (const { request, signature, expected, changed } of answers) {
     expectEqual(`${name} vector`, await answerOf(verify, request, signature), String(expected));
     if (expected !== true) continue;
-    const other = { ...request, message: `${request.message}!` };
+    const other = { ...request, message: changed ?? `${request.message}!` };
     expectEqual(`${name} vector refusal`, await answerOf(verify, other, signature), "false");
   }
   return { passed: true, checks: [`${name} vectors`], durationMs: Math.round(now() - started) };

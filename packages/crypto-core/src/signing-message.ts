@@ -17,6 +17,32 @@ export class SigningMessageError extends Error {
   }
 }
 
+/**
+ * The UTF-8 length of `value`, counted until it passes `limit`; undefined when it holds a lone
+ * surrogate, which UTF-8 cannot encode, before that point.
+ */
+function utf8Length(value: string, limit: number): number | undefined {
+  let bytes = 0;
+  for (const character of value) {
+    const point = character.codePointAt(0);
+    if (point === undefined || (point >= 0xd800 && point <= 0xdfff)) return undefined;
+    bytes += point <= 0x7f ? 1 : point <= 0x7ff ? 2 : point <= 0xffff ? 3 : 4;
+    if (bytes > limit) return bytes;
+  }
+  return bytes;
+}
+
+/**
+ * The UTF-8 bytes of a standard's short text input, such as NEAR's recipient: undefined for a value
+ * that is not text, holds a lone surrogate or passes `maxBytes`, so that no two texts sign the
+ * same bytes.
+ */
+export function utf8Text(value: unknown, maxBytes: number): Uint8Array | undefined {
+  if (typeof value !== "string") return undefined;
+  const bytes = utf8Length(value, maxBytes);
+  return bytes === undefined || bytes > maxBytes ? undefined : new TextEncoder().encode(value);
+}
+
 /** Admits exact message text without trimming, normalization or an encoded staging buffer. */
 export class SigningMessage {
   /** Operational text limit in UTF-8 bytes, shared by signing and verification. */
@@ -29,13 +55,8 @@ export class SigningMessage {
     if (typeof value !== "string") throw new SigningMessageError("INVALID_MESSAGE");
     if (!allowEmpty && value.length === 0) throw new SigningMessageError("EMPTY_MESSAGE");
     if (value.length > SigningMessage.maxBytes) throw new SigningMessageError("MESSAGE_TOO_LARGE");
-    let bytes = 0;
-    for (const character of value) {
-      const point = character.codePointAt(0);
-      if (point === undefined || (point >= 0xd800 && point <= 0xdfff))
-        throw new SigningMessageError("INVALID_MESSAGE");
-      bytes += point <= 0x7f ? 1 : point <= 0x7ff ? 2 : point <= 0xffff ? 3 : 4;
-      if (bytes > SigningMessage.maxBytes) throw new SigningMessageError("MESSAGE_TOO_LARGE");
-    }
+    const bytes = utf8Length(value, SigningMessage.maxBytes);
+    if (bytes === undefined) throw new SigningMessageError("INVALID_MESSAGE");
+    if (bytes > SigningMessage.maxBytes) throw new SigningMessageError("MESSAGE_TOO_LARGE");
   }
 }

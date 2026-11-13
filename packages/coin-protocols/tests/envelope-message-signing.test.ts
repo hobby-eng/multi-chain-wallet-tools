@@ -111,7 +111,7 @@ describe("EIP-191 and TIP-191 message signing", () => {
   });
 
   it("names the row field that holds each coin's key", () => {
-    for (const coin of [ethereum, classic, tron]) expect(coin.keyField).toBe("privateKey");
+    for (const coin of [ethereum, classic, tron]) expect(coin.key?.field).toBe("privateKey");
   });
 
   it("refuses Tron's high-S twin, as TronWeb's verifyMessageV2 does, and keeps Ethereum lenient", async () => {

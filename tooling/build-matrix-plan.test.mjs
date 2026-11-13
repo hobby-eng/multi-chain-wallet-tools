@@ -14,8 +14,9 @@ describe("exhaustive standalone build matrix", () => {
     // Message signing for Litecoin, Dogecoin, Bitcoin Cash and Zcash adds 4,608 Deriver builds:
     // message-signing with one of them and neither Bitcoin nor Dash, refused before (142,897).
     // Ethereum, Ethereum Classic and Tron add 2,304 more: each alone now admits message-signing in
-    // its 768 feature sets (147,505 before).
-    expect(plan).toHaveLength(149809);
+    // its 768 feature sets (147,505 before). Solana, Stellar, NEAR and TON add 3,072 the same way
+    // (149,809 before).
+    expect(plan).toHaveLength(152881);
     expect(new Set(plan.map(({ relativePath }) => relativePath)).size).toBe(plan.length);
   });
 

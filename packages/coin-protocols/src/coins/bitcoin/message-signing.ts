@@ -6,9 +6,13 @@ import { verifyBip322Message } from "@ckd/core/bip322-verifier.js";
 import { signCompactP2pkhMessage, verifyCompactP2pkhMessage } from "@ckd/core/compact-message.js";
 import type { ResultField } from "@ckd/core/types.js";
 import type { CoinMessageSigning, MessageSigningRequest } from "../message-signing.js";
-import { BITCOIN_PROFILES } from "./profiles.js";
+import { BitcoinPurposeProfile, type BitcoinMode } from "./profiles.js";
 
 const COMPACT = "bitcoin-compact";
+
+/** The rows of one address type, which only that type's formats sign. */
+const rowsOf = (mode: BitcoinMode) =>
+  Object.freeze([BitcoinPurposeProfile.forMode(mode).adapterId]);
 
 /** The public script field `key` of the row, or undefined. */
 function fieldValue(fields: readonly ResultField[], key: string): string | undefined {
@@ -35,14 +39,13 @@ async function signBip322(
 
 /** Bitcoin's formats: its four BIP-322 address modes and the compact P2PKH signature. */
 export const BITCOIN_MESSAGE_SIGNING: CoinMessageSigning = Object.freeze({
-  adapters: Object.freeze(BITCOIN_PROFILES.map((profile) => profile.adapterId)),
-  formats: Object.freeze([
-    COMPACT,
-    "bitcoin-bip322-legacy",
-    "bitcoin-bip322-nested",
-    "bitcoin-bip322-native",
-    "bitcoin-bip322-taproot",
-  ]),
+  formats: Object.freeze({
+    [COMPACT]: rowsOf("legacy"),
+    "bitcoin-bip322-legacy": rowsOf("legacy"),
+    "bitcoin-bip322-nested": rowsOf("nested-segwit"),
+    "bitcoin-bip322-native": rowsOf("native-segwit"),
+    "bitcoin-bip322-taproot": rowsOf("taproot"),
+  }),
   sign: (privateKey: Uint8Array, request: MessageSigningRequest, fields: readonly ResultField[]) =>
     request.format === COMPACT
       ? signCompactP2pkhMessage(

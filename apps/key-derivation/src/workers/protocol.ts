@@ -39,7 +39,13 @@ export type MessageSigningFormat =
   | "zcash-compact"
   | "ethereum-eip191"
   | "ethereum-classic-eip191"
-  | "tron-tip191";
+  | "tron-tip191"
+  | "solana-raw"
+  | "solana-offchain-v0"
+  | "stellar-sep53"
+  | "near-nep413"
+  | "ton-sign-data-text"
+  | "ton-sign-data-binary";
 
 export type WorkerRequest =
   | { id: number; type: "derive"; adapterId: string; input: CoinDerivationInput }
@@ -71,6 +77,8 @@ export type WorkerRequest =
       addressKey: string;
       message: string;
       format: MessageSigningFormat;
+      /** The format's own inputs, such as NEAR's recipient (MessageSigningRequest.inputs). */
+      inputs?: Readonly<Record<string, string>>;
     }
   /** Verifies a pasted signature for a row's address: public material only, no seed. */
   | {

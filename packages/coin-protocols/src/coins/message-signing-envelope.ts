@@ -4,11 +4,13 @@
 // recovered key as its rows show it; a signature proves the row's address when the key it
 // recovers has that address.
 import { secp256k1 } from "@ckd/core/crypto.js";
+import type { DerivedKeySource } from "@ckd/core/derived-private-key.js";
 import { envelope191Digest, type Envelope191Name } from "@ckd/core/message-signing-envelope-191.js";
 import { recoverRecoverable, signRecoverable } from "@ckd/core/message-signing-recoverable.js";
 import { SigningMessage } from "@ckd/core/signing-message.js";
 import {
-  MessageSigningFormatError,
+  formatsOnEveryRow,
+  ownFormat,
   type CoinMessageSigning,
   type MessageSigningRequest,
 } from "./message-signing.js";
@@ -32,11 +34,11 @@ export class EnvelopeSigningError extends Error {
 /** A coin that signs messages in EIP-191's envelope. */
 export interface EnvelopeCoinFacts {
   readonly envelope: Envelope191Name;
-  /** The row field that holds the key as 64 hex digits (DerivedPrivateKey's `keyField`). */
-  readonly keyField: string;
+  /** Where the rows keep the key: a secp256k1 key in hex (CoinMessageSigning.key). */
+  readonly key: DerivedKeySource;
   /** The coin's formats, by format id, with the name of the standard each signs. */
   readonly formats: Readonly<Record<string, { readonly name: string }>>;
-  /** The adapter ids of the coin's rows (CoinMessageSigning.adapters). */
+  /** The adapter ids of the coin's rows, which each of its formats signs. */
   readonly adapters: readonly string[];
   /** Whether verification refuses a high S, as TronWeb's verifyMessageV2 (ethers v6) does. */
   readonly lowS?: boolean;
@@ -48,11 +50,7 @@ export interface EnvelopeCoinFacts {
 
 /** The envelope message signing of one coin, for its derivation worker. */
 export function envelopeCoinSigning(facts: EnvelopeCoinFacts): CoinMessageSigning {
-  const nameOf = (format: string): string => {
-    const own = Object.hasOwn(facts.formats, format) ? facts.formats[format] : undefined;
-    if (own === undefined) throw new MessageSigningFormatError("UNSUPPORTED_FORMAT");
-    return own.name;
-  };
+  const nameOf = (format: string): string => ownFormat(facts.formats, format).name;
   const digestOf = (message: string) =>
     envelope191Digest(facts.envelope, new TextEncoder().encode(message));
   const proves = (request: MessageSigningRequest, signature: string, digest: Uint8Array) =>
@@ -61,9 +59,8 @@ export function envelopeCoinSigning(facts: EnvelopeCoinFacts): CoinMessageSignin
       request.address.trim(),
     );
   return Object.freeze({
-    formats: Object.freeze(Object.keys(facts.formats)),
-    adapters: Object.freeze([...facts.adapters]),
-    keyField: facts.keyField,
+    formats: formatsOnEveryRow(facts.formats, facts.adapters),
+    key: facts.key,
     sign: (privateKey: Uint8Array, request: MessageSigningRequest) => {
       const name = nameOf(request.format);
       if (!secp256k1.utils.isValidSecretKey(privateKey))

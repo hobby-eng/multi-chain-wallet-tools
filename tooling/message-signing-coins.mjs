@@ -44,6 +44,26 @@ export const MESSAGE_SIGNING_COINS = Object.freeze({
     full: ["runEthereumClassicMessageSigningFullSelfTest"],
   },
   tron: { prefix: "TRON", startup: ["runTronMessageSigningSelfTest"], full: [] },
+  solana: {
+    prefix: "SOLANA",
+    startup: ["runSolanaMessageSigningSelfTest"],
+    full: ["runSolanaMessageSigningFullSelfTest"],
+  },
+  stellar: {
+    prefix: "STELLAR",
+    startup: ["runStellarMessageSigningSelfTest"],
+    full: ["runStellarMessageSigningFullSelfTest"],
+  },
+  near: {
+    prefix: "NEAR",
+    startup: ["runNearMessageSigningSelfTest"],
+    full: ["runNearMessageSigningFullSelfTest"],
+  },
+  ton: {
+    prefix: "TON",
+    startup: ["runTonMessageSigningSelfTest"],
+    full: ["runTonMessageSigningFullSelfTest"],
+  },
 });
 
 export const MESSAGE_SIGNING_COIN_IDS = Object.freeze(Object.keys(MESSAGE_SIGNING_COINS));

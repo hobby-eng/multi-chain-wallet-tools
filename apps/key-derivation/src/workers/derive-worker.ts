@@ -16,6 +16,10 @@ import { ZCASH_MESSAGE_SIGNING } from "@ckd/coins/zcash/message-signing.js";
 import { ETHEREUM_MESSAGE_SIGNING } from "@ckd/coins/ethereum/message-signing.js";
 import { ETHEREUM_CLASSIC_MESSAGE_SIGNING } from "@ckd/coins/ethereum-classic/message-signing.js";
 import { TRON_MESSAGE_SIGNING } from "@ckd/coins/tron/message-signing.js";
+import { SOLANA_MESSAGE_SIGNING } from "@ckd/coins/solana/message-signing.js";
+import { STELLAR_MESSAGE_SIGNING } from "@ckd/coins/stellar/message-signing.js";
+import { NEAR_MESSAGE_SIGNING } from "@ckd/coins/near/message-signing.js";
+import { TON_MESSAGE_SIGNING } from "@ckd/coins/ton/message-signing.js";
 import { runBip85SelfTest } from "./bip85-self-test.js";
 import { runBitcoinBip38FullSelfTest } from "./bip38-self-test-bitcoin.js";
 import { runDashBip38FullSelfTest } from "./bip38-self-test-dash.js";
@@ -49,6 +53,22 @@ import {
   runEthereumClassicMessageSigningSelfTest,
 } from "./message-signer-self-test-ethereum-classic.js";
 import { runTronMessageSigningSelfTest } from "./message-signer-self-test-tron.js";
+import {
+  runSolanaMessageSigningFullSelfTest,
+  runSolanaMessageSigningSelfTest,
+} from "./message-signer-self-test-solana.js";
+import {
+  runStellarMessageSigningFullSelfTest,
+  runStellarMessageSigningSelfTest,
+} from "./message-signer-self-test-stellar.js";
+import {
+  runNearMessageSigningFullSelfTest,
+  runNearMessageSigningSelfTest,
+} from "./message-signer-self-test-near.js";
+import {
+  runTonMessageSigningFullSelfTest,
+  runTonMessageSigningSelfTest,
+} from "./message-signer-self-test-ton.js";
 import { runDashMasternodeFullSelfTest } from "./masternode-self-test-dash.js";
 import { runSilentPaymentSelfTest } from "./silent-payment-self-test.js";
 import { runTonKeyFullSelfTest } from "./ton-key-self-test.js";
@@ -63,6 +83,10 @@ const messageSigners = new MessageSigners([
   ETHEREUM_MESSAGE_SIGNING,
   ETHEREUM_CLASSIC_MESSAGE_SIGNING,
   TRON_MESSAGE_SIGNING,
+  SOLANA_MESSAGE_SIGNING,
+  STELLAR_MESSAGE_SIGNING,
+  NEAR_MESSAGE_SIGNING,
+  TON_MESSAGE_SIGNING,
 ]);
 
 startDerivationWorker({
@@ -81,6 +105,10 @@ startDerivationWorker({
     runEthereumMessageSigningSelfTest,
     runEthereumClassicMessageSigningSelfTest,
     runTronMessageSigningSelfTest,
+    runSolanaMessageSigningSelfTest,
+    runStellarMessageSigningSelfTest,
+    runNearMessageSigningSelfTest,
+    runTonMessageSigningSelfTest,
   ],
   fullSelfTests: [
     runBip322FullSelfTest,
@@ -90,6 +118,10 @@ startDerivationWorker({
     runZcashMessageSigningFullSelfTest,
     runEthereumMessageSigningFullSelfTest,
     runEthereumClassicMessageSigningFullSelfTest,
+    runSolanaMessageSigningFullSelfTest,
+    runStellarMessageSigningFullSelfTest,
+    runNearMessageSigningFullSelfTest,
+    runTonMessageSigningFullSelfTest,
     runBitcoinBip38FullSelfTest,
     runDashBip38FullSelfTest,
     runDashMasternodeFullSelfTest,

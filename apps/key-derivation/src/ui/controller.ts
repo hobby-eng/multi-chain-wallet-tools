@@ -197,7 +197,7 @@ export class KeyDerivationController {
           mnemonic: null,
           passphrase: "",
         },
-      mnemonicToSeed: this.#dependencies.mnemonicToSeed,
+      seedOf: this.#seedFor,
       createWorker: () => this.#dependencies.createWorker(),
       copy: (button, text) => {
         void this.#resultPanel.exports.copyText(button, text, false);
@@ -244,17 +244,21 @@ export class KeyDerivationController {
   }
 
   /**
-   * The seed of the phrase for the current variant: BIP39's seed with the passphrase, or for TON's
-   * Telegram wallet the TON phrase's entropy (TonPhraseFeature.seedFor).
+   * The seed of the phrase for `adapter`: BIP39's seed with the passphrase, or for TON's Telegram
+   * wallet the TON phrase's entropy (TonPhraseFeature.seedFor).
    */
-  readonly #seedOf = (mnemonic: string, passphrase = ""): Uint8Array => {
+  readonly #seedFor = (adapter: CoinAdapter, mnemonic: string, passphrase = ""): Uint8Array => {
     const ton = this.#tonPhrase;
     if (ton !== undefined)
-      return ton.seedFor(this.#adapter, mnemonic, passphrase, this.#dependencies.mnemonicToSeed);
-    if (this.#adapter.seedSource !== undefined)
+      return ton.seedFor(adapter, mnemonic, passphrase, this.#dependencies.mnemonicToSeed);
+    if (adapter.seedSource !== undefined)
       throw new Error("This build cannot read the seed of this protocol.");
     return this.#dependencies.mnemonicToSeed(mnemonic, passphrase);
   };
+
+  /** The seed of the phrase for the current variant (#seedFor). */
+  readonly #seedOf = (mnemonic: string, passphrase = ""): Uint8Array =>
+    this.#seedFor(this.#adapter, mnemonic, passphrase);
 
   /**
    * The note of what the phrase is to TON; a TON phrase that is not BIP39's opens the Telegram

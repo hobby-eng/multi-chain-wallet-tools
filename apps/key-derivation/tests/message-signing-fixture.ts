@@ -4,11 +4,14 @@ import { vi } from "vitest";
 import { DeriverViewFixture } from "@ckd/test-support/deriver-view.js";
 import { getCoinAdapter } from "@ckd/coins/registry.js";
 import { mnemonicToSeed } from "@ckd/core/bip39.js";
-import type { DerivationResult } from "@ckd/core/types.js";
+import type { DerivationResult, ResultField } from "@ckd/core/types.js";
 import { DerivationWorkerClient } from "../src/workers/derive-client.js";
 import type { WorkerMessage, WorkerRequest } from "../src/workers/protocol.js";
 import { createMessageSigningInstaller } from "../src/ui/message-signing-feature.js";
-import { combineMessageSigningPolicies } from "../src/ui/message-signing-policy.js";
+import {
+  combineMessageSigningPolicies,
+  type MessageSigningPolicy,
+} from "../src/ui/message-signing-policy.js";
 import { BITCOIN_MESSAGE_SIGNING_POLICY } from "../src/ui/message-signing-policy-bitcoin.js";
 import { DASH_MESSAGE_SIGNING_POLICY } from "../src/ui/message-signing-policy-dash.js";
 
@@ -34,8 +37,15 @@ export class WorkerBoundary extends EventTarget {
 export const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 const features: { close(): void }[] = [];
 
+/** Another coin's dialog: its policy, the row's public fields and the clicked address. */
+interface FixtureCoin {
+  readonly policy: MessageSigningPolicy;
+  readonly fields: ResultField[];
+  readonly address: string;
+}
+
 /** Opens the dialog for row 0 of a `id` result, its `address` field, with a public message. */
-export function signingFixture(id = "bitcoin-taproot", ready = () => true) {
+export function signingFixture(id = "bitcoin-taproot", ready = () => true, coin?: FixtureCoin) {
   const native = new DeriverViewFixture();
   vi.stubGlobal("Worker", WorkerBoundary);
   vi.stubGlobal("__DERIVATION_WORKER_SOURCE__", "/* public native worker boundary fixture */");
@@ -69,13 +79,14 @@ export function signingFixture(id = "bitcoin-taproot", ready = () => true) {
     passphrase: "",
   });
   const feature = createMessageSigningInstaller(
-    combineMessageSigningPolicies(BITCOIN_MESSAGE_SIGNING_POLICY, DASH_MESSAGE_SIGNING_POLICY),
+    coin?.policy ??
+      combineMessageSigningPolicies(BITCOIN_MESSAGE_SIGNING_POLICY, DASH_MESSAGE_SIGNING_POLICY),
   )({
     document: native.page.asDocument(),
     mainSource: source,
     bip85Source: source,
-    mnemonicToSeed: (...args) => {
-      const seed = mnemonicToSeed(...args);
+    seedOf: (_adapter, mnemonic, passphrase) => {
+      const seed = mnemonicToSeed(mnemonic, passphrase);
       seeds.push(seed);
       return seed;
     },
@@ -91,9 +102,11 @@ export function signingFixture(id = "bitcoin-taproot", ready = () => true) {
     basicSummary: [],
     summary: [],
     notices: [],
-    rows: [{ index: 0, title: "Public row fixture", path: "m", basic: [], advanced: [] }],
+    rows: [
+      { index: 0, title: "Public row fixture", path: "m", basic: coin?.fields ?? [], advanced: [] },
+    ],
   };
-  feature.open(result, "receive", "main", 0, "public fixture address", "address");
+  feature.open(result, "receive", "main", 0, coin?.address ?? "public fixture address", "address");
   const message = native.page.require("message-signer-message");
   const output = native.page.require("message-signature-output");
   const sign = native.page.require("sign-message-button");

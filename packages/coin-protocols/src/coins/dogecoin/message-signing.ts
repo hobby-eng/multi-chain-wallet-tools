@@ -8,6 +8,7 @@ export const DOGECOIN_MESSAGE_SIGNING = compactCoinSigning({
   magic: "Dogecoin Signed Message:\n",
   headers: "core",
   keys: (type) => (type === "p2pkh" ? DOGECOIN_KEYS : undefined),
-  adapters: DOGECOIN_PROFILES.map((profile) => profile.adapterId),
+  // Every row of the coin has a P2PKH address, the one type its format signs.
+  adapters: () => DOGECOIN_PROFILES.map((profile) => profile.adapterId),
   formats: { "dogecoin-compact": { name: "Dogecoin Core signmessage", signingType: "p2pkh" } },
 });
