@@ -6,10 +6,13 @@
 // value is copied from the file named beside it. Public test data only.
 import { BinaryFF1 } from "@noble/ciphers/ff1.js";
 import { jubjub, jubjub_groupHash } from "@noble/curves/misc.js";
-import { numberToBytesLE } from "@noble/curves/utils.js";
+import { bytesToNumberLE, numberToBytesLE } from "@noble/curves/utils.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { bytesToHex, concatBytes, hexToBytes } from "@ckd/core/crypto.js";
 import {
+  isSaplingAddressEncoding,
+  isSaplingFullViewingKeyEncoding,
+  isSaplingIncomingViewingKeyEncoding,
   SAPLING_MAX_DIVERSIFIER_INDEX,
   SaplingExpandedSpendingKey,
   SaplingExtendedSpendingKey,
@@ -528,6 +531,88 @@ describe("refusals", () => {
     } finally {
       key.wipe();
     }
+  });
+});
+
+describe("ZIP-316's Sapling items", () => {
+  // Encodings that are not points of the prime-order subgroup by definition ("Jubjub"): the identity
+  // (0, 1); (0, -1), of order 2; and v = 2^255 - 1, above q, so no encoding at all.
+  const FIELD = jubjub.Point.Fp.ORDER;
+  const IDENTITY = numberToBytesLE(1n, 32);
+  const ORDER_TWO = numberToBytesLE(FIELD - 1n, 32);
+  const ABOVE_FIELD = new Uint8Array(32).fill(0xff);
+  const encoding = (row: (typeof HARD_ROWS)[number]) => hexToBytes(row.xfvk).subarray(PART(1)[0]);
+
+  it.each(HARD_ROWS)("gives sapling_zip32_hard.json's FVK and IVK items of $path", (row) => {
+    const key = keyAt(row.path);
+    try {
+      expect(bytesToHex(key.fullViewingKeyEncoding())).toBe(row.ak + row.nk + row.ovk + row.dk);
+      expect(bytesToHex(key.incomingViewingKeyEncoding())).toBe(row.dk + row.ivk);
+      expect(isSaplingFullViewingKeyEncoding(encoding(row))).toBe(true);
+      expect(isSaplingIncomingViewingKeyEncoding(hexToBytes(row.dk + row.ivk))).toBe(true);
+    } finally {
+      key.wipe();
+    }
+  });
+
+  it("refuses to give the items of a wiped key", () => {
+    const key = keyAt("m");
+    key.wipe();
+    for (const use of [() => key.fullViewingKeyEncoding(), () => key.incomingViewingKeyEncoding()])
+      expect(use).toThrow(expect.objectContaining({ code: "sapling.key.wiped" }));
+  });
+
+  it("takes every published receiver as a raw address, and refuses what is not one", () => {
+    for (const [, , raw] of RECEIVERS) expect(isSaplingAddressEncoding(hexToBytes(raw))).toBe(true);
+    const valid = hexToBytes(RECEIVERS[0][2]);
+    const diversifier = valid.subarray(0, 11);
+    // d2 of m is invalid (sapling_zip32_hard.json): FF1-AES256 of the row's dk at j = 2.
+    const invalid = BinaryFF1(hexToBytes(HARD_ROWS[0].dk)).encrypt(numberToBytesLE(2n, 11));
+    // The same pk_d written a second way, its v plus q, which stays below 2^255 for this receiver.
+    const other = hexToBytes(RECEIVERS.find(([, , raw]) => raw.startsWith("9f6e0bf9"))?.[2] ?? "");
+    const v = bytesToNumberLE(other.subarray(11));
+    const second = numberToBytesLE((v & (2n ** 255n - 1n)) + FIELD + (v >> 255n) * 2n ** 255n, 32);
+    expect(isSaplingAddressEncoding(other)).toBe(true);
+    for (const refused of [
+      concatBytes(other.subarray(0, 11), second),
+      valid.subarray(1),
+      concatBytes(valid, Uint8Array.of(0)),
+      concatBytes(invalid, valid.subarray(11)),
+      concatBytes(diversifier, IDENTITY),
+      concatBytes(diversifier, ORDER_TWO),
+      concatBytes(diversifier, ABOVE_FIELD),
+    ])
+      expect(isSaplingAddressEncoding(refused)).toBe(false);
+  });
+
+  it("refuses an FVK item whose ak is the identity or not in the subgroup, and an nk not in it", () => {
+    const valid = encoding(HARD_ROWS[1]);
+    const withPart = (at: number, part: Uint8Array): Uint8Array => {
+      const changed = valid.slice();
+      changed.set(part, at);
+      return changed;
+    };
+    // nk may be the identity: its type is the subgroup J^(r), ak's the subgroup without it.
+    expect(isSaplingFullViewingKeyEncoding(withPart(32, IDENTITY))).toBe(true);
+    for (const refused of [
+      withPart(0, IDENTITY),
+      withPart(0, ORDER_TWO),
+      withPart(0, ABOVE_FIELD),
+      withPart(32, ORDER_TWO),
+      withPart(32, ABOVE_FIELD),
+      valid.subarray(1),
+    ])
+      expect(isSaplingFullViewingKeyEncoding(refused)).toBe(false);
+  });
+
+  it("takes an IVK item whose ivk is from 1 to 2^251 - 1, and refuses any other", () => {
+    const dk = hexToBytes(HARD_ROWS[0].dk);
+    const item = (ivk: bigint): Uint8Array => concatBytes(dk, numberToBytesLE(ivk, 32));
+    for (const ivk of [1n, 2n ** 251n - 1n])
+      expect(isSaplingIncomingViewingKeyEncoding(item(ivk))).toBe(true);
+    for (const ivk of [0n, 2n ** 251n, 2n ** 256n - 1n])
+      expect(isSaplingIncomingViewingKeyEncoding(item(ivk))).toBe(false);
+    expect(isSaplingIncomingViewingKeyEncoding(item(1n).subarray(1))).toBe(false);
   });
 });
 

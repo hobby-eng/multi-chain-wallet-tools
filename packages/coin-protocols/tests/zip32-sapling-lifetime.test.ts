@@ -131,6 +131,8 @@ describe("the secrets of ZIP-32 Sapling keys", () => {
     }
     expect(account.nextAddress(0n, 20)).not.toBeNull();
     account.fingerprint();
+    account.fullViewingKeyEncoding().fill(0);
+    account.incomingViewingKeyEncoding().fill(0);
     for (const key of [account, parent, master]) key.wipe();
     input.fill(0);
     const left = observed.arrays.filter((array) =>

@@ -4,6 +4,7 @@ import {
   type CompactHeaders,
   type CompactScriptType,
 } from "./compact-message-headers.js";
+import { encodeCompactSize } from "./compact-size.js";
 import { concatBytes, encodeP2pkh, hash160, secp256k1, sha256 } from "./crypto.js";
 import type { MessageSignature } from "./message-signature.js";
 import { SigningMessage } from "./signing-message.js";
@@ -12,7 +13,6 @@ import { SigningMessage } from "./signing-message.js";
 const SIGNATURE_BYTES = 65;
 
 const REFUSALS = {
-  INVALID_LENGTH: "Message length is outside the supported range.",
   INVALID_BASE64: "The compact signature is not valid Base64.",
   INVALID_SIGNATURE_LENGTH: `A compact message signature must contain exactly ${SIGNATURE_BYTES} bytes.`,
   INVALID_HEADER: "The compact signature's header is not one this format uses.",
@@ -59,36 +59,20 @@ export function p2pkhCompactParameters(
   };
 }
 
-function compactSize(value: number): Uint8Array {
-  if (!Number.isSafeInteger(value) || value < 0) throw new CompactMessageError("INVALID_LENGTH");
-  if (value < 0xfd) return Uint8Array.of(value);
-  if (value <= 0xffff) return Uint8Array.of(0xfd, value & 0xff, value >>> 8);
-  if (value <= 0xffff_ffff) {
-    return Uint8Array.of(
-      0xfe,
-      value & 0xff,
-      (value >>> 8) & 0xff,
-      (value >>> 16) & 0xff,
-      value >>> 24,
-    );
-  }
-  const bytes = new Uint8Array(9);
-  bytes[0] = 0xff;
-  let remaining = BigInt(value);
-  for (let index = 1; index < bytes.length; index += 1) {
-    bytes[index] = Number(remaining & 0xffn);
-    remaining >>= 8n;
-  }
-  return bytes;
-}
-
 export function compactMessageDigest(message: string, magicText: string): Uint8Array {
   SigningMessage.require(message, true);
   const encoder = new TextEncoder();
   const magic = encoder.encode(magicText);
   const payload = encoder.encode(message);
   return sha256(
-    sha256(concatBytes(compactSize(magic.length), magic, compactSize(payload.length), payload)),
+    sha256(
+      concatBytes(
+        encodeCompactSize(magic.length),
+        magic,
+        encodeCompactSize(payload.length),
+        payload,
+      ),
+    ),
   );
 }
 

@@ -9,8 +9,9 @@
 // neither. It runs on the pinned Noble curves (Jubjub and its group hash), hashes (BLAKE2b,
 // BLAKE2s) and ciphers (FF1). Every key and every working copy this module makes is wiped when its
 // work ends, and a wiped key refuses further use; erasure goes only as far as the runtime allows:
-// the BigInt scalars, and the hex strings and reversed byte copies through which Noble converts
-// bytes and numbers (bytesToNumberLE, numberToBytesLE), cannot be wiped.
+// the BigInt scalars and coordinates, and the hex strings and byte copies that Noble makes inside
+// its conversions (bytesToNumberLE, numberToBytesLE) and point decoding, cannot be wiped. It also
+// checks the Sapling items of ZIP-316's unified encodings (coins/zcash/unified.ts).
 import type { EdwardsPoint } from "@noble/curves/abstract/edwards.js";
 import { jubjub, jubjub_findGroupHash, jubjub_groupHash } from "@noble/curves/misc.js";
 import { bytesToNumberLE, numberToBytesLE } from "@noble/curves/utils.js";
@@ -24,6 +25,11 @@ import { ErrorCatalog } from "@ckd/core/error-catalog.js";
 const PART_BYTES = 32;
 /** A diversifier: 88 bits (ZIP-32 "Sapling diversifier derivation"). */
 const DIVERSIFIER_BYTES = 11;
+/** A raw payment address, d ‖ pk_d ("Sapling Payment Addresses"). */
+const ADDRESS_BYTES = DIVERSIFIER_BYTES + PART_BYTES;
+/** ZIP-316's Sapling FVK Encoding, ak ‖ nk ‖ ovk ‖ dk, and its IVK Encoding, dk ‖ ivk. */
+const FULL_VIEWING_KEY_ENCODING_BYTES = 4 * PART_BYTES;
+const INCOMING_VIEWING_KEY_ENCODING_BYTES = 2 * PART_BYTES;
 /** The bytes of an expanded spending key ask ‖ nsk ‖ ovk, and of a full viewing key ak ‖ nk ‖ ovk. */
 const EXPANDED_KEY_BYTES = 3 * PART_BYTES;
 /** The bytes of ZIP-32's FVK tag: a child's encoding holds them from its parent's fingerprint. */
@@ -183,6 +189,59 @@ function diversifyHash(diversifier: Uint8Array): EdwardsPoint | null {
 /** pk_d = [ivk] base, encoded. The ivk of a valid key lies between 1 and 2^251 − 1. */
 function transmissionKeyOf(ivk: Uint8Array, base: EdwardsPoint): Uint8Array {
   return base.multiply(bytesToNumberLE(ivk)).toBytes();
+}
+
+/**
+ * The point that `encoding` encodes when it is a canonical encoding of a point of Jubjub's
+ * prime-order subgroup ("Jubjub": abst_J, canonical, torsion-free); null otherwise. Noble's strict
+ * decoding (without the ZIP-215 option) refuses both ⊥ and the non-canonical encodings.
+ */
+function primeOrderPoint(encoding: Uint8Array): EdwardsPoint | null {
+  try {
+    const point = jubjub.Point.fromBytes(encoding);
+    return point.isTorsionFree() ? point : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Whether `bytes` are a valid raw Sapling payment address ("Sapling Payment Addresses"): 43 bytes,
+ * pk_d a canonical encoding of a point of the prime-order subgroup other than the identity, and a
+ * diversifier d that hashes to a point, which sapling-crypto's PaymentAddress::from_bytes also
+ * requires (zcash/sapling-crypto @793e090 src/address.rs L58-72).
+ */
+export function isSaplingAddressEncoding(bytes: Uint8Array): boolean {
+  if (bytes.length !== ADDRESS_BYTES) return false;
+  const transmissionKey = primeOrderPoint(bytes.subarray(DIVERSIFIER_BYTES));
+  return (
+    transmissionKey !== null &&
+    !transmissionKey.is0() &&
+    diversifyHash(bytes.subarray(0, DIVERSIFIER_BYTES)) !== null
+  );
+}
+
+/**
+ * Whether `bytes` are a valid Sapling FVK Encoding of ZIP-316, EncodeExtFVKParts(ak, nk, ovk, dk):
+ * 128 bytes, ak a point of the prime-order subgroup other than the identity and nk a point of the
+ * subgroup ("Sapling Full Viewing Keys"); ovk and dk may be any bytes.
+ */
+export function isSaplingFullViewingKeyEncoding(bytes: Uint8Array): boolean {
+  if (bytes.length !== FULL_VIEWING_KEY_ENCODING_BYTES) return false;
+  const ak = primeOrderPoint(bytes.subarray(0, PART_BYTES));
+  return (
+    ak !== null && !ak.is0() && primeOrderPoint(bytes.subarray(PART_BYTES, 2 * PART_BYTES)) !== null
+  );
+}
+
+/**
+ * Whether `bytes` are a valid Sapling IVK Encoding of ZIP-316, dk ‖ I2LEOSP_256(ivk): 64 bytes,
+ * ivk from 1 to 2^251 − 1 ("Sapling Incoming Viewing Keys"; ZIP-316: "a zero ivk is not valid").
+ */
+export function isSaplingIncomingViewingKeyEncoding(bytes: Uint8Array): boolean {
+  if (bytes.length !== INCOMING_VIEWING_KEY_ENCODING_BYTES) return false;
+  const ivk = bytes.subarray(PART_BYTES);
+  return ((ivk[PART_BYTES - 1] ?? 0) & ~IVK_TOP_BYTE_MASK) === 0 && ivk.some((byte) => byte !== 0);
 }
 
 /**
@@ -519,11 +578,40 @@ export class SaplingExtendedSpendingKey implements Disposable {
   extendedFullViewingKey(): Uint8Array {
     this.#assertLive();
     const header = this.#header();
+    const parts = this.fullViewingKeyEncoding();
+    try {
+      return concatBytes(header, parts);
+    } finally {
+      wipe(header, parts);
+    }
+  }
+
+  /**
+   * ZIP-316's Sapling FVK Encoding of this key, EncodeExtFVKParts(ak, nk, ovk, dk) of ZIP-32: the
+   * 128 bytes of the full viewing key without the extended key's header. It is made from the
+   * viewing parts alone, never from ask or nsk; the caller treats and wipes it as a secret.
+   */
+  fullViewingKeyEncoding(): Uint8Array {
+    this.#assertLive();
     const viewing = this.#key.fullViewingKey();
     try {
-      return concatBytes(header, viewing, this.#dk);
+      return concatBytes(viewing, this.#dk);
     } finally {
-      wipe(header, viewing);
+      wipe(viewing);
+    }
+  }
+
+  /**
+   * ZIP-316's Sapling IVK Encoding of this key, dk ‖ I2LEOSP_256(ivk): 64 bytes, made from the
+   * viewing parts alone; the caller wipes it.
+   */
+  incomingViewingKeyEncoding(): Uint8Array {
+    this.#assertLive();
+    const ivk = this.#key.incomingViewingKey();
+    try {
+      return concatBytes(this.#dk, ivk);
+    } finally {
+      wipe(ivk);
     }
   }
 

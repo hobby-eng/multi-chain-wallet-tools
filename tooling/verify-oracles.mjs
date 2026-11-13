@@ -9,7 +9,13 @@ import { fileURLToPath } from "node:url";
 const ORACLES = resolve(fileURLToPath(new URL("..", import.meta.url)), "test/oracles");
 
 /** The oracles that must be there; a missing or renamed one fails instead of passing silently. */
-const EXPECTED = ["bip32_oracle.py", "cardano_oracle.py", "ed25519_oracle.py", "ton_oracle.py"];
+const EXPECTED = [
+  "bip32_oracle.py",
+  "cardano_oracle.py",
+  "ed25519_oracle.py",
+  "ton_oracle.py",
+  "zcash_unified_oracle.py",
+];
 
 const found = readdirSync(ORACLES)
   .filter((name) => name.endsWith("_oracle.py"))
