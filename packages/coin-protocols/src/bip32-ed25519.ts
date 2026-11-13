@@ -5,7 +5,8 @@
 // @2066bbf src/derivation/mod.rs L40-99; trezor-firmware @433075c crypto/cardano.c L98-143). A key
 // is an extended Ed25519 key kL ‖ kR with a chain code. Children come from HMAC-SHA512 over
 // little-endian indexes, normal and hardened. A signature is made with kL and kR directly, since
-// these keys have no 32-byte Ed25519 seed. The roots are CIP-3's: Icarus and Icarus-Trezor from
+// these keys have no 32-byte Ed25519 seed: Bip32Ed25519Signer signs, for a derived key (signer())
+// or for a row's stored kL ‖ kR (message signing). The roots are CIP-3's: Icarus and Icarus-Trezor from
 // @ckd/core/cardano-icarus.js, Ledger's from a BIP39 seed here, both with the root bits of
 // @ckd/core/cardano-root.js. It runs on the pinned Noble curves and hashes; every key and copy is
 // wiped when its work ends.
@@ -37,6 +38,11 @@ const BASE_ORDER = ed25519.Point.Fn.ORDER;
  */
 export const BIP32_ED25519_MAX_DEPTH = 2 ** 20;
 
+/** The bits of an extended key that rust-ed25519-bip32 checks: kL's lowest three, its top two. */
+const EXTENDED_LOW_BITS = 0b0000_0111;
+const EXTENDED_TOP_BITS = 0b1100_0000;
+const EXTENDED_TOP_VALUE = 0b0100_0000;
+
 /** The byte before the BIP39 seed in the HMAC-SHA256 of CIP-3's Ledger chain code. */
 const LEDGER_CHAIN_CODE_PREFIX = 0x01;
 
@@ -58,6 +64,11 @@ const ERRORS = new ErrorCatalog("cardano.key", {
   depth: {
     kind: "range",
     text: () => `A BIP32-Ed25519 key is at most ${BIP32_ED25519_MAX_DEPTH} levels below its root.`,
+  },
+  extended: {
+    kind: "range",
+    text: () =>
+      `An extended Ed25519 key has ${2 * PART_BYTES} bytes, the lowest three bits of kL clear and the top two bits of its last byte 01.`,
   },
 });
 
@@ -104,6 +115,38 @@ function addShifted(base: Uint8Array, addend: Uint8Array, shift: number): Uint8A
  */
 function scalarOf(kL: Uint8Array): bigint {
   return bytesToNumberLE(kL) % BASE_ORDER;
+}
+
+/** The 32-byte Ed25519 public key of `kL`, [kL]B (paper §III.B). */
+function publicKeyOf(kL: Uint8Array): Uint8Array {
+  return ed25519.Point.BASE.multiply(scalarOf(kL)).toBytes();
+}
+
+/**
+ * The Ed25519 signature R ‖ S of `message` by the extended key kL ‖ kR whose public key is
+ * `publicKey` (paper §III.B): r = SHA-512(kR ‖ M) mod n, R = [r]B, S = r + SHA-512(R ‖ A ‖ M) · kL
+ * mod n. It verifies by RFC 8032 against the public key, as any Ed25519 signature does; only the
+ * nonce's source differs from a seed's.
+ */
+function extendedSign(
+  kL: Uint8Array,
+  kR: Uint8Array,
+  publicKey: Uint8Array,
+  message: Uint8Array,
+): Uint8Array {
+  const nonceDigest = sha512.create().update(kR).update(message).digest();
+  try {
+    const nonce = bytesToNumberLE(nonceDigest) % BASE_ORDER;
+    const commitment = ed25519.Point.BASE.multiply(nonce).toBytes();
+    const challenge =
+      bytesToNumberLE(
+        sha512.create().update(commitment).update(publicKey).update(message).digest(),
+      ) % BASE_ORDER;
+    const response = (nonce + challenge * scalarOf(kL)) % BASE_ORDER;
+    return concatBytes(commitment, numberToBytesLE(response, PART_BYTES));
+  } finally {
+    wipe(nonceDigest);
+  }
 }
 
 /** An extended Ed25519 key of BIP32-Ed25519 at some depth below its root: kL, kR and a chain code. */
@@ -226,7 +269,7 @@ export class Bip32Ed25519Key implements Disposable {
 
   /** The 32-byte Ed25519 public key, [kL]B (paper §III.B). */
   publicKey(): Uint8Array {
-    this.#publicKey ??= ed25519.Point.BASE.multiply(scalarOf(this.#kL)).toBytes();
+    this.#publicKey ??= publicKeyOf(this.#kL);
     return this.#publicKey.slice();
   }
 
@@ -245,31 +288,70 @@ export class Bip32Ed25519Key implements Disposable {
     return this.#chainCode.slice();
   }
 
-  /**
-   * The Ed25519 signature R ‖ S of `message` by this key (paper §III.B): r = SHA-512(kR ‖ M) mod n,
-   * R = [r]B, S = r + SHA-512(R ‖ A ‖ M) · kL mod n. It verifies by RFC 8032 against publicKey(), as
-   * any Ed25519 signature does; only the nonce's source differs from a seed's.
-   */
-  sign(message: Uint8Array): Uint8Array {
-    const publicKey = this.publicKey();
-    const nonceDigest = sha512.create().update(this.#kR).update(message).digest();
+  /** The signer of this key's kL ‖ kR, a copy that the caller wipes; this key is left as it is. */
+  signer(): Bip32Ed25519Signer {
+    const key = this.privateKey();
     try {
-      const nonce = bytesToNumberLE(nonceDigest) % BASE_ORDER;
-      const commitment = ed25519.Point.BASE.multiply(nonce).toBytes();
-      const challenge =
-        bytesToNumberLE(
-          sha512.create().update(commitment).update(publicKey).update(message).digest(),
-        ) % BASE_ORDER;
-      const response = (nonce + challenge * scalarOf(this.#kL)) % BASE_ORDER;
-      return concatBytes(commitment, numberToBytesLE(response, PART_BYTES));
+      return Bip32Ed25519Signer.fromExtendedKey(key);
     } finally {
-      wipe(nonceDigest);
+      wipe(key);
     }
   }
 
   /** Erases kL, kR and the chain code, as far as the runtime allows. */
   wipe(): void {
     wipe(this.#kL, this.#kR, this.#chainCode);
+  }
+
+  [Symbol.dispose](): void {
+    this.wipe();
+  }
+}
+
+/**
+ * A key that signs and does not derive: an extended Ed25519 key kL ‖ kR as a row's signing key holds
+ * it, with no chain code and no depth. It is refused (cardano.key.extended) unless it passes the
+ * checks of rust-ed25519-bip32's XPrv::from_bytes_verified (typed-io/rust-ed25519-bip32 @2066bbf
+ * src/key.rs L143-156): kL's lowest three bits clear and the top two bits of its last byte 01. The
+ * third highest bit may be set, as in derived keys; the root's own check (fromRoot) refuses it.
+ */
+export class Bip32Ed25519Signer implements Disposable {
+  readonly #kL: Uint8Array;
+  readonly #kR: Uint8Array;
+  #publicKey: Uint8Array | undefined;
+
+  private constructor(kL: Uint8Array, kR: Uint8Array) {
+    this.#kL = kL;
+    this.#kR = kR;
+  }
+
+  /** The signer of the 64 bytes kL ‖ kR, which are copied: the caller wipes its own. */
+  static fromExtendedKey(key: Uint8Array): Bip32Ed25519Signer {
+    const first = key[0] ?? 0;
+    const last = key[PART_BYTES - 1] ?? 0;
+    if (
+      key.length !== 2 * PART_BYTES ||
+      (first & EXTENDED_LOW_BITS) !== 0 ||
+      (last & EXTENDED_TOP_BITS) !== EXTENDED_TOP_VALUE
+    )
+      throw ERRORS.create("extended", []);
+    return new Bip32Ed25519Signer(key.slice(0, PART_BYTES), key.slice(PART_BYTES));
+  }
+
+  /** The 32-byte Ed25519 public key, [kL]B. */
+  publicKey(): Uint8Array {
+    this.#publicKey ??= publicKeyOf(this.#kL);
+    return this.#publicKey.slice();
+  }
+
+  /** The Ed25519 signature R ‖ S of `message` (extendedSign). */
+  sign(message: Uint8Array): Uint8Array {
+    return extendedSign(this.#kL, this.#kR, this.publicKey(), message);
+  }
+
+  /** Erases kL and kR, as far as the runtime allows. */
+  wipe(): void {
+    wipe(this.#kL, this.#kR);
   }
 
   [Symbol.dispose](): void {

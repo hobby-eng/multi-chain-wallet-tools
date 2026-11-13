@@ -17,6 +17,7 @@ import { SOLANA_MESSAGE_SIGNING_POLICY } from "../src/ui/message-signing-policy-
 import { STELLAR_MESSAGE_SIGNING_POLICY } from "../src/ui/message-signing-policy-stellar.js";
 import { COSMOS_MESSAGE_SIGNING_POLICY } from "../src/ui/message-signing-policy-cosmos.js";
 import { HEDERA_MESSAGE_SIGNING_POLICY } from "../src/ui/message-signing-policy-hedera.js";
+import { CARDANO_MESSAGE_SIGNING_POLICY } from "../src/ui/message-signing-policy-cardano.js";
 
 afterEach(releaseSigningFixtures);
 
@@ -155,6 +156,33 @@ describe("the account coins' row key and message rules", () => {
     expect(f.native.page.require("message-signer-inputs").hidden).toBe(true);
     const request = await signed(f);
     expect(request?.inputs).toEqual({ publicKey: COMPRESSED_KEY });
+  });
+
+  it("carries a Cardano row's public key in hex with the request, and offers each of its addresses", async () => {
+    const address = "stake1u8j40zgr2gy4788kl54h6x3gu0pukq5lfr8nflufpg5dzaskqlx2l";
+    const publicKey = "012f5dc3115b8a07981e6e50f5a671e2c6fbb26c3ffde1cd1dcaf40a7fe8f160";
+    // A stake key's row: its reward address is a plain field, which signs all the same.
+    const f = signingFixture("cardano", () => true, {
+      policy: CARDANO_MESSAGE_SIGNING_POLICY,
+      fields: [
+        field("address", "Stake address (reward account)", address),
+        field("publicKey", "Public key (stake_vk)", "stake_vk1public"),
+        field("publicKeyHex", "Public key (32-byte hex)", publicKey),
+        field("signingKey", "Extended signing key", "private fixture value", true),
+      ],
+      address,
+    });
+    expect(f.native.page.require("message-signer-inputs").hidden).toBe(true);
+    const request = await signed(f);
+    expect(request?.inputs).toEqual({ publicKeyHex: publicKey });
+    for (const [resultId, addressKey, formats] of [
+      ["cardano", "address", ["cardano-cip30"]],
+      ["cardano-ledger", "enterpriseAddress", ["cardano-cip30"]],
+      ["cardano-icarus-trezor", "address", ["cardano-cip30"]],
+      ["cardano", "rewardAddress", []],
+      ["cardano", "publicKey", []],
+    ] as const)
+      expect(CARDANO_MESSAGE_SIGNING_POLICY.offer(resultId, addressKey)).toEqual(formats);
   });
 
   it("refuses a Hedera message that is not ASCII before any work", async () => {

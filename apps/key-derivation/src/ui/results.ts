@@ -1,4 +1,10 @@
-import type { DerivationResult, DerivedRow, DisplayMode, ResultField } from "@ckd/core/types.js";
+import {
+  isSigningAddressField,
+  type DerivationResult,
+  type DerivedRow,
+  type DisplayMode,
+  type ResultField,
+} from "@ckd/core/types.js";
 import { createPaymentQrAction, paymentQrPayload } from "@ckd/ui/payment-qr.js";
 import { ResultWindow } from "@ckd/ui/result-window.js";
 import { RenderedSecrets } from "./secrets.js";
@@ -114,7 +120,11 @@ export class ResultRendering {
     const qrPayload = paymentQrPayload(field);
     if (qrPayload !== undefined)
       actions.append(createPaymentQrAction(document, qrPayload, field.label));
-    if (qrPayload !== undefined && locator.row !== undefined && options.canSignMessage(field.key)) {
+    if (
+      locator.row !== undefined &&
+      isSigningAddressField(field) &&
+      options.canSignMessage(field.key)
+    ) {
       actions.append(
         ResultRendering.#signButton(locator.row, field, options.onSignMessage.bind(options)),
       );
@@ -145,7 +155,7 @@ export class ResultRendering {
     const qrPayload = paymentQrPayload(field);
     if (qrPayload !== undefined)
       content.append(createPaymentQrAction(document, qrPayload, field.label));
-    if (qrPayload !== undefined && options.canSignMessage(field.key)) {
+    if (isSigningAddressField(field) && options.canSignMessage(field.key)) {
       content.append(
         ResultRendering.#signButton(rowIndex, field, options.onSignMessage.bind(options)),
       );

@@ -29,6 +29,7 @@ import { TON_MESSAGE_SIGNING_POLICY } from "./message-signing-policy-ton.js";
 import { COSMOS_MESSAGE_SIGNING_POLICY } from "./message-signing-policy-cosmos.js";
 import { INJECTIVE_MESSAGE_SIGNING_POLICY } from "./message-signing-policy-injective.js";
 import { HEDERA_MESSAGE_SIGNING_POLICY } from "./message-signing-policy-hedera.js";
+import { CARDANO_MESSAGE_SIGNING_POLICY } from "./message-signing-policy-cardano.js";
 
 export const installMessageSigningFeature = createMessageSigningInstaller(
   combineMessageSigningPolicies(
@@ -48,5 +49,6 @@ export const installMessageSigningFeature = createMessageSigningInstaller(
     COSMOS_MESSAGE_SIGNING_POLICY,
     INJECTIVE_MESSAGE_SIGNING_POLICY,
     HEDERA_MESSAGE_SIGNING_POLICY,
+    CARDANO_MESSAGE_SIGNING_POLICY,
   ),
 );

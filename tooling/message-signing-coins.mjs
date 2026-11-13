@@ -67,6 +67,11 @@ export const MESSAGE_SIGNING_COINS = Object.freeze({
   cosmos: { prefix: "COSMOS", startup: ["runCosmosMessageSigningSelfTest"], full: [] },
   injective: { prefix: "INJECTIVE", startup: ["runInjectiveMessageSigningSelfTest"], full: [] },
   hedera: { prefix: "HEDERA", startup: ["runHederaMessageSigningSelfTest"], full: [] },
+  cardano: {
+    prefix: "CARDANO",
+    startup: ["runCardanoMessageSigningSelfTest"],
+    full: ["runCardanoMessageSigningFullSelfTest"],
+  },
 });
 
 export const MESSAGE_SIGNING_COIN_IDS = Object.freeze(Object.keys(MESSAGE_SIGNING_COINS));

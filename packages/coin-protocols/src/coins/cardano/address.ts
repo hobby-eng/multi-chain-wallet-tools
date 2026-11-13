@@ -84,6 +84,39 @@ export function isCardanoMainnetAddress(text: string): boolean {
   return header !== undefined && (header & 0b1111) === MAINNET;
 }
 
+/** A mainnet address of a key hash, as CIP-8 signs for it: its bytes and the key hash that signs. */
+export interface CardanoSigningAddress {
+  /** The address's bytes, header first, which a CIP-8 signature's protected header holds. */
+  readonly bytes: Uint8Array;
+  /**
+   * The hash of the key that signs for it (CIP-30's signData): the payment key of a base or
+   * enterprise address, the stake key of a reward address; each is the first credential.
+   */
+  readonly signer: Uint8Array;
+}
+
+/** The bytes each address type of a key hash has: the header and its one or two key hashes. */
+const ADDRESS_BYTES: Readonly<Record<number, number>> = Object.freeze({
+  [ADDRESS_TYPE.base]: 1 + 2 * KEY_HASH_BYTES,
+  [ADDRESS_TYPE.enterprise]: 1 + KEY_HASH_BYTES,
+  [ADDRESS_TYPE.reward]: 1 + KEY_HASH_BYTES,
+});
+
+/**
+ * The mainnet base, enterprise or reward address `text` of key hashes, as it is signed for; undefined
+ * for any other text, such as an address of a script or a pointer, or another network's.
+ */
+export function cardanoSigningAddress(text: string): CardanoSigningAddress | undefined {
+  if (!isCardanoMainnetAddress(text) || text.trim() !== text) return undefined;
+  const bytes = bech32.decodeToBytes(text.toLowerCase(), MAX_ADDRESS_CHARACTERS).bytes;
+  const header = bytes[0] ?? 0;
+  const type = header >> 4;
+  const prefix = type === ADDRESS_TYPE.reward ? ADDRESS_PREFIX.reward : ADDRESS_PREFIX.payment;
+  if (ADDRESS_BYTES[type] !== bytes.length || !text.toLowerCase().startsWith(`${prefix}1`))
+    return undefined;
+  return { bytes, signer: bytes.slice(1, 1 + KEY_HASH_BYTES) };
+}
+
 /** The CIP-5 bech32 text of a key, such as acct_xvk1…, from its bytes. */
 export function cardanoKeyText(prefix: CardanoKeyPrefix, bytes: Uint8Array): string {
   return bech32Text(prefix, bytes);

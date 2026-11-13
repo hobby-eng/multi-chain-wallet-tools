@@ -9,6 +9,9 @@ const TON_INPUTS = { "#message-signer-input-domain": "public.example" };
 /** Keplr's StdSignature, ADR-036's response, and the Base64 SignatureMap of Hedera's. */
 const ADR036 = /^\{"pub_key":\{"type":"tendermint\/PubKeySecp256k1"/u;
 const SIGNATURE_MAP = /^Cm[A-Za-z0-9+/]+={0,2}$/u;
+/** CIP-30's DataSignature: a COSE_Sign1 (an array of four, 0x84) and the COSE_Key, in hex. */
+const DATA_SIGNATURE = /^\{"signature":"84[0-9a-f]+","key":"a4[0-9a-f]+"\}$/u;
+const CIP30 = "CIP-30 signData (CIP-8 COSE_Sign1)";
 /** The message of TON's binary payload, in hex, and the same bytes with one more. */
 const BYTES = { message: "4f66666c696e65", tampered: "4f66666c696e6521" };
 
@@ -101,6 +104,8 @@ const VARIANTS = [
     "Hedera hedera_signMessage (HIP-820) · ECDSA",
     { output: SIGNATURE_MAP },
   ],
+  ["cardano", "cardano", /^addr1q/u, CIP30, { output: DATA_SIGNATURE }],
+  ["cardano", "cardano-ledger", /^addr1q/u, CIP30, { output: DATA_SIGNATURE }],
 ];
 
 /**
@@ -163,6 +168,39 @@ async function refusesOtherThanAscii(page) {
 }
 
 /**
+ * Cardano's stake key (role 2) signs for its reward address with its own key, though that address is
+ * no payment address; and a DataSignature with a byte after its COSE_Sign1 is refused as unreadable,
+ * not read as far as it goes.
+ */
+async function cardanoStakeKey(page, message) {
+  await page.locator("#coin").selectOption("cardano");
+  await page.locator('#protocol-tabs [data-adapter-id="cardano"]').click();
+  await page.locator("#branch-select").selectOption("2");
+  await page.locator("#derive-button").click();
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector("#address-list [data-sign-message]")
+        ?.dataset.signAddress?.startsWith("stake1u") === true,
+  );
+  const proof = await sign(page, "#address-list [data-sign-message]", message);
+  assert.match(proof.address, /^stake1u/u);
+  assert.match(proof.signature, DATA_SIGNATURE);
+  await new MessageVerificationRoundTripCase(page).run(message, proof.signature);
+  await page
+    .locator("#message-verification-signature")
+    .fill(proof.signature.replace('","key"', '00","key"'));
+  await page.locator("#verify-message-signature-button").click();
+  await page.locator("#message-verification-error").waitFor({ state: "visible" });
+  assert.equal(
+    await page.locator("#message-verification-error").innerText(),
+    "This signature is not in the selected format.",
+  );
+  await page.locator("#close-message-signer").click();
+  await page.locator("#branch-select").selectOption("0");
+}
+
+/**
  * The Telegram wallet's row, whose key comes from a TON phrase: pasting one selects its tab, and its
  * W5 address signs and verifies.
  */
@@ -208,7 +246,8 @@ export class MessageSigningCoinsCase {
       await page.locator("#close-message-signer").click();
       if (adapter === "bitcoin-cash") await bitcoinCashLegacy(page, message, proof.signature);
     }
+    await cardanoStakeKey(page, message);
     await telegramWallet(page, message);
-    return "Litecoin (three address types), Dogecoin, Bitcoin Cash (CashAddr and legacy, one signature), Zcash, Ethereum, Ethereum Classic, Tron, Solana (both formats), Stellar, NEAR, TON (text, binary, and the Telegram wallet's row), Cosmos, Injective (ADR-036 and EIP-191) and Hedera (Ed25519 and ECDSA, ASCII only) sign and verify their own signatures in the page";
+    return "Litecoin (three address types), Dogecoin, Bitcoin Cash (CashAddr and legacy, one signature), Zcash, Ethereum, Ethereum Classic, Tron, Solana (both formats), Stellar, NEAR, TON (text, binary, and the Telegram wallet's row), Cosmos, Injective (ADR-036 and EIP-191), Hedera (Ed25519 and ECDSA, ASCII only) and Cardano (Icarus and Ledger base addresses, and a stake key's reward address, with a non-canonical DataSignature refused) sign and verify their own signatures in the page";
   }
 }

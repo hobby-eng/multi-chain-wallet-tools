@@ -1,6 +1,6 @@
 import { bytesToHex, hexToBytes, secp256k1 } from "./crypto.js";
 import { DerivationSecrets, DerivationSecretsError } from "./secrets.js";
-import type { DerivationResult, ResultField } from "./types.js";
+import { isSigningAddressField, type DerivationResult, type ResultField } from "./types.js";
 
 /** The bytes of a signing key, a secp256k1 scalar or an Ed25519 seed. */
 const KEY_BYTES = 32;
@@ -13,8 +13,9 @@ export interface DerivedKeySource {
   /** The secret row field that holds the key. */
   readonly field: string;
   /**
-   * The key's 32 bytes, which the caller owns and wipes; it throws on any other text and wipes
-   * its own copies first.
+   * The bytes the coin's scheme signs with, which the caller owns and wipes: a 32-byte secp256k1
+   * scalar or Ed25519 seed, or Cardano's 64-byte extended key kL ‖ kR. It throws on any other text
+   * and wipes its own copies first.
    */
   read(this: void, text: string): Uint8Array;
 }
@@ -71,10 +72,7 @@ export class DerivedPrivateKey implements Disposable {
       const fields = row === undefined ? [] : [...row.basic, ...row.advanced];
       const bound = fields.some(
         (field) =>
-          field.key === addressKey &&
-          (field.key === "address" || field.role === "paymentAddress") &&
-          !field.secret &&
-          field.value === address,
+          field.key === addressKey && isSigningAddressField(field) && field.value === address,
       );
       if (!bound) throw new DerivationSecretsError("derivation.key.address");
       const privateField = fields.find((field) =>

@@ -14,6 +14,7 @@ import { TON_MESSAGE_SIGNING } from "@ckd/coins/ton/message-signing.js";
 import { COSMOS_MESSAGE_SIGNING } from "@ckd/coins/cosmos/message-signing.js";
 import { INJECTIVE_MESSAGE_SIGNING } from "@ckd/coins/injective/message-signing.js";
 import { HEDERA_MESSAGE_SIGNING } from "@ckd/coins/hedera/message-signing.js";
+import { CARDANO_MESSAGE_SIGNING } from "@ckd/coins/cardano/message-signing.js";
 import { mnemonicToSeed } from "@ckd/core/bip39.js";
 import { clearDerivationResult } from "@ckd/core/secrets.js";
 import { TEST_MNEMONIC } from "@ckd/test-support/helpers.js";
@@ -35,19 +36,20 @@ const signers = new MessageSigners([
   COSMOS_MESSAGE_SIGNING,
   INJECTIVE_MESSAGE_SIGNING,
   HEDERA_MESSAGE_SIGNING,
+  CARDANO_MESSAGE_SIGNING,
 ]);
-const input = () => ({
+const input = (branch = 0) => ({
   seed: mnemonicToSeed(TEST_MNEMONIC),
   network: "mainnet" as const,
   account: 0,
-  branch: 0,
+  branch,
   start: 0,
   count: 1,
 });
 
 /** The value of row 0's field `key` for an adapter, from the public test phrase. */
-async function rowValue(adapterId: string, key: string) {
-  const arranged = await getRuntimeCoinAdapter(adapterId).derive(input());
+async function rowValue(adapterId: string, key: string, branch = 0) {
+  const arranged = await getRuntimeCoinAdapter(adapterId).derive(input(branch));
   const row = arranged.rows[0]!;
   const value = [...row.basic, ...row.advanced].find((field) => field.key === key)!.value;
   clearDerivationResult(arranged);
@@ -150,6 +152,7 @@ it.each([
   ["SEP-53 on a Solana row", "solana", "stellar-sep53", "address"],
   ["Hedera's ECDSA format on its Ed25519 row", "hedera", "hedera-hip820-ecdsa", "address"],
   ["Injective's ADR-036 on a Cosmos row", "cosmos", "injective-adr036", "address"],
+  ["CIP-30 signData on a Solana row", "solana", "cardano-cip30", "address"],
 ])("refuses %s before deriving anything", async (_name, adapterId, format, addressKey) => {
   const { reply, derived } = await send(await signing(adapterId, format, addressKey));
   expect(reply).toMatchObject({ ok: false, errorCode: "NOT_FOR_ROW" });
@@ -191,6 +194,40 @@ it.each([
       network: "mainnet" as const,
       // Every request carries the row's public key, which only some standards read.
       inputs: { ...inputs, publicKey },
+    };
+    expect(await signers.verify(verification, reply.result.signature)).toBe(true);
+    expect(await signers.verify({ ...verification, message: "61" }, reply.result.signature)).toBe(
+      false,
+    );
+  },
+);
+
+// Cardano's Ledger rows read BIP39's seed, as this fixture gives it: a receive key's base and
+// enterprise addresses and a stake key's reward address (role 2), each signed with the row's own
+// signingKey and verified with its publicKeyHex.
+it.each([
+  ["address", 0],
+  ["enterpriseAddress", 0],
+  ["address", 2],
+] as const)(
+  "signs a Cardano Ledger row's %s (role %i) with the key of its signingKey field",
+  async (addressKey, branch) => {
+    const request = {
+      ...(await signing("cardano-ledger", "cardano-cip30", addressKey)),
+      input: input(branch),
+      address: await rowValue("cardano-ledger", addressKey, branch),
+    };
+    const { reply, derived } = await send(request);
+    expect(reply).toMatchObject({ ok: true, type: "sign-message", result: { verified: true } });
+    expect(derived).toEqual(["cardano-ledger"]);
+    if (reply === undefined || !("ok" in reply) || !reply.ok || reply.type !== "sign-message")
+      return;
+    const verification = {
+      format: "cardano-cip30",
+      address: request.address,
+      message: request.message,
+      network: "mainnet" as const,
+      inputs: { publicKeyHex: await rowValue("cardano-ledger", "publicKeyHex", branch) },
     };
     expect(await signers.verify(verification, reply.result.signature)).toBe(true);
     expect(await signers.verify({ ...verification, message: "61" }, reply.result.signature)).toBe(

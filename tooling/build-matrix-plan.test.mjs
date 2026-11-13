@@ -16,9 +16,10 @@ describe("exhaustive standalone build matrix", () => {
     // Ethereum, Ethereum Classic and Tron add 2,304 more: each alone now admits message-signing in
     // its 768 feature sets (147,505 before). Solana, Stellar, NEAR and TON add 3,072 the same way
     // (149,809 before), and Cosmos, Injective and Hedera 2,304 more (152,881 before). Cardano, a
-    // coin of the single-key table without message signing yet, adds itself alone in the Deriver's
-    // 768 feature sets (155,185 before); the sets of all the table's coins only gain its name.
-    expect(plan).toHaveLength(155953);
+    // coin of the single-key table, adds itself alone in the Deriver's 768 feature sets (155,185
+    // before), and its message signing 768 more, message-signing with Cardano alone (155,953
+    // before); the sets of all the table's coins only gain its name.
+    expect(plan).toHaveLength(156721);
     expect(new Set(plan.map(({ relativePath }) => relativePath)).size).toBe(plan.length);
   });
 

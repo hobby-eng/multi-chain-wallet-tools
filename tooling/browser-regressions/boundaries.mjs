@@ -35,6 +35,7 @@ async function selfTests(context, profile, run) {
     "Cosmos ADR-036",
     "Injective ADR-036 and EIP-191",
     "Hedera HIP-820",
+    "Cardano CIP-30 signData",
   ]) {
     const check = new RegExp(`${name} message signature`, "u");
     if (profile.id === "multi-chain") assert.match(startupChecks, check);

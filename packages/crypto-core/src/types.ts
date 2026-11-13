@@ -96,6 +96,16 @@ export function field(
     : { key, label, value, secret, description };
 }
 
+/**
+ * Whether a row's field names an address that the row's key may sign for: a public field that is
+ * the row's address, whatever its role (a Cardano stake key's reward address), or another public
+ * payment-address form of it. The page offers signing on such fields only (results.ts), and
+ * DerivedPrivateKey binds a key to one of them.
+ */
+export function isSigningAddressField(field: ResultField): boolean {
+  return (field.key === "address" || field.role === "paymentAddress") && !field.secret;
+}
+
 export function paymentAddressField(
   key: string,
   label: string,

@@ -1,13 +1,15 @@
 """Independent reimplementation (standard library only) of Cardano's keys and addresses, to check the
 Deriver's TypeScript: BIP39 entropy, CIP-3's Icarus, Icarus-Trezor and Ledger roots, BIP32-Ed25519
-(Khovratovich and Law, the "V2" children of cardano-serialization-lib and Trezor), CIP-19 addresses
-and CIP-5 bech32 texts. It first reproduces published vectors (CIP-3, CIP-11, CIP-19,
-cardano-serialization-lib, cardano-addresses, Trezor's fixtures, BIP85's 12-word child), then checks
-the inputs and the own values that the Deriver's Cardano self-test, unit tests and browser case hold
-(packages/verification/src/derivation-self-test-cardano.ts, packages/coin-protocols/tests/
-cardano.test.ts, tooling/browser-cases/cardano.mjs); BIP85's BIP39 application uses bip32_oracle.py's
-BIP32 derivation. The English BIP39 word list is the installed @scure/bip39 one, refused unless its
-SHA-256 is that of BIP39's english.txt. Run from this folder."""
+(Khovratovich and Law, the "V2" children of cardano-serialization-lib and Trezor), CIP-19 addresses,
+CIP-5 bech32 texts and CIP-8's signatures in deterministic CBOR. It first reproduces published
+vectors (CIP-3, CIP-11, CIP-19, cardano-serialization-lib, cardano-addresses, Trezor's fixtures,
+BIP85's 12-word child, and the CIP-8 signatures of cardano-signer and Trezor, byte for byte), then
+checks the inputs and the own values that the Deriver's Cardano self-tests, unit tests and browser
+case hold (packages/verification/src/derivation-self-test-cardano.ts,
+apps/key-derivation/src/workers/message-signer-self-test-cardano.ts,
+packages/coin-protocols/tests/cardano*.test.ts, tooling/browser-cases/cardano.mjs); BIP85's BIP39
+application uses bip32_oracle.py's BIP32 derivation. The English BIP39 word list is the installed
+@scure/bip39 one, refused unless its SHA-256 is that of BIP39's english.txt. Run from this folder."""
 import hashlib
 import hmac
 import re
@@ -70,11 +72,23 @@ def ledger_root(seed):
     return root_bits(i[:32]) + i[32:] + chain
 
 
-def public(kl):
-    x, y, z, _ = _mul(int.from_bytes(kl, "little") % L, G)
+def point_bytes(scalar):
+    x, y, z, _ = _mul(scalar % L, G)
     inverse = pow(z, P - 2, P)
     x, y = x * inverse % P, y * inverse % P
     return (y | ((x & 1) << 255)).to_bytes(32, "little")
+
+
+def public(kl):
+    return point_bytes(int.from_bytes(kl, "little"))
+
+
+def sign(kl, kr, message):
+    """Ed25519 by an extended key (the paper's §III.B): r = SHA-512(kR ‖ M), S = r + SHA-512(R ‖ A ‖ M) · kL."""
+    r = int.from_bytes(hashlib.sha512(kr + message).digest(), "little") % L
+    commitment = point_bytes(r)
+    x = int.from_bytes(hashlib.sha512(commitment + public(kl) + message).digest(), "little") % L
+    return commitment + ((r + x * int.from_bytes(kl, "little")) % L).to_bytes(32, "little")
 
 
 def child(key, index):
@@ -246,7 +260,97 @@ def child_wallet():
     check("Its Ledger m/1852'/1815'/0'/0/0", address(ledger_root(bip39_seed(child)), 0, 0, 0), "addr1qyrsgsdts7tgf5xsrfuq2u3anyq2wtwehtkyd58qy44vh6kgca7ldrtxc4lrlltnmwv04cn5a8j86qzaqvcsfjz9ccssdum093")
 
 
+def cbor(value):
+    """RFC 8949's deterministic encoding of the values CIP-8 uses: integers, bytes, text, arrays,
+    maps (keys sorted by their encodings) and booleans."""
+    def head(major, n):
+        if n < 24:
+            return bytes([major << 5 | n])
+        for info, size in ((24, 1), (25, 2), (26, 4), (27, 8)):
+            if n < 1 << 8 * size:
+                return bytes([major << 5 | info]) + n.to_bytes(size, "big")
+        raise ValueError(n)
+    if value is False or value is True:
+        return b"\xf5" if value else b"\xf4"
+    if isinstance(value, int):
+        return head(0, value) if value >= 0 else head(1, -1 - value)
+    if isinstance(value, bytes):
+        return head(2, len(value)) + value
+    if isinstance(value, str):
+        return head(3, len(value.encode())) + value.encode()
+    if isinstance(value, list):
+        return head(4, len(value)) + b"".join(cbor(item) for item in value)
+    items = sorted((cbor(key), cbor(item)) for key, item in value.items())
+    return head(5, len(items)) + b"".join(key + item for key, item in items)
+
+
+def cip8(kl, kr, address, payload):
+    """CIP-30 signData's COSE_Sign1 and COSE_Key (CIP-8) of `payload` for `address`, and the signature."""
+    protected = cbor({1: -8, "address": address})
+    signature = sign(kl, kr, cbor(["Signature1", protected, b"", payload]))
+    sign1 = cbor([protected, {"hashed": False}, payload, signature])
+    return sign1, cbor({1: 1, 3: -8, -1: 6, -2: public(kl)}), signature
+
+
+def data_signature(kl, kr, address, message):
+    """The DataSignature that the Deriver writes: CIP-30's object, its members in hex."""
+    sign1, key, _ = cip8(kl, kr, address, message)
+    return '{"signature":"%s","key":"%s"}' % (sign1.hex(), key.hex())
+
+
+def message_signing():
+    # gitmachtl/cardano-signer @3cc4a74 README.md "Hello world": a plain Ed25519 key; RFC 8032's
+    # expansion of it (kL clamped, kR) is the extended key that signs, the input of the worker's
+    # startup answer.
+    digest = hashlib.sha512(bytes.fromhex("16275bd6647f94a53e9fe1c71439a258a03c13cadf32935ed5388972ebd7e53f")).digest()
+    kl = bytearray(digest[:32])
+    kl[0] &= 0b1111_1000
+    kl[31] = (kl[31] & 0b0111_1111) | 0b0100_0000
+    kl, kr = bytes(kl), digest[32:]
+    signer_address = bytes.fromhex("617863b5c43bdf0a06608abc82f0573a549714ff69166074dcdde393d8")
+    check("cardano-signer public key", public(kl).hex(), "755b017578b701dc9ddd4eaee67015b4ca8baf66293b7b1d204df426c0ceccb9")
+    check("cardano-signer address is the key's", key_hash(public(kl)), signer_address[1:])
+    check("cardano-signer Sig_structure", cbor(["Signature1", cbor({1: -8, "address": signer_address}), b"", b"Hello world"]).hex(), "846a5369676e617475726531582aa201276761646472657373581d617863b5c43bdf0a06608abc82f0573a549714ff69166074dcdde393d8404b48656c6c6f20776f726c64")
+    sign1, key, _ = cip8(kl, kr, signer_address, b"Hello world")
+    check("cardano-signer COSE_Sign1", sign1.hex(), "84582aa201276761646472657373581d617863b5c43bdf0a06608abc82f0573a549714ff69166074dcdde393d8a166686173686564f44b48656c6c6f20776f726c645840fc58155f0cee05bc00e7299af1df1f159ac82a46a055786b259657934eff346eec81349d4678ceabc79f213c66a2bdbfd4ea5d9ebdc630bee5ac9cce75cfc001")
+    check("cardano-signer COSE_Key", key.hex(), "a4010103272006215820755b017578b701dc9ddd4eaee67015b4ca8baf66293b7b1d204df426c0ceccb9")
+    check("cardano-signer key as kL ‖ kR", (kl + kr).hex(), "6844e21291a90fcd57b8472a707fea2758e315411fe809ac17a4c3b12476944a1ff5a381b976d133e6d16f7d834695a523a76ddb3153bb51c4e6e620db67fb1f")
+    check("cardano-signer address", bech32("addr", signer_address), "addr1v9ux8dwy800s5pnq327g9uzh8f2fw98ldytxqaxumh3e8kqumfr6d")
+    # trezor-firmware @433075c common/tests/fixtures/cardano/sign_message.json: the key of
+    # m/1852'/1815'/4'/0/0 of "all ... all" signs "ff00" for account 0's base address, and "Test"
+    # with its own key hash in the header.
+    trezor = derive(icarus_root(entropy_of(" ".join(["all"] * 12))), "m/1852'/1815'/4'/0/0")
+    check("Trezor sign_message public key", public(trezor[:32]).hex(), "67e3d14e1e0db2a6ff68832994451f63d3e92a4ee85c3681d72634ccfe889f2c")
+    check("Trezor sign_message for an address", cip8(trezor[:32], trezor[32:64], bytes.fromhex("0180f9e2c88e6c817008f3a812ed889b4a4da8e0bd103f86e7335422aa122a946b9ad3d2ddf029d3a828f0468aece76895f15c9efbd69b4277"), bytes.fromhex("ff00"))[2].hex(), "9efaff0b74c0beb2cadd727d8bafe13b31107235c5fc46c6c33e596e024d391c9fbe37072e43965add6ee0a4788562382031486b74fd59d636aa1ca3b1ddfe06")
+    check("Trezor sign_message for a key hash", cip8(trezor[:32], trezor[32:64], key_hash(public(trezor[:32])), b"Test")[2].hex(), "2201b8e7fa9ea919935e06ecc3e845433855066acaaf61cb8e624a2eb7139b73a9d126e7ee04548fff06ac933bd5419fc78c5aebee9b536cbee1481b52ec3e03")
+    # The own values of the unit tests and the full self-test: the self-test message signed by
+    # "abandon ... about"'s Icarus receive key 0 for its base address, and by its stake key for its
+    # reward address.
+    about = icarus_root(entropy_of("abandon " * 11 + "about"))
+    message = b"Offline message signing self-test"
+    for name, path, role, public_key, answer in [
+        ("base", "m/1852'/1815'/0'/0/0", 0, "7ea09a34aebb13c9841c71397b1cabfec5ddf950405293dee496cac2f437480a", '{"signature":"845846a2012767616464726573735839010fdc780023d8be7c9ff3a6bdc0d8d3b263bd0cc12448c40948efbf42e557890352095f1cf6fd2b7d1a28e3c3cb029f48cf34ff890a28d176a166686173686564f458214f66666c696e65206d657373616765207369676e696e672073656c662d7465737458401e9079ca1f27e29008c5616764a82e02efeb03765c2df7258a59672d22987f2bfe2348a6753fedcdc1fe36b7722b219e4e2e067dd86af075945bbeb0af53c607","key":"a40101032720062158207ea09a34aebb13c9841c71397b1cabfec5ddf950405293dee496cac2f437480a"}'),
+        ("reward", "m/1852'/1815'/0'/2/0", 2, "012f5dc3115b8a07981e6e50f5a671e2c6fbb26c3ffde1cd1dcaf40a7fe8f160", '{"signature":"84582aa201276761646472657373581de1e557890352095f1cf6fd2b7d1a28e3c3cb029f48cf34ff890a28d176a166686173686564f458214f66666c696e65206d657373616765207369676e696e672073656c662d746573745840dce6f448d1f69cbc7b4aac5e169d3068a509a4b72c6ea99c01880479d6bd6ee8136826199a2ca4ec0155971844871eaf6405c04f03bdb108d57af3eec8181002","key":"a4010103272006215820012f5dc3115b8a07981e6e50f5a671e2c6fbb26c3ffde1cd1dcaf40a7fe8f160"}'),
+    ]:
+        key = derive(about, path)
+        check(f"own {name} key", public(key[:32]).hex(), public_key)
+        check(f"own {name} DataSignature", data_signature(key[:32], key[32:64], unbech32(address(about, 0, role, 0)), message), answer)
+    # The stake key's signature for the base address, which names it as the base address does but is
+    # no signature of the base address's payment key: the verifier must refuse it.
+    stake = derive(about, "m/1852'/1815'/0'/2/0")
+    base_address = unbech32(address(about, 0, 0, 0))
+    check("own stake key's COSE_Sign1 for the base address", cip8(stake[:32], stake[32:64], base_address, message)[0].hex(), "845846a2012767616464726573735839010fdc780023d8be7c9ff3a6bdc0d8d3b263bd0cc12448c40948efbf42e557890352095f1cf6fd2b7d1a28e3c3cb029f48cf34ff890a28d176a166686173686564f458214f66666c696e65206d657373616765207369676e696e672073656c662d74657374584011a9600c20f2feeb2a2dad910cf1c5faa19ae6a5e4f61b56f16d95d49f4196fa841f757c94f76a7ed20dd582408e012c434bf5981e9df604c54161976d2ed100")
+    # Lace's shape (cardano-js-sdk through emurgo's message-signing): the address also as the key id,
+    # 4 in the protected header and 2 in the COSE_Key, which the Deriver reads but never writes.
+    pay = derive(about, "m/1852'/1815'/0'/0/0")
+    protected = cbor({1: -8, 4: base_address, "address": base_address})
+    signature = sign(pay[:32], pay[32:64], cbor(["Signature1", protected, b"", message]))
+    check("own Lace-shaped COSE_Sign1", cbor([protected, {"hashed": False}, message, signature]).hex(), "845882a30127045839010fdc780023d8be7c9ff3a6bdc0d8d3b263bd0cc12448c40948efbf42e557890352095f1cf6fd2b7d1a28e3c3cb029f48cf34ff890a28d17667616464726573735839010fdc780023d8be7c9ff3a6bdc0d8d3b263bd0cc12448c40948efbf42e557890352095f1cf6fd2b7d1a28e3c3cb029f48cf34ff890a28d176a166686173686564f458214f66666c696e65206d657373616765207369676e696e672073656c662d746573745840fd34eee083f107a3f39791bfe62609cc45efb7e2083e0dd6fef00ca78d03ca9e257edb6f924aed6ace1323262c64c91cd921c4760550f05669821770de33220e")
+    check("own Lace-shaped COSE_Key", cbor({1: 1, 2: base_address, 3: -8, -1: 6, -2: public(pay[:32])}).hex(), "a50101025839010fdc780023d8be7c9ff3a6bdc0d8d3b263bd0cc12448c40948efbf42e557890352095f1cf6fd2b7d1a28e3c3cb029f48cf34ff890a28d176032720062158207ea09a34aebb13c9841c71397b1cabfec5ddf950405293dee496cac2f437480a")
+
+
 if __name__ == "__main__":
     published()
     deriver()
     child_wallet()
+    message_signing()

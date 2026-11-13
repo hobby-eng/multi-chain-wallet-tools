@@ -12,6 +12,7 @@ import { bytesToHex, concatBytes, hexToBytes } from "@ckd/core/crypto.js";
 import {
   BIP32_ED25519_MAX_DEPTH,
   Bip32Ed25519Key,
+  Bip32Ed25519Signer,
   type Bip32Ed25519Level,
 } from "../src/bip32-ed25519.js";
 
@@ -444,7 +445,9 @@ describe("signatures with an extended key", () => {
       const key = keyAt("all all all all all all all all all all all all", "icarus", path);
       try {
         const message = sigStructure(hexToBytes(address), hexToBytes(payload));
-        const signed = key.sign(message);
+        const signer = key.signer();
+        const signed = signer.sign(message);
+        signer.wipe();
         expect(bytesToHex(key.publicKey())).toBe(publicKey);
         expect(bytesToHex(signed)).toBe(signature);
         expect(ed25519.verify(signed, message, key.publicKey(), { zip215: false })).toBe(true);
@@ -570,5 +573,56 @@ describe("refusals, limits and lifetime", () => {
       key.wipe();
       copy.fill(0);
     }
+  });
+});
+
+describe("a signer of a stored extended key", () => {
+  const MESSAGE = new TextEncoder().encode("Offline message signing self-test");
+  const extendedKey = (): Uint8Array => {
+    const key = keyAt(`${"abandon ".repeat(11)}about`, "icarus", "m/1852'/1815'/0'/0/0");
+    try {
+      return key.privateKey();
+    } finally {
+      key.wipe();
+    }
+  };
+
+  it("signs as the derived key does, from a copy of kL ‖ kR", () => {
+    const key = keyAt(`${"abandon ".repeat(11)}about`, "icarus", "m/1852'/1815'/0'/0/0");
+    const stored = key.privateKey();
+    const signer = Bip32Ed25519Signer.fromExtendedKey(stored);
+    stored.fill(0);
+    try {
+      expect(signer.publicKey()).toEqual(key.publicKey());
+      const own = key.signer();
+      expect(signer.sign(MESSAGE)).toEqual(own.sign(MESSAGE));
+      own.wipe();
+    } finally {
+      signer.wipe();
+      key.wipe();
+    }
+  });
+
+  it("refuses what rust-ed25519-bip32's from_bytes_verified refuses, and nothing else", () => {
+    const change = (at: number, apply: (byte: number) => number): Uint8Array => {
+      const key = extendedKey();
+      key[at] = apply(key[at] ?? 0);
+      return key;
+    };
+    for (const refused of [
+      extendedKey().slice(1),
+      Uint8Array.of(...extendedKey(), 0),
+      change(0, (byte) => byte | 0b0000_0001),
+      change(0, (byte) => byte | 0b0000_0100),
+      change(31, (byte) => byte & 0b0011_1111),
+      change(31, (byte) => byte | 0b1100_0000),
+      change(31, (byte) => (byte & 0b0011_1111) | 0b1000_0000),
+    ])
+      expect(() => Bip32Ed25519Signer.fromExtendedKey(refused)).toThrow(
+        expect.objectContaining({ code: "cardano.key.extended" }),
+      );
+    // The third highest bit, which a derived key may have set, is not checked here.
+    const third = change(31, (byte) => byte | 0b0010_0000);
+    expect(() => Bip32Ed25519Signer.fromExtendedKey(third).wipe()).not.toThrow();
   });
 });

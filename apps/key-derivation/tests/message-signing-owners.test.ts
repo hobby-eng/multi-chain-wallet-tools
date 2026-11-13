@@ -17,6 +17,7 @@ import { TON_MESSAGE_SIGNING } from "@ckd/coins/ton/message-signing.js";
 import { COSMOS_MESSAGE_SIGNING } from "@ckd/coins/cosmos/message-signing.js";
 import { INJECTIVE_MESSAGE_SIGNING } from "@ckd/coins/injective/message-signing.js";
 import { HEDERA_MESSAGE_SIGNING } from "@ckd/coins/hedera/message-signing.js";
+import { CARDANO_MESSAGE_SIGNING } from "@ckd/coins/cardano/message-signing.js";
 import { combineMessageSigningPolicies } from "../src/ui/message-signing-policy.js";
 import { BITCOIN_MESSAGE_SIGNING_POLICY } from "../src/ui/message-signing-policy-bitcoin.js";
 import { DASH_MESSAGE_SIGNING_POLICY } from "../src/ui/message-signing-policy-dash.js";
@@ -34,6 +35,7 @@ import { TON_MESSAGE_SIGNING_POLICY } from "../src/ui/message-signing-policy-ton
 import { COSMOS_MESSAGE_SIGNING_POLICY } from "../src/ui/message-signing-policy-cosmos.js";
 import { INJECTIVE_MESSAGE_SIGNING_POLICY } from "../src/ui/message-signing-policy-injective.js";
 import { HEDERA_MESSAGE_SIGNING_POLICY } from "../src/ui/message-signing-policy-hedera.js";
+import { CARDANO_MESSAGE_SIGNING_POLICY } from "../src/ui/message-signing-policy-cardano.js";
 
 const coins = [
   BITCOIN_MESSAGE_SIGNING,
@@ -52,6 +54,7 @@ const coins = [
   COSMOS_MESSAGE_SIGNING,
   INJECTIVE_MESSAGE_SIGNING,
   HEDERA_MESSAGE_SIGNING,
+  CARDANO_MESSAGE_SIGNING,
 ];
 const signers = new MessageSigners(coins);
 const policies = combineMessageSigningPolicies(
@@ -71,9 +74,11 @@ const policies = combineMessageSigningPolicies(
   COSMOS_MESSAGE_SIGNING_POLICY,
   INJECTIVE_MESSAGE_SIGNING_POLICY,
   HEDERA_MESSAGE_SIGNING_POLICY,
+  CARDANO_MESSAGE_SIGNING_POLICY,
 );
 const FIELDS = [
   "address",
+  "enterpriseAddress",
   "legacyAddress",
   "oldP2shAddress",
   "addressW5",
@@ -100,11 +105,11 @@ describe("the worker admits every format that the page offers, for the row that 
           if (adapterId !== "dash-core-coinjoin") expect(offered(adapterId)).toContain(format);
   });
 
-  it("offers signing on an address of every coin but XRP, which has no common standard, and Cardano, whose CIP-8 signing is not offered yet", () => {
+  it("offers signing on an address of every coin but XRP, which has no common standard", () => {
     const unsigned = COIN_FAMILIES.filter(
       (family) => !family.adapters.some((adapter) => offered(adapter.id).size > 0),
     ).map((family) => family.id);
-    expect(unsigned).toEqual(["cardano", "xrp"]);
+    expect(unsigned).toEqual(["xrp"]);
   });
 
   it("admits Dash's CoinJoin rows, whose worker adapter is their own", () => {
@@ -122,6 +127,7 @@ describe("the worker admits every format that the page offers, for the row that 
     expect(signers.admit("injective-eip191", "injective")?.field).toBe("privateKey");
     expect(signers.admit("hedera-hip820-ed25519", "hedera")?.field).toBe("privateKeyHex");
     expect(signers.admit("hedera-hip820-ecdsa", "hedera-ecdsa")?.field).toBe("privateKey");
+    expect(signers.admit("cardano-cip30", "cardano-ledger")?.field).toBe("signingKey");
     expect(signers.admit("litecoin-compact-legacy", "litecoin-legacy")).toBeUndefined();
   });
 
@@ -140,6 +146,8 @@ describe("the worker admits every format that the page offers, for the row that 
     ["hedera-hip820-ed25519", "hedera-ecdsa"],
     ["hedera-hip820-ecdsa", "hedera"],
     ["hedera-hip820-ecdsa", "ethereum"],
+    ["cardano-cip30", "solana"],
+    ["ton-sign-data-text", "cardano"],
   ])("refuses %s on a %s row, whose address type or coin does not sign it", (format, adapterId) => {
     expect(() => signers.admit(format, adapterId)).toThrow(
       expect.objectContaining({ code: "NOT_FOR_ROW" }),

@@ -50,7 +50,8 @@ export type MessageSigningFormat =
   | "injective-adr036"
   | "injective-eip191"
   | "hedera-hip820-ed25519"
-  | "hedera-hip820-ecdsa";
+  | "hedera-hip820-ecdsa"
+  | "cardano-cip30";
 
 export type WorkerRequest =
   | { id: number; type: "derive"; adapterId: string; input: CoinDerivationInput }
