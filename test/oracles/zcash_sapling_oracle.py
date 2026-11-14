@@ -11,7 +11,7 @@ its phrase. Then it checks the own values that the Deriver holds: the BIP39 seed
 (apps/key-derivation/src/workers/zcash-sapling-key-self-test.ts), and the rows and summary of the
 "abandon … about" phrase (packages/coin-protocols/tests/zcash-sapling.test.ts; its first address also
 in packages/verification/src/derivation-self-test-zcash.ts, its spending key in the worker's full
-self-test). Run from this folder."""
+self-test), and the Wallet Matcher's own values of that phrase (matcher()). Run from this folder."""
 import base64
 import hashlib
 import hmac
@@ -426,6 +426,34 @@ ANDROID_PHRASE = "deputy visa gentle among clean scout farm drive comfort patch 
 ANDROID_SEED = "6ef5f84def6f4b9d38f466586a8380a38593bd47c8cda77f091856176da47f26b5bd1c8d097486e5635df5a66e820d28e1d73346f499801c86228d43f390304f"
 ANDROID_UA = "u1t23erzgkn7c6c2jn66rspl4m45lg8rn3f7mn7le4yxk7693wr7sgx472jn95s00x8kx3hct5ej4tf76k59dfhsd809t7mzt9ldzw8f5083fw4xqvxfshl9u7ed2wyv6ypmzny0px0nvszslr5kr7fgk2zgfnlycddzqak4adsqjdzp76y7fl0k4ygamjr43t6rpxsf6xql8g20rdk0h"
 
+def matcher():
+    """The Wallet Matcher's own values (packages/wallet-recovery/tests/zcash-matcher.test.ts, and the
+    forged address in the worker's full self-test), of "abandon … about"'s account 0: its address at
+    the last index a row has, j = 2^31 - 1, its first address past it, and a forged address of its
+    diversifier at j = 7 with the transmission key that the Android SDK phrase's ivk gives it."""
+    seed = bip39_seed("abandon " * 11 + "about")
+    key = derive(seed, [32, 133, 0])
+    check("own address at j = 2^31 - 1", bech32("zs", address(key, 2**31 - 1)), MATCHER_OWN["last"])
+    j = 2**31
+    while address(key, j) is None:
+        j += 1
+    check("own first index from 2^31 with an address", j, MATCHER_OWN["beyondIndex"])
+    check("own address at that index", bech32("zs", address(key, j)), MATCHER_OWN["beyond"])
+    d = address(key, 7)[:11]
+    android = derive(bytes.fromhex(ANDROID_SEED), [32, 133, 0])
+    ivk = components(android["ask"], android["nsk"], android["ovk"])[2]
+    forged = d + encode(times(ivk, group_hash(b"Zcash_gd", d)))
+    check("own forged address (j = 7's d, the Android ivk's pk_d)", bech32("zs", forged), MATCHER_OWN["forged"])
+
+
+# The Wallet Matcher's own values of zcash-matcher.test.ts and the worker's full self-test.
+MATCHER_OWN = {
+    "last": "zs198j9j768r6fzetaak6f824ww0a8qctjdfuepdnqdycuuqawgsgsvl2rpr9v67p502u62glumvrn",
+    "beyondIndex": 2**31,
+    "beyond": "zs1wqzggcepa7zfvjn2hjdnkzzlftd6548kmgqsjhfxzvnsrzlp6w8ykfvlt4qz5qh27rj6kttfl6s",
+    "forged": "zs1yjx25acnu8kzlhg2t63evmvess8l4g2565nl6g550ktp3pqa79ycgzu8ecydflluuw5vz5hczlh",
+}
+
 # The own values of zcash-sapling.test.ts: rows j = 0 to 3 (None: no Sapling address) and the summary.
 OWN_ROWS = {
     0: {
@@ -462,3 +490,4 @@ OWN_SUMMARY = {
 if __name__ == "__main__":
     published()
     own()
+    matcher()

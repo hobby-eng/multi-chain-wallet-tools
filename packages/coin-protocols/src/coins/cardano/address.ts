@@ -79,7 +79,13 @@ interface MainnetAddress {
  * valid bech32 and is read.
  */
 function mainnetAddress(text: string): MainnetAddress | undefined {
-  if (text.length > MAX_ADDRESS_CHARACTERS) return undefined;
+  // Only a text of Cardano's prefixes is decoded: the Wallet Matcher asks every coin of each line.
+  const lower = text.toLowerCase();
+  if (
+    text.length > MAX_ADDRESS_CHARACTERS ||
+    !Object.values<string>(ADDRESS_PREFIX).some((prefix) => lower.startsWith(`${prefix}1`))
+  )
+    return undefined;
   let decoded: { readonly prefix: string; readonly bytes: Uint8Array };
   try {
     decoded = bech32.decodeToBytes(text, MAX_ADDRESS_CHARACTERS);

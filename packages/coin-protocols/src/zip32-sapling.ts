@@ -14,7 +14,7 @@
 // checks the Sapling items of ZIP-316's unified encodings (coins/zcash/unified.ts).
 import type { EdwardsPoint } from "@noble/curves/abstract/edwards.js";
 import { jubjub, jubjub_findGroupHash, jubjub_groupHash } from "@noble/curves/misc.js";
-import { bytesToNumberLE, numberToBytesLE } from "@noble/curves/utils.js";
+import { bytesToNumberLE, equalBytes, numberToBytesLE } from "@noble/curves/utils.js";
 import { BinaryFF1 } from "@noble/ciphers/ff1.js";
 import { blake2b, blake2s } from "@noble/hashes/blake2.js";
 import { assertIndex, BIP32_HARDENED_OFFSET, MAX_BIP32_DEPTH } from "@ckd/core/bip32-limits.js";
@@ -24,9 +24,9 @@ import { ErrorCatalog } from "@ckd/core/error-catalog.js";
 /** The bytes of a scalar's and a point's encoding, of ovk, dk and a chain code. */
 const PART_BYTES = 32;
 /** A diversifier: 88 bits (ZIP-32 "Sapling diversifier derivation"). */
-const DIVERSIFIER_BYTES = 11;
+export const SAPLING_DIVERSIFIER_BYTES = 11;
 /** A raw payment address, d ‖ pk_d ("Sapling Payment Addresses"). */
-const ADDRESS_BYTES = DIVERSIFIER_BYTES + PART_BYTES;
+export const SAPLING_ADDRESS_BYTES = SAPLING_DIVERSIFIER_BYTES + PART_BYTES;
 /** ZIP-316's Sapling FVK Encoding, ak ‖ nk ‖ ovk ‖ dk, and its IVK Encoding, dk ‖ ivk. */
 const FULL_VIEWING_KEY_ENCODING_BYTES = 4 * PART_BYTES;
 const INCOMING_VIEWING_KEY_ENCODING_BYTES = 2 * PART_BYTES;
@@ -106,7 +106,7 @@ const ERRORS = new ErrorCatalog("sapling.key", {
   diversifier: {
     kind: "range",
     text: () =>
-      `A Sapling diversifier has ${DIVERSIFIER_BYTES} bytes that hash to a point of Jubjub's prime-order subgroup.`,
+      `A Sapling diversifier has ${SAPLING_DIVERSIFIER_BYTES} bytes that hash to a point of Jubjub's prime-order subgroup.`,
   },
   wiped: () => "This Sapling key has been wiped.",
 });
@@ -212,12 +212,12 @@ function primeOrderPoint(encoding: Uint8Array): EdwardsPoint | null {
  * requires (zcash/sapling-crypto @793e090 src/address.rs L58-72).
  */
 export function isSaplingAddressEncoding(bytes: Uint8Array): boolean {
-  if (bytes.length !== ADDRESS_BYTES) return false;
-  const transmissionKey = primeOrderPoint(bytes.subarray(DIVERSIFIER_BYTES));
+  if (bytes.length !== SAPLING_ADDRESS_BYTES) return false;
+  const transmissionKey = primeOrderPoint(bytes.subarray(SAPLING_DIVERSIFIER_BYTES));
   return (
     transmissionKey !== null &&
     !transmissionKey.is0() &&
-    diversifyHash(bytes.subarray(0, DIVERSIFIER_BYTES)) !== null
+    diversifyHash(bytes.subarray(0, SAPLING_DIVERSIFIER_BYTES)) !== null
   );
 }
 
@@ -363,7 +363,8 @@ export class SaplingExpandedSpendingKey implements Disposable {
    */
   transmissionKey(diversifier: Uint8Array): Uint8Array {
     this.#assertLive();
-    const base = diversifier.length === DIVERSIFIER_BYTES ? diversifyHash(diversifier) : null;
+    const base =
+      diversifier.length === SAPLING_DIVERSIFIER_BYTES ? diversifyHash(diversifier) : null;
     if (base === null) throw ERRORS.create("diversifier", []);
     return transmissionKeyOf(this.#ivk, base);
   }
@@ -645,7 +646,9 @@ export class SaplingExtendedSpendingKey implements Disposable {
     this.#assertLive();
     assertDiversifierIndex(index);
     // FF1's binary alphabet reads each byte least-significant bit first, which is I2LEBSP_88.
-    const diversifier = BinaryFF1(this.#dk).encrypt(numberToBytesLE(index, DIVERSIFIER_BYTES));
+    const diversifier = BinaryFF1(this.#dk).encrypt(
+      numberToBytesLE(index, SAPLING_DIVERSIFIER_BYTES),
+    );
     const base = diversifyHash(diversifier);
     if (base === null) return null;
     const ivk = this.#key.incomingViewingKey();
@@ -673,6 +676,44 @@ export class SaplingExtendedSpendingKey implements Disposable {
       if (address !== null) return address;
     }
     return null;
+  }
+
+  /**
+   * The diversifier index j of the diversifier `diversifier` under this key: FF1-AES256.Decrypt(dk,
+   * d) read back as I2LEBSP_88, the inverse of addressAt's encryption, so that d is the
+   * diversifier of index j whichever key made it. Refuses (sapling.key.diversifier) a diversifier
+   * that is not 11 bytes or does not hash to a point, which no address has.
+   */
+  diversifierIndexOf(diversifier: Uint8Array): bigint {
+    this.#assertLive();
+    if (diversifier.length !== SAPLING_DIVERSIFIER_BYTES || diversifyHash(diversifier) === null)
+      throw ERRORS.create("diversifier", []);
+    const index = BinaryFF1(this.#dk).decrypt(diversifier);
+    try {
+      return bytesToNumberLE(index);
+    } finally {
+      wipe(index);
+    }
+  }
+
+  /**
+   * Whether this key's incoming viewing key owns the raw payment address `address`, d ‖ pk_d (43
+   * bytes): pk_d = [ivk] DiversifyHash(d) ("Sapling Key Components"). It finds an address at any
+   * diversifier index without deriving the indexes before it; diversifierIndexOf(d) then gives its
+   * j. Refuses (sapling.key.diversifier) an address that is not 43 bytes or whose diversifier does
+   * not hash to a point.
+   */
+  ownsAddress(address: Uint8Array): boolean {
+    this.#assertLive();
+    if (address.length !== SAPLING_ADDRESS_BYTES) throw ERRORS.create("diversifier", []);
+    const transmissionKey = this.#key.transmissionKey(
+      address.subarray(0, SAPLING_DIVERSIFIER_BYTES),
+    );
+    try {
+      return equalBytes(transmissionKey, address.subarray(SAPLING_DIVERSIFIER_BYTES));
+    } finally {
+      wipe(transmissionKey);
+    }
   }
 
   /**

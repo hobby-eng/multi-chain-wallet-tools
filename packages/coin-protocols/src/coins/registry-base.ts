@@ -129,6 +129,12 @@ export interface CoinAdapter {
   batchSize?: number;
   defaults: { network: NetworkName; account: number; branch: number; start: number; count: number };
   fieldRoles: CoinFieldRoles;
+  /**
+   * The summary fields that hold the account's keys, for a variant whose rows hold no key of their
+   * own (Zcash Sapling): the Wallet Matcher's reveal of one of its rows shows them. Every other
+   * variant's reveal reads the row alone, and refuses a row without a key.
+   */
+  accountKeyFields?: readonly string[];
   /** Optional protocol-specific equality (for example EVM hexadecimal address case). */
   addressesEqual?(derived: string, expected: string): boolean;
   pathPreview(input: Omit<CoinDerivationInput, "seed">): string;

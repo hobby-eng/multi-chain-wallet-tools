@@ -3,7 +3,7 @@ import { BIP32_MAINNET_VERSIONS } from "@ckd/core/networks.js";
 import { bip44CoinDerivation, type Bip44CoinKeys } from "../bip44-coin.js";
 import { p2pkhScript, utxoAddressDetails } from "../../utxo-address.js";
 import { ZCASH_ADDRESS, ZCASH_PROFILES } from "./profiles.js";
-import { zcashSaplingDerivation } from "./sapling.js";
+import { zcashSaplingDerivation, zcashSaplingOwnership } from "./sapling.js";
 import { zcashTransparentAddress } from "./transparent.js";
 
 /** Zcash's key and address encodings: transparent P2PKH under its two-byte version. */
@@ -27,4 +27,9 @@ export const ZCASH_KEYS: Bip44CoinKeys = {
 /** The derivation of a Zcash adapter id, transparent or Sapling; undefined for another coin's. */
 export function zcashDerivation(id: string) {
   return bip44CoinDerivation(ZCASH_PROFILES, () => ZCASH_KEYS, id) ?? zcashSaplingDerivation(id);
+}
+
+/** The ownership test of a Zcash adapter id: the Sapling variant's; undefined for any other. */
+export function zcashOwnership(id: string) {
+  return zcashSaplingOwnership(id);
 }

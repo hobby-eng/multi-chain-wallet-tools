@@ -7,7 +7,9 @@ import {
   type MatcherFinding,
   type MatcherProgress,
 } from "../src/matcher-plan.js";
+import { mnemonicToSeed } from "@ckd/core/bip39.js";
 import { getCoinAdapter } from "@ckd/coins/registry.js";
+import { getRuntimeCoinAdapter } from "@ckd/coins/runtime-registry.js";
 import { createCoinRegistry } from "@ckd/coins/registry-base.js";
 import { detectMultiChainMatcherTargets } from "../src/matcher-targets-multichain.js";
 import type { DerivationResult } from "@ckd/core/types.js";
@@ -266,6 +268,143 @@ it.each([true, false])("retires derived result fields on match=%s", async (match
   } else await expect(pending).rejects.toHaveProperty("code", "wallet.matcher-plan.changed");
   expect(field.value).toBe("");
   expect(derived.rows).toEqual([]);
+});
+
+it("refuses a reveal of a row without a key, never widening it to its result's summary", async () => {
+  // A BIP32 row whose key field is missing: the master keys in its summary are not shown.
+  const fixture = services();
+  using plan = new WalletMatcherPlan(input(), fixture.host);
+  const master = {
+    key: "masterXprv",
+    label: "Master xprv",
+    value: "synthetic master",
+    secret: true,
+  };
+  const derived: DerivationResult = {
+    id: "bitcoin-legacy",
+    title: "fixture",
+    networkLabel: "mainnet",
+    pathTemplate: PATH,
+    basicSummary: [master],
+    summary: [],
+    notices: [],
+    rows: [
+      {
+        index: 0,
+        path: PATH,
+        title: "fixture",
+        basic: [
+          {
+            key: "address",
+            label: "Address",
+            value: ADDRESS,
+            secret: false,
+            role: "paymentAddress",
+          },
+        ],
+        advanced: [],
+      },
+    ],
+  };
+  const worker: MatcherWorker = { searchMany: async () => [], derive: async () => derived };
+  await expect(plan.privateValues([FINDING], worker, () => true)).rejects.toHaveProperty(
+    "code",
+    "wallet.matcher-plan.private",
+  );
+  expect(master.value).toBe("");
+});
+
+it("reveals a BIP32 row's own keys alone, never the master or account keys of its summary", async () => {
+  // The row of "abandon … about"'s first legacy address has keys, and its summary holds the master
+  // and account keys: the reveal shows exactly the row's.
+  using plan = new WalletMatcherPlan(input(), {
+    registry: createCoinRegistry([getCoinAdapter("bitcoin-legacy")]),
+    detectTargets: detectMultiChainMatcherTargets,
+    mnemonicToSeed,
+  });
+  const worker: MatcherWorker = {
+    searchMany: async () => [],
+    derive: async (adapterId, request) => await getRuntimeCoinAdapter(adapterId).derive(request),
+  };
+  using secrets = await plan.privateValues([FINDING], worker, () => true);
+  expect(secrets?.fields(0).map(({ key }) => key)).toEqual([
+    "privateKey",
+    "childPrivateKey",
+    "childXprv",
+  ]);
+});
+
+it("makes the targets' costly checks in turns, with progress before the first, and Cancel stops them", async () => {
+  // 40 targets, each with a check: 16 checks a turn, then the seeds.
+  const checked: number[] = [];
+  const events: string[] = [];
+  let current = true;
+  const target = (place: number) => ({
+    id: `address-${place}`,
+    input: ADDRESS,
+    normalized: `${ADDRESS}-${place}`,
+    network: "mainnet" as const,
+    adapterIds: ["bitcoin-legacy"],
+    check: () => {
+      checked.push(place);
+    },
+  });
+  const fixture = services();
+  const host = {
+    ...fixture.host,
+    detectTargets: () => Array.from({ length: 40 }, (_, at) => target(at + 1)),
+  };
+  {
+    using plan = new WalletMatcherPlan(input(), host);
+    const outcome = await plan.search(
+      NO_MATCH,
+      () => current,
+      ({ stage, completed, total }) => events.push(`${stage} ${completed}/${total}`),
+      async () => {
+        events.push(`turn after ${checked.length}`);
+      },
+    );
+    expect(outcome.kind).toBe("complete");
+  }
+  expect(events.slice(0, 7)).toEqual([
+    "addresses 0/40",
+    "turn after 0",
+    "addresses 16/40",
+    "turn after 16",
+    "addresses 32/40",
+    "turn after 32",
+    "addresses 40/40",
+  ]);
+  expect(checked).toEqual(Array.from({ length: 40 }, (_, at) => at + 1));
+  // Cancel in the turn after the first 16: no later check, no seed.
+  checked.length = 0;
+  const seeds = fixture.seed.mock.calls.length;
+  {
+    using plan = new WalletMatcherPlan(input(), host);
+    const outcome = await plan.search(
+      NO_MATCH,
+      () => current,
+      NO_PROGRESS,
+      async () => {
+        if (checked.length === 16) current = false;
+      },
+    );
+    expect(outcome).toEqual({ kind: "stopped" });
+  }
+  expect(checked).toHaveLength(16);
+  expect(fixture.seed.mock.calls).toHaveLength(seeds);
+});
+
+it("reads the target lines once per plan, and checks the selected coin against each coin's own adapters", () => {
+  const fixture = services();
+  const detectTargets = vi.fn(detectMultiChainMatcherTargets);
+  new WalletMatcherPlan(input(), { ...fixture.host, detectTargets }).wipe();
+  expect(detectTargets.mock.calls).toEqual([[ADDRESS, "mainnet", true]]);
+  // A Dash address under Bitcoin is refused, though a search of every profile widened its adapters.
+  expect(
+    () =>
+      new WalletMatcherPlan(input({ targets: "XoJA8qE3N2Y3jMLEtZ3vcN42qseZ8LvFf5" }), fixture.host),
+  ).toThrow("Target 1 does not belong to Bitcoin.");
 });
 
 it("reports stopped when the last progress callback revokes the request", async () => {

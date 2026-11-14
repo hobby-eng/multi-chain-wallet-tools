@@ -77,6 +77,7 @@ describe("the known answers of the Deriver's optional features", () => {
       "Zcash unified addresses and viewing keys of Sapling accounts · ZIP-316 vectors",
       "Zcash F4Jumble · ZIP-316 vectors",
       "Zcash viewing keys of the Swift SDK and addresses of the Android SDK's phrase",
+      "Zcash Sapling ownership: the Android SDK's receiver found at j = 1 by its account's keys, a forged one by none",
       "Zcash Sapling extended spending key text · own value",
     ]);
   }, 60_000);

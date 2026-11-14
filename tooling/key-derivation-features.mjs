@@ -174,6 +174,8 @@ export function applyKeyDerivationFeatureTemplate(template, features) {
   if (!features.hasCoin("cardano"))
     for (const id of ["bip85-wallet-cardano-note", "matcher-cardano-note"])
       rendered = removeBalancedElement(rendered, id);
+  // The Matcher's note on Zcash's shielded addresses comes with Zcash.
+  if (!features.hasCoin("zcash")) rendered = removeBalancedElement(rendered, "matcher-zcash-note");
   // The passport names only what this build contains.
   if (!features.has("mhfe")) rendered = removeBalancedElement(rendered, "passport-mhfe-dependency");
   if (!features.has("mnemocode"))

@@ -28,8 +28,9 @@ const ADR036_SIGNING = [
 ];
 
 /**
- * coin id → the names its modules export, the kinds of derivation it uses, and the shared modules
- * (SHARED_MODULES) its own modules import.
+ * coin id → the names its modules export (its derivation, and its ownership test when a variant
+ * offers one, RuntimeCoinAdapter.ownedAddresses), the kinds of derivation it uses, and the shared
+ * modules (SHARED_MODULES) its own modules import.
  */
 export const SINGLE_KEY_COINS = Object.freeze({
   litecoin: {
@@ -53,6 +54,7 @@ export const SINGLE_KEY_COINS = Object.freeze({
   zcash: {
     prefix: "ZCASH",
     derivation: "zcashDerivation",
+    ownership: "zcashOwnership",
     kinds: ["bip44", "zip32-sapling"],
     shared: ["utxo-address", "message-signing-compact"],
   },

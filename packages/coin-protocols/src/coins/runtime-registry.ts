@@ -1,4 +1,7 @@
-import { singleKeyCoinDerivationFor } from "./single-key-coin-runtime.js";
+import {
+  singleKeyCoinDerivationFor,
+  singleKeyCoinOwnershipFor,
+} from "./single-key-coin-runtime.js";
 import { deriveBitcoin } from "./bitcoin/index.js";
 import { BitcoinPurposeProfile } from "./bitcoin/profiles.js";
 import { DashRuntimeRegistry } from "./dash/runtime.js";
@@ -21,5 +24,10 @@ export function getRuntimeCoinAdapter(id: string): RuntimeCoinAdapter {
   const dash = DashRuntimeRegistry.adapter(id, registry);
   if (dash !== undefined) return dash;
   const metadata = registry.getCoinAdapter(id);
-  return { ...metadata, derive: deriveForAdapter(id) };
+  const ownedAddresses = singleKeyCoinOwnershipFor(id);
+  return {
+    ...metadata,
+    derive: deriveForAdapter(id),
+    ...(ownedAddresses === undefined ? {} : { ownedAddresses }),
+  };
 }

@@ -93,14 +93,19 @@ if (bitcoin !== undefined) return { ...metadata, derive: (input) => deriveBitcoi
     dispatch.push(`const dash = DashRuntimeRegistry.derivationFor(id);
 if (dash !== undefined) return { ...metadata, derive: dash };`);
   }
-  // Each single-key coin's derivation answers only its own adapter ids.
+  // Each single-key coin's derivation, and its ownership test, answer only its own adapter ids.
   for (const coin of coins.filter((selected) => Object.hasOwn(SINGLE_KEY_COINS, selected))) {
-    const { derivation } = SINGLE_KEY_COINS[coin];
+    const { derivation, ownership } = SINGLE_KEY_COINS[coin];
+    const names = ownership === undefined ? derivation : `${derivation}, ${ownership}`;
     imports.push(
-      `import { ${derivation} } from ${JSON.stringify(resolve(root, singleKeyCoinModules(coin).derivation))};`,
+      `import { ${names} } from ${JSON.stringify(resolve(root, singleKeyCoinModules(coin).derivation))};`,
     );
+    const owned =
+      ownership === undefined
+        ? ""
+        : ` const ownedAddresses = ${ownership}(id); if (ownedAddresses !== undefined) return { ...metadata, derive, ownedAddresses };`;
     dispatch.push(`{ const derive = ${derivation}(id);
-if (derive !== undefined) return { ...metadata, derive }; }`);
+if (derive !== undefined) {${owned} return { ...metadata, derive }; } }`);
   }
   return `${imports.join("\n")}
 export function getRuntimeCoinAdapter(id) {

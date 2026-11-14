@@ -135,8 +135,9 @@ export class WalletMatcher {
     );
   }
 
-  /** The status line of a search's progress: its phrases' seeds first, then its structures. */
+  /** The status line of a search's progress: its addresses' checks, its seeds, its structures. */
   static #progressText({ stage, completed, total }: MatcherProgress): string {
+    if (stage === "addresses") return `Checking ${completed}/${total} addresses…`;
     return stage === "seeds"
       ? `Preparing ${completed}/${total} seed phrases…`
       : `Scanning ${completed}/${total} wallet structures…`;

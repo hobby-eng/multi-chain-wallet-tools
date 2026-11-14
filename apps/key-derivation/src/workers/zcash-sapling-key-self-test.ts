@@ -14,11 +14,14 @@
 //   PHRASE (L49-51, L59), at j = 1, the diversifier of that Sapling receiver, and so no address at
 //   j = 0. The phrase is given as its BIP39 seed, an own value of
 //   test/oracles/zcash_sapling_oracle.py, so that the worker needs no word list.
-// - The extended spending key text of "abandon … about"'s account 0, an own value of the same
-//   oracle, which first reproduces every published value above.
+// - The extended spending key text of "abandon … about"'s account 0, and a forged address of its
+//   account 0 for the Matcher's ownership test, own values of the same oracle, which first
+//   reproduces every published value above.
 import type { CryptoSelfTestReport } from "@ckd/self-test-types";
 import type { DerivationResult } from "@ckd/core/types.js";
 import { bytesToHex, hexToBytes, wipe } from "@ckd/core/crypto.js";
+import { zcashOwnership } from "@ckd/coins/zcash/index.js";
+import { saplingAddressText } from "@ckd/coins/zcash/sapling-address.js";
 import { decodeUnified, f4Jumble, f4JumbleInverse } from "@ckd/coins/zcash/unified.js";
 import {
   SaplingExpandedSpendingKey,
@@ -41,6 +44,8 @@ const CHECKS = Object.freeze({
   unified: "Zcash unified addresses and viewing keys of Sapling accounts · ZIP-316 vectors",
   jumble: "Zcash F4Jumble · ZIP-316 vectors",
   wallets: "Zcash viewing keys of the Swift SDK and addresses of the Android SDK's phrase",
+  ownership:
+    "Zcash Sapling ownership: the Android SDK's receiver found at j = 1 by its account's keys, a forged one by none",
   spendingKey: "Zcash Sapling extended spending key text · own value",
 });
 
@@ -173,6 +178,17 @@ const ANDROID_UA =
   "u1t23erzgkn7c6c2jn66rspl4m45lg8rn3f7mn7le4yxk7693wr7sgx472jn95s00x8kx3hct5ej4tf76k59dfhsd809t7mzt9ldzw8f5083fw4xqvxfshl9u7ed2wyv6ypmzny0px0nvszslr5kr7fgk2zgfnlycddzqak4adsqjdzp76y7fl0k4ygamjr43t6rpxsf6xql8g20rdk0h";
 /** The bytes of a Sapling diversifier, which lead a Sapling receiver (d ‖ pk_d). */
 const DIVERSIFIER_BYTES = 11;
+/**
+ * A forged address: the diversifier of "abandon … about"'s account 0 at j = 7 and the transmission
+ * key that the Android phrase's ivk gives it (own value, the oracle's matcher()).
+ */
+const FORGED_ADDRESS =
+  "zs1yjx25acnu8kzlhg2t63evmvess8l4g2565nl6g550ktp3pqa79ycgzu8ecydflluuw5vz5hczlh";
+/** The rows that the ownership test finds for that receiver in accounts 0 and 1. */
+const OWNED_ROWS = JSON.stringify([
+  { index: 1, path: "m/32'/133'/0' · diversifier index 1" },
+  null,
+]);
 /** The fields of the row of an index without an address: no address, only where it is. */
 const NO_ADDRESS_FIELDS = "path,diversifierIndex";
 /** "abandon … about"'s extended spending key of account 0 (own value, see above). */
@@ -322,6 +338,38 @@ function checkWallets(): void {
     throw new Error(`Cryptographic self-test failed: ${CHECKS.wallets}.`);
 }
 
+/**
+ * The Wallet Matcher's ownership test (RuntimeCoinAdapter.ownedAddresses): the Sapling receiver of
+ * the Android SDK's unified address is account 0's row at j = 1, and no row of account 1; and
+ * "abandon … about"'s account 0 does not own the forged address of its own diversifier at j = 7
+ * with the transmission key of the Android phrase's ivk.
+ */
+function checkOwnership(): void {
+  const owned = zcashOwnership("zcash-sapling");
+  const decoded = decodeUnified("address", ANDROID_UA);
+  const seed = hexToBytes(ZCASH_ANDROID_SEED);
+  try {
+    if (owned === undefined || decoded.sapling === undefined)
+      throw new Error(`Cryptographic self-test failed: ${CHECKS.ownership}.`);
+    const address = saplingAddressText(decoded.sapling);
+    const rowOf = (account: number) =>
+      owned({ seed, network: "mainnet", account, branch: 0 }, [address])[0];
+    expectEqual(CHECKS.ownership, JSON.stringify([rowOf(0), rowOf(1)]), OWNED_ROWS);
+    const about = hexToBytes(ABANDON_ABOUT_SEED_HEX);
+    try {
+      const forged = owned({ seed: about, network: "mainnet", account: 0, branch: 0 }, [
+        FORGED_ADDRESS,
+      ]);
+      expectEqual(CHECKS.ownership, JSON.stringify(forged), "[null]");
+    } finally {
+      wipe(about);
+    }
+  } finally {
+    decoded.wipe();
+    wipe(seed);
+  }
+}
+
 /** The text of an account's extended spending key: its HRP and its 169 bytes (ZIP-32). */
 function checkSpendingKey(): void {
   expectEqual(
@@ -341,6 +389,7 @@ export function runZcashSaplingKeyFullSelfTest(): CryptoSelfTestReport {
   checkUnified();
   checkJumble();
   checkWallets();
+  checkOwnership();
   checkSpendingKey();
   return {
     passed: true,

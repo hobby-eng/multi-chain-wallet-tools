@@ -55,6 +55,12 @@ export interface ResultTarget {
   readonly address: string;
   /** Compare named public result fields instead of the payment-address field. */
   readonly fieldKeys?: readonly string[];
+  /**
+   * A payment address that no row of the range shows is then tested by ownership: the adapter's
+   * keys of the searched account are asked whether they own it (RuntimeCoinAdapter.ownedAddresses),
+   * which finds it at any index the adapter's rows can have, beyond the range.
+   */
+  readonly ownership?: true;
 }
 
 /** Every field of a derived row: its basic and advanced fields and those of its groups. */
@@ -124,7 +130,38 @@ export interface AddressSearchResult extends AddressSearchMatch {
   readonly id: string;
 }
 
-/** Derives each range once and resolves every requested address found in it. */
+/**
+ * The rows that the adapter's ownership test finds for `requests` in the input's account; the test
+ * receives its own copy of the seed, wiped once it answers.
+ */
+function ownedRows(
+  adapter: RuntimeCoinAdapter,
+  baseInput: Omit<CoinDerivationInput, "start" | "count">,
+  requests: readonly AddressSearchRequest[],
+): AddressSearchResult[] {
+  if (requests.length === 0 || adapter.ownedAddresses === undefined) return [];
+  const seed = baseInput.seed.slice();
+  try {
+    const rows = adapter.ownedAddresses(
+      { ...baseInput, seed },
+      requests.map(({ address }) => address),
+    );
+    return requests.flatMap((request, at) => {
+      const row = rows[at];
+      return row === null || row === undefined
+        ? []
+        : [{ id: request.id, ...row, address: request.address }];
+    });
+  } finally {
+    seed.fill(0);
+  }
+}
+
+/**
+ * Derives each range once and resolves every requested address found in it; a request that no row
+ * shows and that is compared by ownership (ResultTarget.ownership) is then tested by the adapter's
+ * keys, at any index the adapter's rows can have.
+ */
 export async function findDerivedAddresses(
   adapter: RuntimeCoinAdapter,
   baseInput: Omit<CoinDerivationInput, "start" | "count">,
@@ -150,5 +187,13 @@ export async function findDerivedAddresses(
     }
     return remaining.size === 0;
   });
+  signal?.throwIfAborted();
+  matches.push(
+    ...ownedRows(
+      adapter,
+      baseInput,
+      [...remaining.values()].filter(({ ownership }) => ownership === true),
+    ),
+  );
   return matches;
 }

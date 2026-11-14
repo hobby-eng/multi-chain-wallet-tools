@@ -28,15 +28,19 @@ export class MatcherScope {
       const adapter = resolveCoinProtocol(registry, adapterId);
       return adapter === undefined ? undefined : registry.getAdapterFamilyId(adapter);
     };
+    // One reading of the lines, every profile tried; the selected coin is checked against the
+    // adapters of the coin that read each address (coinAdapterIds).
+    const detected = detector(input, network, true);
     if (!allCoins) {
       const family = registry.getCoinFamily(coinId);
-      for (const [place, target] of detector(input, network, false).entries()) {
-        if (!target.adapterIds.some((id) => familyFor(id) === coinId)) {
+      for (const [place, target] of detected.entries()) {
+        const own = target.coinAdapterIds ?? target.adapterIds;
+        if (!own.some((id) => familyFor(id) === coinId)) {
           throw ERRORS.create("coin", [place + 1, family.label]);
         }
       }
     }
-    return detector(input, network, true).map((target) => {
+    return detected.map((target) => {
       const adapterIds = target.adapterIds.filter((id) => {
         const family = familyFor(id);
         return family !== undefined && (allCoins || family === coinId);

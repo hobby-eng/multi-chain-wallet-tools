@@ -12,20 +12,16 @@ export interface Bip38EncryptionResult {
   address: string;
 }
 
-export interface AddressSearchMatch {
-  index: number;
-  path: string;
-  address: string;
-}
-
-export interface AddressSearchRequest {
-  id: string;
-  address: string;
-  fieldKeys?: readonly string[];
-}
-export interface AddressSearchResult extends AddressSearchMatch {
-  id: string;
-}
+export type {
+  AddressSearchMatch,
+  AddressSearchRequest,
+  AddressSearchResult,
+} from "@ckd/recovery/address-search.js";
+import type {
+  AddressSearchMatch,
+  AddressSearchRequest,
+  AddressSearchResult,
+} from "@ckd/recovery/address-search.js";
 
 export type MessageSigningFormat =
   | "bitcoin-compact"

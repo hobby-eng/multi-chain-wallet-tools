@@ -1,4 +1,4 @@
-import { bytesToHex, hexToBytes, wipe } from "@ckd/core/crypto.js";
+import { bytesToHex, concatBytes, hexToBytes, wipe } from "@ckd/core/crypto.js";
 import { clearDerivationResult } from "@ckd/core/secrets.js";
 import type { DerivationResult } from "@ckd/core/types.js";
 import { ZCASH_COIN_ADAPTERS } from "@ckd/coins/adapters/zcash.js";
@@ -24,7 +24,7 @@ import { singleKeyCoinSelfTest } from "./single-key-coin-self-test.js";
 
 /** Check names of Sapling's published known answers. */
 const CHECKS = Object.freeze({
-  keys: "Zcash Sapling generators and ZIP-32 master and child keys · zcash-test-vectors",
+  keys: "Zcash Sapling generators, ZIP-32 master and child keys and an address's index · zcash-test-vectors",
   unified: "Zcash unified address of a Sapling row · ZIP-316 vectors",
   refusal: "Zcash unified address refusal of unordered typecodes",
 });
@@ -82,7 +82,10 @@ function expectBytes(check: string, bytes: Uint8Array, expected: string): void {
   }
 }
 
-/** G and H, and ZIP-32's master key m and child m/1' of bytes(range(32)). */
+/**
+ * G and H, ZIP-32's master key m and child m/1' of bytes(range(32)), and m's address at j = 0 found
+ * by m's keys alone (FF1's decryption of d0, and pk_d = [ivk] DiversifyHash(d0)) and not by m/1''s.
+ */
 function checkKeys(): string {
   const unit = new Uint8Array(96);
   unit[0] = 1;
@@ -98,12 +101,19 @@ function checkKeys(): string {
   try {
     expectBytes(CHECKS.keys, master.bytes(), MASTER.xsk);
     expectBytes(CHECKS.keys, master.incomingViewingKey(), MASTER.ivk);
-    expectEqual(
-      CHECKS.keys,
-      bytesToHex(master.addressAt(0n)?.diversifier ?? new Uint8Array(0)),
-      MASTER.d0,
+    const first = master.addressAt(0n);
+    expectEqual(CHECKS.keys, bytesToHex(first?.diversifier ?? new Uint8Array(0)), MASTER.d0);
+    const raw = concatBytes(
+      first?.diversifier ?? new Uint8Array(0),
+      first?.transmissionKey ?? new Uint8Array(0),
     );
-    if (master.addressAt(2n) !== null)
+    if (
+      master.addressAt(2n) !== null ||
+      first === null ||
+      master.diversifierIndexOf(first.diversifier) !== 0n ||
+      !master.ownsAddress(raw) ||
+      child.ownsAddress(raw)
+    )
       throw new Error(`Cryptographic self-test failed: ${CHECKS.keys}.`);
     expectBytes(CHECKS.keys, child.bytes(), CHILD.xsk);
     expectBytes(CHECKS.keys, child.extendedFullViewingKey(), CHILD.xfvk);

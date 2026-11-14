@@ -403,6 +403,73 @@ describe("Sapling addresses of an account", () => {
   });
 });
 
+describe("ownership of an address", () => {
+  // The receivers of unified_address.json against their accounts' keys: each is owned by its own
+  // account at its own j, which FF1's decryption gives back, and by no other account.
+  const accounts = [...new Set(RECEIVERS.map(([account]) => account))];
+
+  it.each(accounts)(
+    "finds account %i's receivers by its keys alone, at their indexes",
+    (account) => {
+      const key = keyAt(`m/32'/133'/${account}'`);
+      const other = keyAt(`m/32'/133'/${account + 1}'`);
+      try {
+        for (const [owner, index, hex] of RECEIVERS) {
+          const raw = hexToBytes(hex);
+          expect([owner, index, key.ownsAddress(raw)]).toEqual([owner, index, owner === account]);
+          if (owner === account)
+            expect(key.diversifierIndexOf(raw.subarray(0, 11))).toBe(BigInt(index));
+          if (owner === account) expect(other.ownsAddress(raw)).toBe(false);
+        }
+      } finally {
+        key.wipe();
+        other.wipe();
+      }
+    },
+  );
+
+  it("decrypts the diversifier of the last index, and of an index past the rows' 2^31", () => {
+    // sapling_zip32_hard.json: dmax of m/1' is the valid d of j = 2^88 - 1.
+    const key = keyAt("m/1'");
+    try {
+      for (const index of [SAPLING_MAX_DIVERSIFIER_INDEX, 2n ** 31n + 11n]) {
+        const address = key.nextAddress(index, 64);
+        if (address === null) throw new Error("No address within 64 indexes.");
+        expect(key.diversifierIndexOf(address.diversifier)).toBe(address.index);
+        expect(key.ownsAddress(concatBytes(address.diversifier, address.transmissionKey))).toBe(
+          true,
+        );
+      }
+    } finally {
+      key.wipe();
+    }
+  });
+
+  it("refuses a diversifier that hashes to no point, and an address or a diversifier of another length", () => {
+    // d2 of m is invalid (sapling_zip32_hard.json): FF1-AES256 of the row's dk at j = 2.
+    const invalid = BinaryFF1(hexToBytes(HARD_ROWS[0].dk)).encrypt(numberToBytesLE(2n, 11));
+    const valid = hexToBytes(RECEIVERS[0][2]);
+    const key = keyAt("m/32'/133'/0'");
+    try {
+      for (const use of [
+        () => key.diversifierIndexOf(invalid),
+        () => key.diversifierIndexOf(valid.subarray(0, 10)),
+        () => key.diversifierIndexOf(valid.subarray(0, 12)),
+        () => key.ownsAddress(concatBytes(invalid, valid.subarray(11))),
+        () => key.ownsAddress(valid.subarray(0, 42)),
+        () => key.ownsAddress(concatBytes(valid, Uint8Array.of(0))),
+      ])
+        expect(use).toThrow(expect.objectContaining({ code: "sapling.key.diversifier" }));
+      // A transmission key that is not the account's, on a valid diversifier: not owned.
+      const flipped = valid.slice();
+      flipped[20] = (flipped[20] ?? 0) ^ 1;
+      expect(key.ownsAddress(flipped)).toBe(false);
+    } finally {
+      key.wipe();
+    }
+  });
+});
+
 describe("refusals", () => {
   it("takes a seed of 32 to 252 bytes, as ZIP-32's wallet seeds are, and refuses any other", () => {
     for (const length of [0, 16, 31, 253, 512])
@@ -666,6 +733,8 @@ describe("the keys' lifetime", () => {
         () => key.addressAt(-1n),
         () => key.nextAddress(0n, 1),
         () => key.nextAddress(0n, 0),
+        () => key.diversifierIndexOf(new Uint8Array(11)),
+        () => key.ownsAddress(new Uint8Array(43)),
       ])
         expect(use).toThrow(expect.objectContaining({ code: "sapling.key.wiped" }));
       expect(() => key.wipe()).not.toThrow();

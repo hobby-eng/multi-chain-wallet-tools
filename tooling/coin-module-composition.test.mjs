@@ -99,5 +99,11 @@ describe("coin-owned modules and known answers in selective builds", () => {
     expect(applyKeyDerivationFeatureTemplate(matcher, options(["dash"]))).toBe(
       "<p>Payment addresses.</p>",
     );
+    // And the Matcher's note on Zcash's shielded addresses comes with Zcash.
+    const zcash = '<p>Payment addresses.<span id="matcher-zcash-note"> For Zcash…</span></p>';
+    expect(applyKeyDerivationFeatureTemplate(zcash, options(["zcash"]))).toBe(zcash);
+    expect(applyKeyDerivationFeatureTemplate(zcash, options(["dash"]))).toBe(
+      "<p>Payment addresses.</p>",
+    );
   });
 });

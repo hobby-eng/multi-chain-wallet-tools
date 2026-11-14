@@ -110,7 +110,7 @@ const ZCASH = Object.freeze([
   "Zcash Transparent · BIP44 / P2PKH",
   "Zcash Shielded Sapling · ZIP-32",
   "Zcash master/account extended-key integrity",
-  "Zcash Sapling generators and ZIP-32 master and child keys · zcash-test-vectors",
+  "Zcash Sapling generators, ZIP-32 master and child keys and an address's index · zcash-test-vectors",
   "Zcash unified address of a Sapling row · ZIP-316 vectors",
   "Zcash unified address refusal of unordered typecodes",
 ]);

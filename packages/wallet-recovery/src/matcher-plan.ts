@@ -10,7 +10,7 @@ import {
   type SeedSource,
 } from "@ckd/coins/registry-base.js";
 import type { CoinDerivationInput } from "@ckd/coins/registry.js";
-import type { DerivationResult, NetworkName } from "@ckd/core/types.js";
+import type { DerivationResult, NetworkName, ResultField } from "@ckd/core/types.js";
 import { MnemonicEntries } from "@ckd/core/mnemonic-entries.js";
 import { ErrorCatalog } from "@ckd/core/error-catalog.js";
 import { defined } from "@ckd/core/defined.js";
@@ -103,13 +103,16 @@ export interface MatcherServices {
 const BIP39_SEED = "bip39";
 type SeedKey = SeedSource | typeof BIP39_SEED;
 type SeedReader = (phrase: string, passphrase: string) => Uint8Array;
+/** The targets' costly checks (WalletMatcherTarget.check) made in one turn of the host. */
+const CHECKS_PER_TURN = 16;
 
 /**
- * Where a search is: first the phrases whose seeds are made ("seeds"), then the wallet structures
+ * Where a search is: first the addresses whose costly checks are made ("addresses", only when some
+ * target has one), then the phrases whose seeds are made ("seeds"), then the wallet structures
  * searched ("search"), each as `completed` of `total`.
  */
 export interface MatcherProgress {
-  readonly stage: "seeds" | "search";
+  readonly stage: "addresses" | "seeds" | "search";
   readonly completed: number;
   readonly total: number;
 }
@@ -289,9 +292,10 @@ export class WalletMatcherPlan implements Disposable {
   }
 
   /**
-   * Makes every phrase's seeds, then searches public targets. Seeds are made one phrase per
-   * `yieldTurn`, with progress before the first, so that the host stays responsive and can stop the
-   * search while they are made; cancellation is explicit and publishes no later progress.
+   * Makes the targets' costly checks and every phrase's seeds, then searches public targets. The
+   * checks are made a few per `yieldTurn` and the seeds one phrase per `yieldTurn`, each with
+   * progress before the first, so that the host stays responsive and can stop the search while
+   * they are made; cancellation is explicit and publishes no later progress.
    */
   async search(
     worker: MatcherWorker,
@@ -299,6 +303,9 @@ export class WalletMatcherPlan implements Disposable {
     progress: (progress: MatcherProgress) => void,
     yieldTurn: () => Promise<void>,
   ): Promise<MatcherSearchOutcome> {
+    const checks = this.#targets.flatMap(({ check }) => (check === undefined ? [] : [check]));
+    if (checks.length > 0 && !(await this.#checkTargets(checks, current, progress, yieldTurn)))
+      return { kind: "stopped" };
     const phrases = this.#phrases.length;
     progress({ stage: "seeds", completed: 0, total: phrases });
     for (let seedIndex = 0; seedIndex < phrases; seedIndex += 1) {
@@ -324,6 +331,7 @@ export class WalletMatcherPlan implements Disposable {
           id: target.id,
           address: target.normalized,
           ...(target.fieldKeys === undefined ? {} : { fieldKeys: target.fieldKeys }),
+          ...(target.ownership === undefined ? {} : { ownership: target.ownership }),
         })),
         this.#start,
         this.#count,
@@ -351,6 +359,28 @@ export class WalletMatcherPlan implements Disposable {
     this.#assertLive();
     if (!current()) return { kind: "stopped" };
     return { kind: "complete", findings };
+  }
+
+  /**
+   * Makes the targets' costly checks (WalletMatcherTarget.check), CHECKS_PER_TURN per turn of the
+   * host; false when the search was stopped meanwhile. A check's refusal names its line.
+   */
+  async #checkTargets(
+    checks: readonly (() => void)[],
+    current: () => boolean,
+    progress: (progress: MatcherProgress) => void,
+    yieldTurn: () => Promise<void>,
+  ): Promise<boolean> {
+    progress({ stage: "addresses", completed: 0, total: checks.length });
+    for (let done = 0; done < checks.length;) {
+      await yieldTurn();
+      this.#assertLive();
+      if (!current()) return false;
+      for (const check of checks.slice(done, done + CHECKS_PER_TURN)) check();
+      done = Math.min(done + CHECKS_PER_TURN, checks.length);
+      progress({ stage: "addresses", completed: done, total: checks.length });
+    }
+    return true;
   }
 
   /** Rechecks matches and returns a separate byte owner; every transient derived row is retired. */
@@ -386,11 +416,16 @@ export class WalletMatcherPlan implements Disposable {
             }) === undefined
           )
             throw ERRORS.create("changed", []);
-          const privateFields = [
-            ...new Map(
-              fields.filter(({ secret }) => secret).map((field) => [field.key, field]),
-            ).values(),
-          ];
+          // Only a variant that names its account's keys (CoinAdapter.accountKeyFields) answers from
+          // its summary; any other row without a key is refused, never widened to its summary.
+          const accountKeys = this.#adapter(finding.adapterId).accountKeyFields;
+          const privateFields = WalletMatcherPlan.#secretFields(
+            accountKeys === undefined
+              ? fields
+              : [...derived.basicSummary, ...derived.summary].filter(({ key }) =>
+                  accountKeys.includes(key),
+                ),
+          );
           if (privateFields.length === 0) throw ERRORS.create("private", []);
           secrets.add(WalletMatcherPlan.row(finding), privateFields);
         } finally {
@@ -403,6 +438,13 @@ export class WalletMatcherPlan implements Disposable {
     } finally {
       if (!transferred) secrets.wipe();
     }
+  }
+
+  /** The secret fields among `fields`, one per key. */
+  static #secretFields(fields: readonly ResultField[]): ResultField[] {
+    return [
+      ...new Map(fields.filter(({ secret }) => secret).map((field) => [field.key, field])).values(),
+    ];
   }
 
   /** One row identity shared by private/public exports. */

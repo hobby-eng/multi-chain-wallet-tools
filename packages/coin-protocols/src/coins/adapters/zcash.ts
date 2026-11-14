@@ -12,6 +12,17 @@ const SAPLING_FIELD_ROLES: CoinFieldRoles = Object.freeze({
   privateKeys: [],
 });
 
+/**
+ * The account's keys, in the summary, that a Wallet Matcher reveal of a Sapling row shows: its
+ * viewing keys and its spending key, which spends from every address of the account.
+ */
+const SAPLING_ACCOUNT_KEYS = Object.freeze([
+  "unifiedFullViewingKey",
+  "saplingFullViewingKey",
+  "unifiedIncomingViewingKey",
+  "saplingSpendingKey",
+]);
+
 /** The page's adapter of Zcash's Sapling variant: mainnet only, an account and diversifier indexes. */
 const ZCASH_SAPLING_ADAPTER: CoinAdapter = {
   id: ZCASH_SAPLING_PROFILE.adapterId,
@@ -26,6 +37,7 @@ const ZCASH_SAPLING_ADAPTER: CoinAdapter = {
   controlLabels: { start: "First diversifier index", count: "Number of indexes" },
   defaults: { network: "mainnet", account: 0, branch: 0, start: 0, count: 20 },
   fieldRoles: SAPLING_FIELD_ROLES,
+  accountKeyFields: SAPLING_ACCOUNT_KEYS,
   pathPreview: (input) => ZCASH_SAPLING_PROFILE.pathPreview(input),
 };
 

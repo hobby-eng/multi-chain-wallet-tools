@@ -21,6 +21,7 @@ import {
   isSaplingAddressEncoding,
   isSaplingFullViewingKeyEncoding,
   isSaplingIncomingViewingKeyEncoding,
+  SAPLING_ADDRESS_BYTES,
 } from "../../zip32-sapling.js";
 
 /** ℓ_H, BLAKE2b's longest output, the most bytes of the Feistel's left half ("Jumbling"). */
@@ -112,6 +113,13 @@ interface KindRules {
   readonly p2sh: ((bytes: Uint8Array) => boolean) | undefined;
   readonly sapling: (bytes: Uint8Array) => boolean;
 }
+
+/** Whether an item's Sapling point checks are made by the decoder or left to its caller. */
+export type PointChecks = "made" | "deferred";
+
+/** A raw Sapling receiver's length, d ‖ pk_d, the only check of a deferred one. */
+const isSaplingAddressLength = (bytes: Uint8Array): boolean =>
+  bytes.length === SAPLING_ADDRESS_BYTES;
 
 /** A transparent receiver's 20-byte hash: any bytes of that length. */
 const isHash = (bytes: Uint8Array): boolean => bytes.length === 20;
@@ -309,6 +317,7 @@ function paddingOf(hrp: string): Uint8Array {
 function ruleOf(
   kind: UnifiedKind,
   typecode: number,
+  pointChecks: PointChecks,
 ):
   | { readonly name: keyof UnifiedItems; readonly valid: (bytes: Uint8Array) => boolean }
   | undefined {
@@ -316,7 +325,12 @@ function ruleOf(
   if (typecode === TYPECODE.p2pkh) return { name: "p2pkh", valid: rules.p2pkh };
   if (typecode === TYPECODE.p2sh && rules.p2sh !== undefined)
     return { name: "p2sh", valid: rules.p2sh };
-  if (typecode === TYPECODE.sapling) return { name: "sapling", valid: rules.sapling };
+  if (typecode === TYPECODE.sapling)
+    return {
+      name: "sapling",
+      valid:
+        pointChecks === "deferred" && kind === "address" ? isSaplingAddressLength : rules.sapling,
+    };
   return undefined;
 }
 
@@ -345,7 +359,7 @@ export function encodeUnified(kind: UnifiedKind, items: UnifiedItems): string {
   ] as const) {
     const bytes = items[name];
     if (bytes === undefined) continue;
-    if (ruleOf(kind, typecode)?.valid(bytes) !== true)
+    if (ruleOf(kind, typecode, "made")?.valid(bytes) !== true)
       throw ERRORS.create("item", [ITEM_NAMES[name], rules.noun]);
     parts.push(encodeCompactSize(typecode), encodeCompactSize(bytes.length), bytes);
   }
@@ -425,9 +439,15 @@ function fieldAt(
  * (zcash.unified.item); both transparent receivers (zcash.unified.transparent); and no shielded
  * item (zcash.unified.shielded), which also refuses an encoding of metadata items only. The result
  * owns copies of the items; the caller wipes it (DecodedUnified.wipe) when they are a viewing
- * key's.
+ * key's. With `pointChecks` "deferred", an address's Sapling receiver is checked for its length
+ * alone, and the caller makes its point checks (isSaplingAddressEncoding), a few milliseconds each,
+ * when it can afford them, as the Wallet Matcher does in turns of the page.
  */
-export function decodeUnified(kind: UnifiedKind, text: string): DecodedUnified {
+export function decodeUnified(
+  kind: UnifiedKind,
+  text: string,
+  pointChecks: PointChecks = "made",
+): DecodedUnified {
   const raw = unjumbledBytes(kind, text);
   const items: { -readonly [Name in keyof UnifiedItems]: Uint8Array } = {};
   const unrecognised: UnrecognisedItem[] = [];
@@ -444,7 +464,7 @@ export function decodeUnified(kind: UnifiedKind, text: string): DecodedUnified {
       if (typecode.value >= MUST_UNDERSTAND.first && typecode.value <= MUST_UNDERSTAND.last)
         throw ERRORS.create("must-understand", []);
       const bytes = raw.slice(length.end, end);
-      const rule = ruleOf(kind, typecode.value);
+      const rule = ruleOf(kind, typecode.value, pointChecks);
       // Orchard's encodings have fixed lengths ("Encoding of Unified Full/Incoming Viewing Keys";
       // librustzcash's zcash_address reads a receiver as [u8; 43]), checked before it counts.
       const orchard = typecode.value === TYPECODE.orchard;

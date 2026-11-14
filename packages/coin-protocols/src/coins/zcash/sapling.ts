@@ -8,6 +8,7 @@
 // are secrets like its spending key. Every key and working copy is wiped when the result is built,
 // as far as the runtime allows.
 import { bech32 } from "@scure/base";
+import { MAX_BIP32_INDEX } from "@ckd/core/bip32-limits.js";
 import { BIP32_MAINNET_VERSIONS } from "@ckd/core/networks.js";
 import { bytesToHex, concatBytes, hash160, wipe } from "@ckd/core/crypto.js";
 import {
@@ -20,8 +21,9 @@ import {
 } from "@ckd/core/types.js";
 import type { HDKey } from "@scure/bip32";
 import { withAccountBranch, type BranchChild } from "../../account-branch.js";
-import { SaplingExtendedSpendingKey } from "../../zip32-sapling.js";
+import { SAPLING_DIVERSIFIER_BYTES, SaplingExtendedSpendingKey } from "../../zip32-sapling.js";
 import { variantDerivation, type VariantDerivation } from "../coin-variant.js";
+import type { OwnedAddressRow, RuntimeCoinAdapter } from "../runtime-types.js";
 import {
   ZCASH_COIN_TYPE,
   ZCASH_SAPLING_PROFILE,
@@ -29,12 +31,12 @@ import {
   ZIP32_PURPOSE,
   type ZcashSaplingProfile,
 } from "./profiles.js";
+import { readSaplingAddress, saplingAddressText } from "./sapling-address.js";
 import { zcashTransparentAddress } from "./transparent.js";
 import { encodeUnified } from "./unified.js";
 
-/** Bech32 HRPs on mainnet: a Sapling address ("Sapling Payment Addresses") and ZIP-32's encodings. */
+/** Bech32 HRPs on mainnet of ZIP-32's encodings; a Sapling address's is in sapling-address.ts. */
 const HRP = Object.freeze({
-  address: "zs",
   fullViewingKey: "zxviews",
   spendingKey: "secret-extended-key-main",
 });
@@ -131,7 +133,7 @@ function rowOf(
       path,
       title: `Address #${index}`,
       basic: [
-        paymentAddressField("address", "Sapling address", bech32Text(HRP.address, raw), "zcash"),
+        paymentAddressField("address", "Sapling address", saplingAddressText(raw), "zcash"),
         paymentAddressField(
           "unifiedAddress",
           "Unified address (Sapling only)",
@@ -255,6 +257,42 @@ export function deriveZcashSapling(
       }
     },
   );
+}
+
+/**
+ * The row of `account` whose Sapling address is `address` (zs1…), found by the account's own keys
+ * `key` (ownsAddress, then diversifierIndexOf) at any diversifier index, so beyond the indexes a
+ * search derives; null when the account does not own it, and when its index is 2^31 or more, past
+ * every row's index (ZcashSaplingProfile.path), so that the rows' bound of 2^31 − 1 is also the
+ * Matcher's.
+ */
+function ownedRow(
+  profile: ZcashSaplingProfile,
+  key: SaplingExtendedSpendingKey,
+  account: number,
+  address: string,
+): OwnedAddressRow | null {
+  const raw = readSaplingAddress(address);
+  if (raw === undefined || raw === "malformed" || !key.ownsAddress(raw)) return null;
+  const index = key.diversifierIndexOf(raw.subarray(0, SAPLING_DIVERSIFIER_BYTES));
+  if (index > BigInt(MAX_BIP32_INDEX)) return null;
+  return { index: Number(index), path: profile.path(account, Number(index)) };
+}
+
+/** The ownership test of the Zcash Sapling adapter id (RuntimeCoinAdapter.ownedAddresses). */
+export function zcashSaplingOwnership(id: string): RuntimeCoinAdapter["ownedAddresses"] {
+  if (id !== ZCASH_SAPLING_PROFILE.adapterId) return undefined;
+  return (input, addresses) => {
+    // The account's keys once, for every address asked about.
+    const key = accountKey(input.seed, input.account);
+    try {
+      return addresses.map((address) =>
+        ownedRow(ZCASH_SAPLING_PROFILE, key, input.account, address),
+      );
+    } finally {
+      key.wipe();
+    }
+  };
 }
 
 /** The derivation of the Zcash Sapling adapter id; undefined for another id. */

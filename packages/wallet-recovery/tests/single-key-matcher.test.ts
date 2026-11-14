@@ -98,7 +98,7 @@ describe("single-key coins in the Wallet Matcher", () => {
   });
 
   it("refuse a line longer than any supported address before decoding it", () => {
-    expect(() => targetOf("1".repeat(129))).toThrow(/longer than any supported address/u);
+    expect(() => targetOf("1".repeat(513))).toThrow(/longer than any supported address/u);
   });
 
   it("refuse a broken checksum of every coin and every single-key coin on testnet", () => {
