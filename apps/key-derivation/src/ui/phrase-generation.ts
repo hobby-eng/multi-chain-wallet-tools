@@ -1,9 +1,9 @@
 // One press of a Generate button in Generate & Derive with any combination of its generation
 // options: a chosen word, a phrase the Telegram wallet accepts (TON's check)
 // and the MHFE wallet check. It routes the draw, shows it under the buttons from the click to its
-// end (generation-progress.ts), and keeps the outlook under the options: the bits a phrase keeps,
-// how long it takes on this computer, and what a passphrase kept with it means
-// (generation-outlook.ts).
+// end (generation-progress.ts), and keeps the outlook under the options: the bits a phrase keeps
+// and how long it takes on this computer (generation-outlook.ts). With TON's check and the wallet
+// check both ticked, TON's option marks itself not recommended (ton-phrase-feature.ts).
 //
 // Every combination draws uniformly among the phrases that meet all its conditions: each draw comes
 // fresh from the chosen-word sampler, uniform among the phrases that meet the wishes, and each
@@ -50,6 +50,8 @@ export interface WalletCheckOption extends GenerationOption {
 /** What generation asks of TON's phrase (ton-phrase-feature.ts). */
 export interface TonOption extends GenerationOption {
   readonly condition: WorkerPrecheck;
+  /** Whether the wallet check is ticked too, said on every refresh of the options. */
+  markWithWalletCheck(on: boolean): void;
   generate(
     current: () => boolean,
     onDraws: (draws: number) => void,
@@ -238,11 +240,16 @@ export class PhraseGeneration {
     return this.#parts.chosenWords?.active() === true ? this.#parts.chosenWords : undefined;
   }
 
-  /** The lines under the options while an option that checks the phrase is ticked. */
+  /**
+   * The lines under the options while an option that checks the phrase is ticked, and TON's mark
+   * while the wallet check is ticked with it: before the draw, that mark says what the done line's
+   * passphrase note says after it.
+   */
   #showOutlook(): void {
     const { chosenWords, outlook } = this.#parts;
     const ton = this.#active(this.#parts.ton);
     const check = this.#active(this.#parts.walletCheck);
+    this.#parts.ton?.markWithWalletCheck(ton !== undefined && check !== undefined);
     const conditions = [ton?.condition, check?.condition].filter(
       (condition): condition is GenerationCondition => condition !== undefined,
     );
@@ -267,10 +274,6 @@ export class PhraseGeneration {
     }
     // The speed does not depend on the chosen words, which never reach a measurement.
     const speed = check?.speed(ton !== undefined);
-    outlook.show({
-      bits,
-      time: speed === undefined ? null : timeOutlook(speed, conditions),
-      note: check === undefined ? null : (ton?.condition.passphraseNote ?? null),
-    });
+    outlook.show({ bits, time: speed === undefined ? null : timeOutlook(speed, conditions) });
   }
 }

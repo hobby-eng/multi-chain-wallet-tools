@@ -14,8 +14,10 @@ import { resolve } from "node:path";
 import { assertKeyDerivationComposition } from "./key-derivation-composition.mjs";
 import {
   applyKeyDerivationFeatureTemplate,
+  assertTonWalletCheckMark,
   parseKeyDerivationFeatures,
 } from "./key-derivation-features.mjs";
+import { uniqueIds } from "./artifact-checks.mjs";
 import { assertDashOnlyGraph, BUILD_PROFILES } from "./build-profiles.mjs";
 import { MnemoCodeWalletTemplate } from "./mnemocode-wallet-template.mjs";
 import { options } from "./composition-test-helpers.mjs";
@@ -219,6 +221,93 @@ describe("selective Deriver templates and gates", () => {
     expect(() => assertKeyDerivationComposition(options(["dash"], []), workerHelpers)).toThrow(
       /excluded/u,
     );
+  });
+
+  it("marks the Telegram option beside the wallet check only in builds with TON and MHFE", () => {
+    const template =
+      '<div id="ton-generation"><div id="ton-wallet-check-warning" hidden><details id="ton-wallet-check-help"><div><p>MHFE</p></div></details></div><p id="ton-phrase-note"></p></div><div id="wallet-check-generation"></div>';
+    const both = applyKeyDerivationFeatureTemplate(template, options(["ton"], ["mhfe"]));
+    expect(both).toContain('id="ton-wallet-check-help"');
+    // TON without MHFE: the option and its note stay, its mark and the mark's words go.
+    expect(applyKeyDerivationFeatureTemplate(template, options(["ton"], []))).toBe(
+      '<div id="ton-generation"><p id="ton-phrase-note"></p></div>',
+    );
+    // MHFE without TON: the wallet check stays alone.
+    expect(applyKeyDerivationFeatureTemplate(template, options(["dash"], ["mhfe"]))).toBe(
+      '<div id="wallet-check-generation"></div>',
+    );
+  });
+
+  it("gates the Telegram option's mark in a built page: where both options are, and only there", () => {
+    const lineOf = (line = ' role="status" aria-live="polite" hidden', inLine = "") =>
+      `<span id="ton-wallet-check-warning-text"${line}>Not recommended${inLine}</span>`;
+    const row = ({
+      hidden = " hidden",
+      line = undefined,
+      inLine = "",
+      withLine = true,
+      help = '<details id="ton-wallet-check-help"><summary aria-label="Why not?">?</summary></details>',
+    } = {}) =>
+      `<div id="ton-wallet-check-warning"${hidden}>${withLine ? lineOf(line, inLine) : ""}${help}</div>`;
+    const ton = (inner = "") => `<div id="ton-generation">${inner}</div>`;
+    const check = '<div id="wallet-check-generation"></div>';
+    const gate = (html) => () => assertTonWalletCheckMark(html, uniqueIds(html, "Test page"));
+    expect(gate(ton(row()) + check)).not.toThrow();
+    // Either option alone: no mark, and a mark there is refused.
+    expect(gate(ton())).not.toThrow();
+    expect(gate(check)).not.toThrow();
+    expect(gate(ton(row()))).toThrow(/#ton-wallet-check-warning without both of its options/u);
+    expect(gate(check + row())).toThrow(/without both of its options/u);
+    // Both options: every part of the mark, in its place.
+    expect(gate(ton() + check)).toThrow(/missing required element #ton-wallet-check-warning\./u);
+    expect(gate(ton(row({ help: "" })) + check)).toThrow(
+      /missing required element #ton-wallet-check-help\./u,
+    );
+    // Hidden by its own attribute: a class or aria-hidden of that name does not hide it.
+    for (const hidden of ["", ' class="hidden"', ' aria-hidden="true"'])
+      expect(gate(ton(row({ hidden })) + check)).toThrow(/must be hidden until both/u);
+    // A polite live region: "off" is read out never, "assertive" would cut into what is being
+    // read, so only "polite" passes, with role="status".
+    for (const line of [
+      ' aria-live="polite"',
+      ' role="status"',
+      ' role="status" aria-live="off"',
+      ' role="status" aria-live="assertive"',
+    ])
+      expect(gate(ton(row({ line })) + check)).toThrow(/polite live region/u);
+    // The line belongs inside the row: placed before it or after it, it is refused.
+    for (const outside of [
+      lineOf() + row({ withLine: false }),
+      row({ withLine: false }) + lineOf(),
+    ])
+      expect(gate(ton(outside) + check)).toThrow(/polite live region inside/u);
+    const help =
+      '<details id="ton-wallet-check-help"><summary aria-label="Why">?</summary></details>';
+    expect(gate(ton(row({ help: "" }) + help) + check)).toThrow(/must lie inside/u);
+    expect(gate(ton(row({ help: "", inLine: help })) + check)).toThrow(/outside its line/u);
+    const unnamed = '<details id="ton-wallet-check-help"><summary>?</summary></details>';
+    expect(gate(ton(row({ help: unnamed })) + check)).toThrow(/no accessible name/u);
+    // The editions' own pages: Multi-Chain has the mark whole, Dash Community none of it.
+    const page = (profileId) =>
+      applyKeyDerivationFeatureTemplate(
+        readFileSync("apps/key-derivation/src/index.html", "utf8"),
+        parseKeyDerivationFeatures(BUILD_PROFILES[profileId], []),
+      );
+    expect(gate(page("multi-chain"))).not.toThrow();
+    expect(gate(page("dash-community"))).not.toThrow();
+    expect(gate(page("dash-community") + row())).toThrow(/without both of its options/u);
+    // The artifact gate runs the check, refuses the mark's id in Dash Community, and no longer
+    // asks for the outlook's former note.
+    const verifier = readFileSync(
+      "apps/key-derivation/scripts/verify-key-derivation-artifact.mjs",
+      "utf8",
+    );
+    expect(verifier).toMatch(/^assertTonWalletCheckMark\(html, ids\);$/mu);
+    const dashExcluded = /if \(profile\.id === "dash-community"\) \{([\s\S]*?)\]\) \{/u.exec(
+      verifier,
+    )?.[1];
+    expect(dashExcluded).toContain('"ton-wallet-check-warning"');
+    expect(verifier).not.toContain('"generation-note"');
   });
 
   it("orders coins by edition: Dash Community never takes the coin-order rule", () => {

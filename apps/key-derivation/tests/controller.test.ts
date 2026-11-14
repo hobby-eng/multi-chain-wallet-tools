@@ -409,6 +409,7 @@ describe("Key Derivation phrases of TON and of long draws", () => {
     };
     const ton = {
       active: vi.fn(() => false),
+      markWithWalletCheck: vi.fn(),
       show: vi.fn((phrase: string) => (phrase === "" ? "other" : "ton-only")),
       cancel: vi.fn(),
       clear: vi.fn(),

@@ -9,8 +9,9 @@
 //
 // Without page arguments it checks every built tool of the chosen profiles in dist/ (build them
 // first with `pnpm build:html`). It opens each page at every width, walks through its tabs and
-// modes two levels deep and, in the Key Derivation Tool, also opens the chosen-words panel,
-// generates a phrase, switches coins and opens a BIP85 child wallet for every coin. In every state it reports:
+// modes two levels deep and, in the Key Derivation Tool, also opens the chosen-words panel, ticks
+// the MHFE wallet check with the Telegram option, generates a phrase, switches coins and opens a
+// BIP85 child wallet for every coin. In every state it reports:
 //
 //   empty-grid-cell    a shown grid cell with nothing visible in it, which shifts the cells after it
 //   page-sideways      the whole page is wider than the window, so it scrolls sideways
@@ -374,8 +375,8 @@ async function eachCoin(page, selector, recorder, state) {
 }
 
 /**
- * The Key Derivation Tool's states beyond its tabs: the chosen-word panel with a word, a phrase,
- * every coin and a BIP85 child wallet.
+ * The Key Derivation Tool's states beyond its tabs: the chosen-word panel with a word, the wallet
+ * check with the Telegram option, a phrase, every coin and a BIP85 child wallet.
  */
 async function deriverStates(page, recorder, state) {
   if ((await page.locator("#generate-12").count()) === 0) return;
@@ -385,6 +386,15 @@ async function deriverStates(page, recorder, state) {
     await recorder.record(page, `${state} chosen words`);
     await page.locator("#chosen-word-1").fill("");
     await page.locator("#chosen-words-enabled").uncheck();
+  }
+  // The Telegram option with the MHFE wallet check shows its "Not recommended" mark and its "?".
+  if ((await page.locator("#ton-wallet-check-warning").count()) > 0) {
+    await page.locator("#wallet-check-enabled").check();
+    await page.locator("#ton-generation-enabled").check();
+    await page.locator("#ton-wallet-check-warning").waitFor();
+    await recorder.record(page, `${state} wallet check and Telegram`);
+    await page.locator("#ton-generation-enabled").uncheck();
+    await page.locator("#wallet-check-enabled").uncheck();
   }
   await page.locator("#generate-12").click();
   await page.waitForTimeout(1500);

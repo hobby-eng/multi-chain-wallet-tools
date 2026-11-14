@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { MNEMOCODE_WASM_DIRECTORY } from "./sync-mnemocode-wasm.mjs";
-import { removeElementById } from "./html-elements.mjs";
+import { elementById, removeElementById } from "./html-elements.mjs";
 import { SOURCE_REPOSITORY_URL } from "./project-metadata.mjs";
 import { ToolBuildPolicy } from "./tool-build-policy.mjs";
 import { commaOptionValues, requestedArtifact } from "./tool-feature-options.mjs";
@@ -93,6 +93,47 @@ function removeBalancedElement(source, id) {
   return removeElementById(source, id, "Key Derivation template");
 }
 
+/** The ids of the Telegram option's mark beside the MHFE wallet check: its row, line and "?". */
+const TON_WALLET_CHECK_MARK_IDS = Object.freeze([
+  "ton-wallet-check-warning",
+  "ton-wallet-check-warning-text",
+  "ton-wallet-check-help",
+]);
+
+/**
+ * Checks the Telegram option's mark beside the MHFE wallet check in a built Deriver page, whose
+ * element ids are `ids`. Where both options are built, the row is there and hidden until both are
+ * ticked, its line is a polite live region, its "?" sits in the row outside the line, and the "?"
+ * has an accessible name; where either option is missing, none of the mark is. Throws on the first
+ * defect.
+ */
+export function assertTonWalletCheckMark(html, ids) {
+  const context = "Key Derivation artifact";
+  if (!ids.includes("ton-generation") || !ids.includes("wallet-check-generation")) {
+    const present = TON_WALLET_CHECK_MARK_IDS.find((id) => ids.includes(id));
+    if (present !== undefined)
+      throw new Error(`${context} has #${present} without both of its options.`);
+    return;
+  }
+  const missing = TON_WALLET_CHECK_MARK_IDS.find((id) => !ids.includes(id));
+  if (missing !== undefined)
+    throw new Error(`Telegram option is missing required element #${missing}.`);
+  const [rowId, lineId, helpId] = TON_WALLET_CHECK_MARK_IDS;
+  const row = elementById(html, rowId, context) ?? "";
+  const line = elementById(row, lineId, context);
+  const help = elementById(row, helpId, context);
+  const openingTag = (element) => /^<[^>]*>/u.exec(element)?.[0] ?? "";
+  if (!/\shidden[\s=>]/u.test(openingTag(row)))
+    throw new Error(`${context}: #${rowId} must be hidden until both options are ticked.`);
+  const lineTag = openingTag(line ?? "");
+  if (!/\srole="status"/u.test(lineTag) || !/\saria-live="polite"/u.test(lineTag))
+    throw new Error(`${context}: #${lineId} must be a polite live region inside #${rowId}.`);
+  if (help === undefined || line.includes(`id="${helpId}"`))
+    throw new Error(`${context}: #${helpId} must lie inside #${rowId}, outside its line.`);
+  if (!/<summary\b[^>]*\baria-label="[^"]+"/u.test(help))
+    throw new Error(`${context}: the summary of #${helpId} has no accessible name.`);
+}
+
 function removeButtons(source, attribute, value) {
   const pattern = new RegExp(
     `<button\\b(?=[^>]*\\b${attribute}=["']${value}["'])[^>]*>[\\s\\S]*?<\\/button>`,
@@ -167,8 +208,11 @@ export function applyKeyDerivationFeatureTemplate(template, features) {
     for (const id of ["seedqr-qr-form", "seedqr-decoy", "seedqr-hidden-decode-note"])
       rendered = removeBalancedElement(rendered, id);
   // A TON phrase's option and note come with TON (tooling/single-key-coins.mjs TON_PHRASE_MODULES),
-  // and so does the link of its "?".
+  // and so does the link of its "?". The option's mark beside the MHFE wallet check, which names
+  // MHFE, comes with MHFE as well.
   if (!features.hasCoin("ton")) rendered = removeBalancedElement(rendered, "ton-generation");
+  else if (!features.has("mhfe"))
+    rendered = removeBalancedElement(rendered, "ton-wallet-check-warning");
   // The child wallet's note on its one Cardano tab, and the Matcher's on Cardano's roles, come with
   // Cardano.
   if (!features.hasCoin("cardano"))

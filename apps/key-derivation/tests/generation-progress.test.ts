@@ -153,12 +153,11 @@ describe("the lines of a draw under the Generate buttons", () => {
 });
 
 describe("the outlook under the generation options", () => {
-  it("shows the bits, the time and the note, hides what is null, and writes only changes", () => {
+  it("shows the bits and the time, hides what is null, and writes only changes", () => {
     const elements = {
       box: new Control(),
       bits: new Control(),
       time: new Control(),
-      note: new Control(),
     };
     const outlook = new GenerationOutlook(
       elements as unknown as ConstructorParameters<typeof GenerationOutlook>[0],
@@ -166,21 +165,18 @@ describe("the outlook under the generation options", () => {
     const lines = {
       bits: { text: "Not recommended.", alert: true },
       time: "About 1 min.",
-      note: null,
     };
     outlook.show(lines);
     expect(elements.box.hidden).toBe(false);
     expect(elements.bits.classes.has("warning")).toBe(true);
     expect(elements.time).toMatchObject({ hidden: false, textContent: "About 1 min." });
-    expect(elements.note.hidden).toBe(true);
     // The same lines again, as a passphrase typed while an option is ticked asks: nothing written.
     const writes = elements.bits.writes + elements.time.writes;
     outlook.show(lines);
     expect(elements.bits.writes + elements.time.writes).toBe(writes);
-    outlook.show({ bits: { text: "Ample.", alert: false }, time: null, note: "No passphrase." });
+    outlook.show({ bits: { text: "Ample.", alert: false }, time: null });
     expect(elements.bits.classes.has("warning")).toBe(false);
     expect(elements.time.hidden).toBe(true);
-    expect(elements.note).toMatchObject({ hidden: false, textContent: "No passphrase." });
     outlook.show(null);
     expect(elements.box.hidden).toBe(true);
   });

@@ -12,6 +12,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseBuildProfile } from "../../../tooling/build-profiles.mjs";
 import {
+  assertTonWalletCheckMark,
   TON_PHRASE_SECURITY_URL,
   vendoredMnemoCodeVersion,
 } from "../../../tooling/key-derivation-features.mjs";
@@ -125,7 +126,6 @@ const requiredIds = [
   "generation-outlook",
   "generation-bits",
   "generation-time",
-  "generation-note",
   "wallet-check-generation",
   "wallet-check-help",
   "wallet-check-enabled",
@@ -253,6 +253,8 @@ if (profile.capabilities.bip85) {
     }
   }
 }
+// The Telegram option's mark beside the MHFE wallet check, wherever the build has both options.
+assertTonWalletCheckMark(html, ids);
 for (const match of html.matchAll(/<label\b[^>]*\bfor="([^"]+)"/gu)) {
   if (!ids.includes(match[1])) throw new Error(`Label references missing control #${match[1]}.`);
 }
@@ -412,6 +414,7 @@ if (profile.id === "dash-community") {
     "Stellar",
     "ton-trust",
     "ton-generation",
+    "ton-wallet-check-warning",
     "TON default seed",
     "TON seed version",
     "Telegram wallet",

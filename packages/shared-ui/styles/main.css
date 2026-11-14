@@ -3877,6 +3877,23 @@ label:has(> input[type="checkbox"]) small {
   padding: 10px 12px;
 }
 
+/* A warning on an option with its own "?" at the end: a <details> cannot sit inside a paragraph,
+   so the line and the "?" share a row, the "?" on the line's first row. */
+.option-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.option-warning > span {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.option-warning > .option-help {
+  margin-top: 1px;
+}
+
 /* An empty status line takes no row of its grid; its first message brings it back. */
 #mnemocode-reencode-status:empty,
 #mnemocode-table-export-status:empty,

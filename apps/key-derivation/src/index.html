@@ -259,6 +259,41 @@
                 </div>
                 <small id="ton-generation-description">24 words · a BIP39 phrase that is also a TON phrase.</small>
               </div>
+              <div id="ton-wallet-check-warning" class="field-note warning option-warning" hidden>
+                <span id="ton-wallet-check-warning-text" role="status" aria-live="polite" hidden
+                  ><strong>Not recommended</strong> with the MHFE wallet check: the Telegram wallet uses such a phrase
+                  without the BIP39 passphrase that the check is made for.</span
+                >
+                <details id="ton-wallet-check-help" class="recovery-help option-help">
+                  <summary
+                    class="help-mark"
+                    aria-label="Why the Telegram option is not recommended with the MHFE wallet check"
+                  >
+                    ?
+                  </summary>
+                  <div class="recovery-help-popover">
+                    <h3>Why not with the wallet check?</h3>
+                    <p>
+                      The MHFE wallet check is made for a wallet whose funds all sit under a BIP39 passphrase. MHFE's
+                      proof shows that someone who has the phrase encrypted with MHFE must then search the MHFE password
+                      and the passphrase together, as pairs: every password they try needs its own passphrase search.
+                    </p>
+                    <p>
+                      A phrase the Telegram wallet accepts gives up both. The Telegram wallet derives its key from the
+                      words alone, so its funds sit outside the passphrase. TON's own check needs no passphrase: it sets
+                      aside about 255 of 256 wrong MHFE passwords before any passphrase is tried, and once the Telegram
+                      wallet has been used, its address lets every MHFE password be tested without the passphrase.
+                      MHFE's proof does not cover such a phrase.
+                    </p>
+                    <p>
+                      For the Telegram wallet, keep a phrase of its own without the wallet check. Or untick this option,
+                      draw with the wallet check alone, and hold TON at its Ledger or Trust Wallet path, which the page
+                      derives from any BIP39 phrase and its passphrase, in a wallet that offers that path and takes the
+                      passphrase too.
+                    </p>
+                  </div>
+                </details>
+              </div>
               <p id="ton-phrase-note" class="field-note" role="status" aria-live="polite" hidden></p>
             </div>
             <div id="chosen-words-generation" class="generation-option">
@@ -295,7 +330,6 @@
           <div id="generation-outlook" class="generation-outlook" aria-live="polite" hidden>
             <p id="generation-bits" class="field-note"></p>
             <p id="generation-time" class="field-note" hidden></p>
-            <p id="generation-note" class="field-note warning" hidden></p>
           </div>
           <div id="chosen-words-panel" class="chosen-words-panel" hidden>
             <p class="field-note chosen-words-warning">

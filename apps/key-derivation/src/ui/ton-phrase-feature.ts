@@ -6,7 +6,9 @@
 // draws BIP39 phrases of 24 words until one is also a TON phrase: on the page, from the chosen-word
 // sampler when a word is chosen, or with the MHFE wallet check on that check's workers, TON's check
 // first (checked-mnemonic-feature.ts). The wallet check draws for a BIP39 passphrase that the
-// Telegram wallet does not use; the page says so.
+// Telegram wallet does not use: while both are ticked, the option shows its row that marks it not
+// recommended. The row and its words are in the page's template, kept only in builds with MHFE
+// (tooling/key-derivation-features.mjs), since this module also ships in builds without it.
 import { generateMnemonic } from "@ckd/core/bip39.js";
 import { wipe } from "@ckd/core/crypto.js";
 import { ErrorCatalog } from "@ckd/core/error-catalog.js";
@@ -73,15 +75,56 @@ const NOTES: Readonly<Record<TonPhraseKind, string>> = Object.freeze({
   other: "",
 });
 
+/**
+ * A row that appears on a change of the options, whose line is read out when it does: the line is a
+ * live region, and its words, taken from the page's template, are put back into it each time the
+ * row shows, and taken out when it hides. Only a change of state touches the line, so that a
+ * refresh of the options on every key of the passphrase reads nothing out again.
+ */
+class AnnouncedRow {
+  readonly #row: HTMLElement;
+  readonly #line: HTMLElement;
+  /** The line's words as the template has them, kept while the row is hidden. */
+  readonly #words: readonly Node[];
+
+  constructor(row: HTMLElement, line: HTMLElement) {
+    this.#row = row;
+    this.#line = line;
+    this.#words = [...line.childNodes];
+    this.#hide();
+  }
+
+  show(on: boolean): void {
+    if (on === !this.#row.hidden) return;
+    if (!on) {
+      this.#hide();
+      return;
+    }
+    this.#row.hidden = false;
+    this.#line.hidden = false;
+    this.#line.replaceChildren(...this.#words);
+  }
+
+  #hide(): void {
+    this.#row.hidden = true;
+    this.#line.hidden = true;
+    this.#line.replaceChildren();
+  }
+}
+
 export class TonPhraseFeature implements GenerationOption {
   readonly #box: HTMLInputElement;
   readonly #state: GenerationOptionState;
   readonly #note: HTMLElement;
+  /** The row that marks this option not recommended with the wallet check; null without MHFE. */
+  readonly #walletCheckMark: AnnouncedRow | null;
   readonly #buttons: GenerateButtons;
   /** Draws one random 24-word BIP39 phrase; a test passes a deterministic source (CORE-46). */
   readonly #drawPhrase: () => string;
   /** Bumped by Stop and by every new draw; a draw ends when it no longer holds the latest value. */
   #draw = 0;
+  /** Whether the wallet check is ticked too, as the last refresh of the options said. */
+  #withWalletCheck = false;
 
   constructor(
     page: Document,
@@ -91,6 +134,14 @@ export class TonPhraseFeature implements GenerationOption {
   ) {
     this.#box = requireQueryElement<HTMLInputElement>(page, "#ton-generation-enabled");
     this.#note = requireQueryElement<HTMLElement>(page, "#ton-phrase-note");
+    const mark = page.querySelector<HTMLElement>("#ton-wallet-check-warning");
+    this.#walletCheckMark =
+      mark === null
+        ? null
+        : new AnnouncedRow(
+            mark,
+            requireQueryElement<HTMLElement>(page, "#ton-wallet-check-warning-text"),
+          );
     this.#buttons = buttons;
     this.#drawPhrase = drawPhrase;
     this.#state = new GenerationOptionState(
@@ -129,6 +180,15 @@ export class TonPhraseFeature implements GenerationOption {
   /** Stops a draw in progress; it rejects with an AbortError before its next phrase. */
   cancel(): void {
     this.#draw += 1;
+  }
+
+  /**
+   * Whether the wallet check is ticked too (`on`), on every refresh of the options. The option's
+   * row that marks it not recommended then shows while the option is ticked and offered.
+   */
+  markWithWalletCheck(on: boolean): void {
+    this.#withWalletCheck = on;
+    this.#sync();
   }
 
   /** The note under the phrase for `phrase`, and what the phrase is to TON. */
@@ -202,10 +262,14 @@ export class TonPhraseFeature implements GenerationOption {
     );
   }
 
-  /** The box, offered after the startup checks, and Generate limited to 24 words while ticked. */
+  /**
+   * The box, offered after the startup checks; Generate limited to 24 words while ticked; and the
+   * row beside the wallet check, hidden as soon as either is unticked or the checks fail.
+   */
   #sync(): void {
     this.#box.disabled = !this.#state.enabled;
     this.#buttons.limit("ton-phrase", this.#box.checked ? TON_WORD_COUNT : undefined);
+    this.#walletCheckMark?.show(this.#withWalletCheck && this.#box.checked && this.#state.enabled);
   }
 }
 

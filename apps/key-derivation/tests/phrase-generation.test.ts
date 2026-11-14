@@ -53,7 +53,6 @@ function setup({ wishes = false, ton = false, check = false } = {}) {
     box: new Control(),
     bits: new Control(),
     time: new Control(),
-    note: new Control(),
   };
   const chosenWords = {
     active: vi.fn(() => wishes),
@@ -71,6 +70,7 @@ function setup({ wishes = false, ton = false, check = false } = {}) {
   };
   const tonOption = {
     condition: tonCondition,
+    markWithWalletCheck: vi.fn((_on: boolean) => undefined),
     active: vi.fn(() => ton),
     setEnabled: vi.fn(),
     clear: vi.fn(),
@@ -178,6 +178,9 @@ describe("one press of Generate with any combination of the options", () => {
       );
       drawn?.finish(state.check ? "kept" : "none");
       expect(parts.progressElements.line.textContent).toMatch(/^Generated a new \d+-word BIP39/u);
+      // With both checks, the done line says how the Telegram wallet uses the phrase.
+      const note = / The Telegram wallet uses this phrase without the BIP39 passphrase\.$/u;
+      expect(note.test(parts.progressElements.line.textContent)).toBe(state.ton && state.check);
       expect(parts.progressElements.stop.hidden).toBe(true);
     },
   );
@@ -249,7 +252,7 @@ describe("one press of Generate with any combination of the options", () => {
     expect(parts.progressElements.line.textContent).toBe("");
   });
 
-  it("keeps the outlook under the options with the bits, the time and the passphrase note", () => {
+  it("keeps the outlook under the options with the bits and the time", () => {
     const parts = setup();
     parts.generation.optionsChanged();
     expect(parts.outlookElements.box.hidden).toBe(true);
@@ -261,7 +264,6 @@ describe("one press of Generate with any combination of the options", () => {
       /keeps about 248 of its 256 random bits/u,
     );
     expect(parts.outlookElements.time.hidden).toBe(true);
-    expect(parts.outlookElements.note.hidden).toBe(true);
     expect(parts.chosenWords.setConditioned).toHaveBeenLastCalledWith(true);
     parts.checkOption.active.mockReturnValue(true);
     parts.chosenWords.active.mockReturnValue(true);
@@ -272,7 +274,6 @@ describe("one press of Generate with any combination of the options", () => {
     expect(parts.outlookElements.time.textContent).toBe(
       "Measuring this computer's speed with 4 threads… It can take hours.",
     );
-    expect(parts.outlookElements.note.textContent).toMatch(/without the BIP39 passphrase/u);
     // A measurement that ends updates the time.
     parts.checkOption.speed.mockReturnValue({ kind: "measured", threads: 4, drawsPerSecond: 5000 });
     parts.speedChanged();
@@ -287,5 +288,37 @@ describe("one press of Generate with any combination of the options", () => {
       "Chosen word 1 is not an English BIP39 word.",
     );
     expect(parts.outlookElements.time.textContent).toMatch(/^On this computer with 4 threads, /u);
+  });
+});
+
+describe("the mark of TON's option beside the wallet check", () => {
+  it("marks TON's option only while the wallet check is ticked with it, on every refresh", () => {
+    const parts = setup();
+    const marked = () => parts.tonOption.markWithWalletCheck.mock.lastCall?.[0];
+    const tick = (option: "ton" | "check", on: boolean) => {
+      (option === "ton" ? parts.tonOption : parts.checkOption).active.mockReturnValue(on);
+      parts.generation.optionsChanged();
+    };
+    // The wallet check first, then TON; one unticked unmarks it.
+    tick("check", true);
+    expect(marked()).toBe(false);
+    tick("ton", true);
+    expect(marked()).toBe(true);
+    tick("check", false);
+    expect(marked()).toBe(false);
+    // TON first, then the wallet check; a measurement that ends keeps the mark.
+    tick("check", true);
+    expect(marked()).toBe(true);
+    parts.speedChanged();
+    expect(marked()).toBe(true);
+    tick("ton", false);
+    expect(marked()).toBe(false);
+    // Clear unticks both, then refreshes.
+    tick("ton", true);
+    expect(marked()).toBe(true);
+    parts.tonOption.active.mockReturnValue(false);
+    parts.checkOption.active.mockReturnValue(false);
+    parts.generation.reset();
+    expect(marked()).toBe(false);
   });
 });

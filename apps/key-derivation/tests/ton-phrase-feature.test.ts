@@ -1,14 +1,29 @@
 import { describe, expect, it } from "vitest";
 import { mnemonicToSeed } from "@ckd/core/bip39.js";
 import { GenerateButtons } from "../src/ui/generation-option.js";
+import { PhraseGeneration, type WalletCheckOption } from "../src/ui/phrase-generation.js";
 import { TonPhraseFeature } from "../src/ui/ton-phrase-feature.js";
+import { generationViews } from "./fake-generation-view.js";
 
 class Control extends EventTarget {
   checked = false;
   disabled = false;
   hidden = false;
   textContent = "";
+  /**
+   * The nodes of an element, one list that changes in place as a page's live NodeList does, and how
+   * often they were replaced: each time is read out.
+   */
+  readonly childNodes: unknown[] = [];
+  writes = 0;
+  replaceChildren(...nodes: unknown[]): void {
+    this.childNodes.splice(0, this.childNodes.length, ...nodes);
+    this.writes += 1;
+  }
 }
+
+/** The words of the mark's line, as the template's nodes stand for them here. */
+const MARK_WORDS = ["Not recommended", " with the MHFE wallet check: …"];
 
 // Public test data only: ton-crypto's TON phrase (not BIP39's), "abandon … art" (BIP39's, not
 // TON's), a 12-word BIP39 vector, and a synthetic phrase that is both: the BIP39 phrase of the
@@ -30,14 +45,19 @@ function drawSource(misses: number) {
   };
 }
 
-function setup({ walletCheck = true, draw = drawSource(0).draw } = {}) {
+/** `onChange` runs after each change of the option, as the page refreshes the others then. */
+function setup({ walletCheck = true, draw = drawSource(0).draw, onChange = () => {} } = {}) {
   const ids = [
     "ton-generation-enabled",
     "ton-phrase-note",
-    ...(walletCheck ? ["wallet-check-enabled"] : []),
+    // A build with MHFE has the wallet check's box and the mark of this option beside it.
+    ...(walletCheck
+      ? ["wallet-check-enabled", "ton-wallet-check-warning", "ton-wallet-check-warning-text"]
+      : []),
     ...[12, 15, 18, 21, 24].map((n) => `generate-${n}`),
   ];
   const elements = Object.fromEntries(ids.map((id) => [id, new Control()]));
+  if (walletCheck) elements["ton-wallet-check-warning-text"]!.childNodes.push(...MARK_WORDS);
   const page = {
     querySelector: (selector: string) => elements[selector.slice(1)] ?? null,
   } as unknown as Document;
@@ -51,6 +71,7 @@ function setup({ walletCheck = true, draw = drawSource(0).draw } = {}) {
     page,
     () => {
       changes += 1;
+      onChange();
     },
     buttons,
     draw,
@@ -204,6 +225,118 @@ describe("the TON phrase in Generate & Derive", () => {
     enable();
     tick("ton-generation-enabled", true);
     expect(disabledButtons(element)).toEqual([12, 15, 18, 21]);
+  });
+});
+
+/**
+ * TON's option and the page's generation as the controller composes them. The MHFE wallet check is a
+ * stub on its box, since its real draws need MHFE's workers; like the real one, it refreshes the
+ * options on every change.
+ */
+function composed({ walletCheck = true } = {}) {
+  let generation: PhraseGeneration | undefined;
+  const parts = setup({ walletCheck, onChange: () => generation?.optionsChanged() });
+  const { element } = parts;
+  const check: WalletCheckOption | undefined = walletCheck
+    ? {
+        condition: { goal: "passes the check", name: "the check", bits: 16, words: 24 },
+        active: () => element("wallet-check-enabled").checked,
+        setEnabled: () => undefined,
+        clear: () => {
+          element("wallet-check-enabled").checked = false;
+        },
+        cancel: () => undefined,
+        generate: async () => BOTH,
+        speed: () => undefined,
+        onSpeed: () => undefined,
+      }
+    : undefined;
+  const views = generationViews();
+  generation = new PhraseGeneration({
+    progress: views.generationProgress,
+    outlook: views.generationOutlook,
+    generateMnemonic: () => ABOUT,
+    chosenWords: undefined,
+    walletCheck: check,
+    ton: parts.feature,
+  });
+  if (walletCheck)
+    element("wallet-check-enabled").addEventListener("change", () => generation?.optionsChanged());
+  parts.enable();
+  return {
+    ...parts,
+    generation,
+    check,
+    row: () => element("ton-wallet-check-warning"),
+    line: () => element("ton-wallet-check-warning-text"),
+  };
+}
+
+describe("the Telegram option's mark beside the MHFE wallet check", () => {
+  it("shows only while both options are ticked, in either order", () => {
+    for (const [first, second] of [
+      ["wallet-check-enabled", "ton-generation-enabled"],
+      ["ton-generation-enabled", "wallet-check-enabled"],
+    ] as const) {
+      const { tick, row, line } = composed();
+      // Hidden, the line is empty, so that its words are new to it when the row shows.
+      const shown = () => !row().hidden && !line().hidden && line().childNodes.length > 0;
+      expect(row().hidden).toBe(true);
+      expect(line()).toMatchObject({ hidden: true, childNodes: [] });
+      tick(first, true);
+      expect(shown()).toBe(false);
+      tick(second, true);
+      expect(shown()).toBe(true);
+      expect(line().childNodes).toEqual(MARK_WORDS);
+      // Either one unticked hides it, and ticked again shows it.
+      for (const id of [first, second]) {
+        tick(id, false);
+        expect(row().hidden).toBe(true);
+        expect(line()).toMatchObject({ hidden: true, childNodes: [] });
+        tick(id, true);
+        expect(shown()).toBe(true);
+      }
+    }
+  });
+
+  it("puts its words into its live line once each time it appears, not on every refresh", () => {
+    const { tick, line, generation } = composed();
+    tick("wallet-check-enabled", true);
+    tick("ton-generation-enabled", true);
+    const writes = line().writes;
+    // A passphrase typed key by key refreshes the options each time: nothing is read out again.
+    for (let key = 0; key < 3; key += 1) generation.optionsChanged();
+    expect(line().writes).toBe(writes);
+    tick("wallet-check-enabled", false);
+    tick("wallet-check-enabled", true);
+    expect(line().writes).toBe(writes + 2);
+    expect(line().childNodes).toEqual(MARK_WORDS);
+  });
+
+  it("is hidden after Clear and while the startup checks keep the options closed", () => {
+    const { tick, row, feature, check, generation } = composed();
+    tick("wallet-check-enabled", true);
+    tick("ton-generation-enabled", true);
+    // Clear: each option unticks, which hides the mark at once, then generation refreshes.
+    check?.clear();
+    feature.clear();
+    expect(row().hidden).toBe(true);
+    generation.reset();
+    expect(row().hidden).toBe(true);
+    // A self-test that fails closes both options, ticked as they are.
+    tick("wallet-check-enabled", true);
+    tick("ton-generation-enabled", true);
+    expect(row().hidden).toBe(false);
+    check?.setEnabled(false);
+    feature.setEnabled(false);
+    expect(row().hidden).toBe(true);
+  });
+
+  it("works without the row in a build without MHFE", () => {
+    const { tick, feature } = composed({ walletCheck: false });
+    expect(() => tick("ton-generation-enabled", true)).not.toThrow();
+    expect(() => feature.markWithWalletCheck(true)).not.toThrow();
+    expect(feature.active()).toBe(true);
   });
 });
 

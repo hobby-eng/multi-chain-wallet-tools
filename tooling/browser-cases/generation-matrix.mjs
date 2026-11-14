@@ -4,8 +4,9 @@
 // screenshot shows the draw running and finished, and Node's own cryptography checks the phrase.
 // Draws that would take minutes or hours are made repeatable by RandomFixtures: all-zero entropy
 // that misses for a while, then a public phrase that passes. The long modes also run on the
-// browser's own randomness, for their start, rising count, estimate, warning and Stop. The Dash
-// Community Edition has no TON: its four states run without it.
+// browser's own randomness, for their start, rising count, estimate, warning and Stop. Only the
+// wallet check with TON marks the Telegram option "Not recommended", whose "?" opens inside the
+// window. The Dash Community Edition has no TON: its four states run without it and the mark.
 import assert from "node:assert/strict";
 import { createHash, createHmac, pbkdf2Sync } from "node:crypto";
 import { mkdirSync } from "node:fs";
@@ -93,6 +94,8 @@ export class GenerationMatrixCase {
     assert.equal(passesTon(zero) || passesCheck(zero, "TREZOR"), false);
     assert.equal(passesTon(BOTH) && passesCheck(BOTH, BOTH_PASSPHRASE), true);
     assert.equal(passesCheck(ABOVE, "TREZOR") && !passesTon(ABOVE), true);
+    // The mark comes with TON and MHFE, which every Multi-Chain build here has.
+    assert.equal(await this.#page.locator("#ton-wallet-check-warning").count(), withTon ? 1 : 0);
     await this.#threads();
     await this.#plain();
     await this.#chosen();
@@ -140,6 +143,7 @@ export class GenerationMatrixCase {
       500,
     );
     await this.#shoot("1-plain-finished");
+    await this.#unmarked();
     assert.equal(validateMnemonic(await this.#phrase(), wordlist), true);
     this.#checks.push("Plain: done line within 500 ms");
   }
@@ -154,6 +158,7 @@ export class GenerationMatrixCase {
       500,
     );
     await this.#shoot("2-chosen-finished");
+    await this.#unmarked();
     assert.equal((await this.#phrase()).split(" ")[1], "happy");
     await this.#unwish();
     this.#checks.push("Chosen word: happy as word 2, done within 500 ms");
@@ -164,6 +169,7 @@ export class GenerationMatrixCase {
     const page = this.#page;
     await this.#tick("#ton-generation-enabled", true);
     await waitText(page, "#generation-bits", /keeps about 248 of its 256 random bits/u);
+    await this.#unmarked();
     await this.#heldOnPage(FILLER.ton, "3-ton");
     assert.equal(await this.#phrase(), BOTH);
     await this.#tick("#ton-generation-enabled", false);
@@ -176,6 +182,7 @@ export class GenerationMatrixCase {
     await this.#tick("#ton-generation-enabled", true);
     await this.#wish("happy", "2");
     await waitText(page, "#generation-bits", /^Not recommended: the phrase keeps about 237 /u);
+    await this.#unmarked();
     await this.#press(24);
     await waitText(page, "#generation-line", /^Generated a new 24-word BIP39 recovery phrase/u);
     await this.#shoot("4-ton-chosen-happy-finished");
@@ -200,6 +207,7 @@ export class GenerationMatrixCase {
     await page.locator("#passphrase").fill("TREZOR");
     if (chosen) await this.#wish("abandon", "1");
     await this.#estimate(/no fixed end/u);
+    await this.#unmarked();
     await this.#heldOnWorkers(ABOVE_COUNTER, FILLER.check, name, /about 65,536 draws\.$/u);
     assert.equal(await this.#phrase(), ABOVE);
     assert.equal(await page.locator("#passphrase").inputValue(), "TREZOR");
@@ -218,7 +226,7 @@ export class GenerationMatrixCase {
     await this.#tick("#wallet-check-enabled", true);
     await page.locator("#passphrase").fill(BOTH_PASSPHRASE);
     if (chosen) await this.#wish("bubble", "2");
-    await waitText(page, "#generation-note", /without the BIP39 passphrase/u);
+    await this.#marked(name);
     const estimate = await this.#estimate(/no fixed end/u);
     // The browser's own randomness: the draw runs, its count rises, and Stop ends it at once.
     await this.#press(24);
@@ -256,10 +264,58 @@ export class GenerationMatrixCase {
       await page.locator("#generation-line").innerText(),
       /without the BIP39 passphrase/u,
     );
+    // Still marked after the draw; either box unticked takes the mark away.
+    assert.equal(await page.locator("#ton-wallet-check-warning").isVisible(), true);
     if (chosen) await this.#unwish();
     await this.#tick("#wallet-check-enabled", false);
+    await this.#unmarked();
     await this.#tick("#ton-generation-enabled", false);
-    this.#checks.push(`${name}: ${estimate}; running count, Stop, the combined vector drawn`);
+    this.#checks.push(
+      `${name}: marked, "?" inside the window; ${estimate}; running count, Stop, the combined vector drawn`,
+    );
+  }
+
+  /** With both checks: the Telegram option's mark, and its "?" opened inside the window. */
+  async #marked(name) {
+    const page = this.#page;
+    const row = page.locator("#ton-wallet-check-warning");
+    await row.waitFor({ state: "visible" });
+    assert.match(
+      await row.innerText(),
+      /^Not recommended with the MHFE wallet check: the Telegram wallet uses such a phrase /u,
+    );
+    // Its line is a polite live region that holds the words alone, without the "?".
+    const line = page.getByRole("status").filter({ hasText: /^Not recommended with the MHFE/u });
+    assert.equal(await line.getAttribute("aria-live"), "polite");
+    assert.doesNotMatch(await line.innerText(), /\?/u);
+    const popover = page.locator("#ton-wallet-check-help > .recovery-help-popover");
+    await page.locator("#ton-wallet-check-help > summary").click();
+    await popover.waitFor({ state: "visible" });
+    assert.match(await popover.innerText(), /^Why not with the wallet check\?/u);
+    const box = await popover.boundingBox();
+    const width = await page.evaluate(() => document.documentElement.clientWidth);
+    assert.ok(
+      box !== null && box.x >= 0 && box.x + box.width <= width,
+      `The mark's popover reaches past the window: ${JSON.stringify(box)} in ${width}px.`,
+    );
+    await this.#shoot(`${name}-marked`);
+    // Escape closes it; the pointer leaves, as its hover would keep it open.
+    await page.keyboard.press("Escape");
+    await page.mouse.move(0, 0);
+    await popover.waitFor({ state: "hidden" });
+  }
+
+  /**
+   * The Telegram option's mark stays hidden in every state but both checks, and in Dash; its live
+   * line is empty then, so that its words are read out when it appears.
+   */
+  async #unmarked() {
+    const page = this.#page;
+    assert.equal(await page.locator("#ton-wallet-check-warning").isVisible(), false);
+    const words = await page.evaluate(
+      () => document.getElementById("ton-wallet-check-warning-text")?.textContent ?? "",
+    );
+    assert.equal(words, "");
   }
 
   /** A main-thread draw held by `filler` all-zero draws, then BOTH: running and finished. */

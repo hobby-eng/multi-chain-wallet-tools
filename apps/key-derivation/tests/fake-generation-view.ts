@@ -26,7 +26,6 @@ export function generationViews() {
     box: new GenerationLine(),
     bits: new GenerationLine(),
     time: new GenerationLine(),
-    note: new GenerationLine(),
   };
   return {
     generationProgress: new GenerationProgress(

@@ -229,7 +229,6 @@ export class KeyDerivationView {
       box: this.required<HTMLElement>("#generation-outlook"),
       bits: this.required<HTMLElement>("#generation-bits"),
       time: this.required<HTMLElement>("#generation-time"),
-      note: this.required<HTMLElement>("#generation-note"),
     });
     this.cancelDerivationButton = this.required<HTMLButtonElement>("#cancel-derivation");
     this.expectedAddress = this.addressSearch?.expectedAddress ?? null;
