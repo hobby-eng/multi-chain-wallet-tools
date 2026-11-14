@@ -337,6 +337,7 @@ export function selectedWorkerEntry(root, profile, features) {
     [null, "dash", "full", "runDashMasternodeFullSelfTest", "masternode-self-test-dash.ts"],
     [null, "ton", "full", "runTonKeyFullSelfTest", "ton-key-self-test.ts"],
     [null, "cardano", "full", "runCardanoKeyFullSelfTest", "cardano-key-self-test.ts"],
+    [null, "zcash", "full", "runZcashSaplingKeyFullSelfTest", "zcash-sapling-key-self-test.ts"],
   ].filter(
     ([feature, coin]) =>
       (feature === null || features.has(feature)) && (coin === null || features.hasCoin(coin)),
@@ -600,6 +601,11 @@ const sharedSourceMarkers = [
     label: "BIP32-Ed25519 keys and CIP-3 roots (Cardano)",
     needed: (features) => hasSingleKeyKind(features.hasCoin, "bip32-ed25519"),
     markers: [...SINGLE_KEY_SHARED_MARKERS["bip32-ed25519"]],
+  },
+  {
+    label: "ZIP-32 Sapling keys (Zcash)",
+    needed: (features) => hasSingleKeyKind(features.hasCoin, "zip32-sapling"),
+    markers: [...SINGLE_KEY_SHARED_MARKERS["zip32-sapling"]],
   },
   {
     label: "Single-key coin self-test and matcher (a single-key coin)",

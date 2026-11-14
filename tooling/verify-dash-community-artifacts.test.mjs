@@ -26,6 +26,9 @@ describe("Dash Community artifact exclusion rules", () => {
     expect(findDashArtifactViolations("XRP Ledger · bitcoincash:q · zcash")).toEqual(
       expect.arrayContaining(["single-key coin", "Bitcoin Cash", "Zcash transparent adapter"]),
     );
+    expect(findDashArtifactViolations("ZcashIP32Sapling · Shielded Sapling · zxviews1q")).toEqual(
+      expect.arrayContaining(["Zcash Sapling"]),
+    );
     // Dash's Orchard notes name Zcash's protocol, which is not the transparent adapter.
     expect(findDashArtifactViolations("Orchard, the shielded pool Zcash designed")).toEqual([]);
   });

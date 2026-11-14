@@ -84,6 +84,7 @@ import { runDashMasternodeFullSelfTest } from "./masternode-self-test-dash.js";
 import { runSilentPaymentSelfTest } from "./silent-payment-self-test.js";
 import { runTonKeyFullSelfTest } from "./ton-key-self-test.js";
 import { runCardanoKeyFullSelfTest } from "./cardano-key-self-test.js";
+import { runZcashSaplingKeyFullSelfTest } from "./zcash-sapling-key-self-test.js";
 
 const messageSigners = new MessageSigners([
   BITCOIN_MESSAGE_SIGNING,
@@ -148,6 +149,7 @@ startDerivationWorker({
     runDashMasternodeFullSelfTest,
     runTonKeyFullSelfTest,
     runCardanoKeyFullSelfTest,
+    runZcashSaplingKeyFullSelfTest,
   ],
   signDerivedMessage: messageSigners.sign,
   verifyDerivedMessage: messageSigners.verify,

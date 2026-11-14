@@ -1,4 +1,5 @@
 import {
+  fieldColumns,
   isSigningAddressField,
   type DerivationResult,
   type DerivedRow,
@@ -179,6 +180,54 @@ export class ResultRendering {
     return checkbox;
   }
 
+  /** The cells of a row's fields under the table's columns, with the BIP38 one beside an address. */
+  static #appendFieldCells(
+    row: HTMLTableRowElement,
+    derived: DerivedRow,
+    fieldKeys: readonly string[],
+    options: ResultsRenderOptions,
+  ): void {
+    for (const key of fieldKeys) {
+      row.append(
+        ResultRendering.#basicFieldCell(
+          derived.basic.find((field) => field.key === key),
+          derived.index,
+          options,
+        ),
+      );
+      if (key === "address" && options.encryptedBip38.size > 0) {
+        const encryptedKey = options.encryptedBip38.get(derived.index);
+        row.append(
+          ResultRendering.#basicFieldCell(
+            encryptedKey === undefined
+              ? undefined
+              : {
+                  key: "bip38EncryptedKey",
+                  label: "Encrypted private key · BIP38",
+                  value: encryptedKey,
+                  secret: true,
+                },
+            derived.index,
+            options,
+          ),
+        );
+      }
+    }
+  }
+
+  /** The cell of a row's note, across the field columns and the BIP38 one beside an address. */
+  static #noteCell(
+    note: string,
+    fieldKeys: readonly string[],
+    options: ResultsRenderOptions,
+  ): HTMLTableCellElement {
+    const cell = ResultRendering.#element("td", "row-note");
+    const bip38 = fieldKeys.includes("address") && options.encryptedBip38.size > 0 ? 1 : 0;
+    cell.colSpan = Math.max(1, fieldKeys.length + bip38);
+    cell.append(ResultRendering.#element("span", "table-empty", note));
+    return cell;
+  }
+
   static #appendBasicRows(
     body: HTMLTableSectionElement,
     rows: readonly DerivedRow[],
@@ -202,32 +251,9 @@ export class ResultRendering {
       pathCell.title = derived.path;
       pathCell.setAttribute("aria-label", `Derivation path ${derived.path}`);
       row.append(selectionCell, pathCell);
-      for (const key of fieldKeys) {
-        row.append(
-          ResultRendering.#basicFieldCell(
-            derived.basic.find((field) => field.key === key),
-            derived.index,
-            options,
-          ),
-        );
-        if (key === "address" && options.encryptedBip38.size > 0) {
-          const encryptedKey = options.encryptedBip38.get(derived.index);
-          row.append(
-            ResultRendering.#basicFieldCell(
-              encryptedKey === undefined
-                ? undefined
-                : {
-                    key: "bip38EncryptedKey",
-                    label: "Encrypted private key · BIP38",
-                    value: encryptedKey,
-                    secret: true,
-                  },
-              derived.index,
-              options,
-            ),
-          );
-        }
-      }
+      if (derived.note === undefined)
+        ResultRendering.#appendFieldCells(row, derived, fieldKeys, options);
+      else row.append(ResultRendering.#noteCell(derived.note, fieldKeys, options));
       fragment.append(row);
     }
     body.append(fragment);
@@ -355,6 +381,8 @@ export class ResultRendering {
     head.append(identity, right);
 
     const body = ResultRendering.#element("div", "address-body");
+    if (derived.note !== undefined)
+      body.append(ResultRendering.#element("div", "row-note table-empty", derived.note));
     for (const field of derived.basic) {
       body.append(ResultRendering.#fieldRow(field, { scope: "row", row: derived.index }, options));
     }
@@ -503,8 +531,11 @@ export class ResultRendering {
         listRoot.append(groupedResults);
         return;
       }
-      const fieldDefinitions = new Map<string, ResultField>();
-      for (const field of result.rows[0]?.basic ?? []) fieldDefinitions.set(field.key, field);
+      // Every row's fields, so that neither the first row nor the page in view decides the columns.
+      const columns = fieldColumns(
+        renderedRows.map(({ basic }) => basic),
+        ({ key }) => key,
+      );
       const wrapper = ResultRendering.#element("div", "basic-table-wrap");
       const table = ResultRendering.#element("table", "basic-results-table");
       const head = ResultRendering.#element("thead");
@@ -513,7 +544,7 @@ export class ResultRendering {
         ResultRendering.#element("th", "select-column", "Use"),
         ResultRendering.#element("th", "path-column", "Path"),
       );
-      for (const field of fieldDefinitions.values()) {
+      for (const field of columns) {
         const header = ResultRendering.#element("th", undefined, field.label);
         header.dataset.fieldKey = field.key;
         if (field.description !== undefined) {
@@ -529,7 +560,8 @@ export class ResultRendering {
       }
       head.append(headerRow);
       const body = ResultRendering.#element("tbody");
-      ResultRendering.#appendBasicRows(body, visibleRows, [...fieldDefinitions.keys()], options);
+      const fieldKeys = columns.map(({ key }) => key);
+      ResultRendering.#appendBasicRows(body, visibleRows, fieldKeys, options);
       table.append(head, body);
       wrapper.append(table);
       listRoot.append(wrapper);

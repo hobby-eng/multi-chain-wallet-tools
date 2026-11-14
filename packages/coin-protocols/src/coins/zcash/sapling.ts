@@ -1,0 +1,251 @@
+// Zcash's shielded Sapling rows: the ZIP-32 account m_Sapling/32'/133'/account' (zip32-sapling.ts),
+// one row per diversifier index j. A row of an index with an address shows it as zs1… (Bech32,
+// "Sapling Payment Addresses") and as ZIP-316 unified addresses (unified.ts): one of the Sapling
+// receiver alone, and, in Advanced mode, one that adds the transparent P2PKH receiver at the same
+// j, m/44'/133'/account'/0/j. About half of the indexes have no address; their rows have no address
+// field and say so in their note, so that a row's index is always j. The account's viewing keys
+// (the UFVK, the UIVK and ZIP-32's zxviews) show every payment of its shielded addresses, so they
+// are secrets like its spending key. Every key and working copy is wiped when the result is built,
+// as far as the runtime allows.
+import { bech32 } from "@scure/base";
+import { BIP32_MAINNET_VERSIONS } from "@ckd/core/networks.js";
+import { bytesToHex, concatBytes, hash160, wipe } from "@ckd/core/crypto.js";
+import {
+  field,
+  paymentAddressField,
+  type Bip32BatchOptions,
+  type DerivationResult,
+  type DerivedRow,
+  type ResultField,
+} from "@ckd/core/types.js";
+import type { HDKey } from "@scure/bip32";
+import { withAccountBranch, type BranchChild } from "../../account-branch.js";
+import { SaplingExtendedSpendingKey } from "../../zip32-sapling.js";
+import { variantDerivation, type VariantDerivation } from "../coin-variant.js";
+import {
+  ZCASH_COIN_TYPE,
+  ZCASH_SAPLING_PROFILE,
+  ZCASH_TRANSPARENT_PROFILE,
+  ZIP32_PURPOSE,
+  type ZcashSaplingProfile,
+} from "./profiles.js";
+import { zcashTransparentAddress } from "./transparent.js";
+import { encodeUnified } from "./unified.js";
+
+/** Bech32 HRPs on mainnet: a Sapling address ("Sapling Payment Addresses") and ZIP-32's encodings. */
+const HRP = Object.freeze({
+  address: "zs",
+  fullViewingKey: "zxviews",
+  spendingKey: "secret-extended-key-main",
+});
+
+/** What the row of an index without a Sapling address says in the place of its addresses. */
+const NO_ADDRESS_NOTE =
+  "No Sapling address at this index: its diversifier is not valid (ZIP-32), and wallets skip it.";
+
+/** The external branch of the transparent account, whose index j is the Sapling row's (ZIP-316). */
+const EXTERNAL_BRANCH = 0;
+
+const NOTICES = Object.freeze([
+  "Zashi, Zingo, YWallet and zcashd add an Orchard receiver to their unified addresses, which is not derived here, so their unified address texts differ from these. The Sapling receiver inside them is a row's zs1 address, which pays the same keys.",
+  "About half of the diversifier indexes have no Sapling address. Wallets skip them; here their rows say so, so that a row's number is always its index j.",
+  "The unified address with a transparent receiver (Advanced mode) holds the transparent address of the same index j, m/44'/133'/account'/0/j. Where index 0 has no Sapling address, that receiver is not the Transparent tab's address #0.",
+  "ZIP-32 asks for a seed of at least 256 bits of entropy, as a 24-word phrase has; a phrase of fewer words derives these keys too, below that strength.",
+  "The viewing keys show every incoming (UIVK) or every incoming and outgoing (UFVK, zxviews) payment of the account's shielded addresses, so they are hidden like the spending key. Neither the Sapling addresses nor their keys sign messages: Zcash's message signing has no shielded standard.",
+]);
+
+/** The Bech32 text of `bytes` under `hrp`, without BIP-173's 90-character limit (ZIP-173). */
+function bech32Text(hrp: string, bytes: Uint8Array): string {
+  const words = bech32.toWords(bytes);
+  try {
+    return bech32.encode(hrp, words, false);
+  } finally {
+    words.fill(0);
+  }
+}
+
+/** `bytes` written by `write`, then wiped. */
+function written<T>(bytes: Uint8Array, write: (bytes: Uint8Array) => T): T {
+  try {
+    return write(bytes);
+  } finally {
+    wipe(bytes);
+  }
+}
+
+/** ZIP-316's P2PKH viewing item of a BIP32 key, c ‖ ser_P(pk); the caller wipes it. */
+function transparentItem(node: HDKey): Uint8Array {
+  const chainCode = node.chainCode;
+  const publicKey = node.publicKey;
+  try {
+    if (chainCode === null || publicKey === null)
+      throw new Error("No transparent viewing key was derived.");
+    return concatBytes(chainCode, publicKey);
+  } finally {
+    wipe(chainCode, publicKey);
+  }
+}
+
+/**
+ * The label of a row's transparent receiver, the same in every row of the account, since the
+ * exports' column headers take it from one row.
+ */
+function transparentReceiverLabel(account: number): string {
+  const branch = ZCASH_TRANSPARENT_PROFILE.paths.branchPath({
+    network: "mainnet",
+    account,
+    branch: EXTERNAL_BRANCH,
+  });
+  return `Its transparent receiver (t1, ${branch}/j)`;
+}
+
+/** The row of diversifier index j: its addresses, or the statement that it has none. */
+function rowOf(
+  profile: ZcashSaplingProfile,
+  key: SaplingExtendedSpendingKey,
+  account: number,
+  child: BranchChild,
+): DerivedRow {
+  const index = child.index;
+  const path = profile.path(account, index);
+  const indexField = field("diversifierIndex", "Diversifier index j", String(index));
+  const address = key.addressAt(BigInt(index));
+  if (address === null)
+    return {
+      index,
+      path,
+      title: `Index #${index} · no Sapling address`,
+      note: NO_ADDRESS_NOTE,
+      basic: [],
+      advanced: [field("path", "Derivation path", path), indexField],
+    };
+  const raw = concatBytes(address.diversifier, address.transmissionKey);
+  const receiver = hash160(child.publicKey);
+  try {
+    return {
+      index,
+      path,
+      title: `Address #${index}`,
+      basic: [
+        paymentAddressField("address", "Sapling address", bech32Text(HRP.address, raw), "zcash"),
+        paymentAddressField(
+          "unifiedAddress",
+          "Unified address (Sapling only)",
+          encodeUnified("address", { sapling: raw }),
+          "zcash",
+        ),
+      ],
+      advanced: [
+        field("path", "Derivation path", path),
+        paymentAddressField(
+          "unifiedTransparentAddress",
+          "Unified address (Sapling and transparent)",
+          encodeUnified("address", { p2pkh: receiver, sapling: raw }),
+          "zcash",
+        ),
+        field(
+          "transparentReceiver",
+          transparentReceiverLabel(account),
+          zcashTransparentAddress(receiver),
+        ),
+        indexField,
+        field("diversifier", "Diversifier d (hex)", bytesToHex(address.diversifier)),
+      ],
+    };
+  } finally {
+    wipe(raw, receiver);
+  }
+}
+
+/** The account's viewing keys and spending key, all secrets. */
+function summaryOf(
+  key: SaplingExtendedSpendingKey,
+  transparentAccount: HDKey,
+  transparentExternal: HDKey,
+  accountPath: string,
+): { basicSummary: ResultField[]; summary: ResultField[] } {
+  const fullViewingKey = written(transparentItem(transparentAccount), (p2pkh) =>
+    written(key.fullViewingKeyEncoding(), (sapling) =>
+      encodeUnified("full-viewing-key", { p2pkh, sapling }),
+    ),
+  );
+  const incomingViewingKey = written(transparentItem(transparentExternal), (p2pkh) =>
+    written(key.incomingViewingKeyEncoding(), (sapling) =>
+      encodeUnified("incoming-viewing-key", { p2pkh, sapling }),
+    ),
+  );
+  return {
+    basicSummary: [
+      field(
+        "unifiedFullViewingKey",
+        "Unified full viewing key (Sapling and transparent)",
+        fullViewingKey,
+        true,
+      ),
+    ],
+    summary: [
+      field(
+        "saplingFullViewingKey",
+        "Sapling extended full viewing key (zxviews)",
+        written(key.extendedFullViewingKey(), (bytes) => bech32Text(HRP.fullViewingKey, bytes)),
+        true,
+      ),
+      field("unifiedIncomingViewingKey", "Unified incoming viewing key", incomingViewingKey, true),
+      field(
+        "saplingSpendingKey",
+        "Sapling extended spending key (secret-extended-key-main)",
+        written(key.bytes(), (bytes) => bech32Text(HRP.spendingKey, bytes)),
+        true,
+      ),
+      field(
+        "derivation",
+        "Derivation",
+        `ZIP-32 Sapling (BLAKE2b "ZcashIP32Sapling"), ${accountPath}`,
+      ),
+    ],
+  };
+}
+
+/** The account's Sapling key below the seed's ZIP-32 master; the caller wipes it. */
+function accountKey(seed: Uint8Array, account: number): SaplingExtendedSpendingKey {
+  const master = SaplingExtendedSpendingKey.fromSeed(seed);
+  try {
+    return master.deriveHardened([ZIP32_PURPOSE, ZCASH_COIN_TYPE, account]);
+  } finally {
+    master.wipe();
+  }
+}
+
+/** The rows of `options`: diversifier indexes from `options.start`, of the account `options.account`. */
+export function deriveZcashSapling(
+  profile: ZcashSaplingProfile,
+  options: Bip32BatchOptions,
+): DerivationResult {
+  const accountPath = profile.accountPath(options);
+  // The transparent account checks the batch and lends each row its key m/44'/133'/a'/0/j.
+  return withAccountBranch(
+    { ...options, branch: EXTERNAL_BRANCH },
+    { versions: BIP32_MAINNET_VERSIONS, paths: ZCASH_TRANSPARENT_PROFILE.paths },
+    (chain) => {
+      const key = accountKey(options.seed, options.account);
+      try {
+        return {
+          id: profile.adapterId,
+          title: profile.label,
+          networkLabel: "Zcash mainnet",
+          pathTemplate: `${accountPath} · diversifier index j`,
+          ...summaryOf(key, chain.account, chain.branch, accountPath),
+          rows: chain.rows((child) => rowOf(profile, key, options.account, child)),
+          notices: [...NOTICES],
+        };
+      } finally {
+        key.wipe();
+      }
+    },
+  );
+}
+
+/** The derivation of the Zcash Sapling adapter id; undefined for another id. */
+export function zcashSaplingDerivation(id: string): VariantDerivation | undefined {
+  return variantDerivation([ZCASH_SAPLING_PROFILE], id, deriveZcashSapling);
+}

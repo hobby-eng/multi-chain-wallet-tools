@@ -105,8 +105,14 @@ const BITCOIN_CASH = Object.freeze([
 const ZCASH = Object.freeze([
   "zcash mainnet path metadata",
   "zcash path boundary refusal",
+  "zcash-sapling mainnet path metadata",
+  "zcash-sapling path boundary refusal",
   "Zcash Transparent · BIP44 / P2PKH",
+  "Zcash Shielded Sapling · ZIP-32",
   "Zcash master/account extended-key integrity",
+  "Zcash Sapling generators and ZIP-32 master and child keys · zcash-test-vectors",
+  "Zcash unified address of a Sapling row · ZIP-316 vectors",
+  "Zcash unified address refusal of unordered typecodes",
 ]);
 const XRP = Object.freeze([
   "xrp mainnet path metadata",

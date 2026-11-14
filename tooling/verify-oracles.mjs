@@ -14,6 +14,7 @@ const EXPECTED = [
   "cardano_oracle.py",
   "ed25519_oracle.py",
   "ton_oracle.py",
+  "zcash_sapling_oracle.py",
   "zcash_unified_oracle.py",
 ];
 

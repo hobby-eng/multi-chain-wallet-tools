@@ -39,6 +39,7 @@ const MULTI_CHAIN_ADAPTER_IDS = [
   "bitcoin-cash",
   "bitcoin-cash-coin-type-0",
   "zcash",
+  "zcash-sapling",
   "xrp",
   "tron",
   "ethereum-classic",

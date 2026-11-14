@@ -1,7 +1,7 @@
 import type { CoinAdapter } from "@ckd/coins/registry.js";
 import type { DerivationResult, DisplayMode, DerivedRow, ResultField } from "@ckd/core/types.js";
 import { Tsv } from "./tsv.js";
-import { DISPLAY_MODES } from "@ckd/core/types.js";
+import { DISPLAY_MODES, fieldColumns } from "@ckd/core/types.js";
 
 const EXPORT_FORMATS = ["plain", "structured", "tsv"] as const;
 const EXPORT_ACTIONS = [
@@ -124,6 +124,17 @@ function* selectedRowItems(
   }
 }
 
+/** The fields of each selected row that has any, row by row. */
+function* selectedFieldLists(
+  adapter: CoinAdapter,
+  result: DerivationResult,
+  selected: ReadonlySet<number>,
+  mode: DisplayMode,
+  action: ExportAction,
+): Generator<DisplayedFieldEntry[]> {
+  for (const { fields } of selectedRowItems(adapter, result, selected, mode, action)) yield fields;
+}
+
 export function inspectSelectedRows(
   adapter: CoinAdapter,
   result: DerivationResult,
@@ -185,17 +196,10 @@ export function* iterateSelectedRows(
     return;
   }
 
-  const headers: DisplayedFieldEntry[] = [];
-  const headerKeys = new Set<string>();
-  for (const { fields } of selectedRowItems(adapter, result, selected, mode, action)) {
-    for (const entry of fields) {
-      const { field } = entry;
-      if (!headerKeys.has(field.key)) {
-        headerKeys.add(field.key);
-        headers.push(entry);
-      }
-    }
-  }
+  const headers = fieldColumns(
+    selectedFieldLists(adapter, result, selected, mode, action),
+    ({ field }) => field.key,
+  );
   if (headers.length === 0) return;
   yield Tsv.row(["Index", "Path", ...headers.map((entry) => fieldLabel(entry))]);
   for (const { row, fields } of selectedRowItems(adapter, result, selected, mode, action)) {

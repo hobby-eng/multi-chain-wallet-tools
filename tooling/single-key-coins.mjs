@@ -2,7 +2,8 @@
 // their key and address forms, their startup vectors and their Wallet Matcher recognizer. The BIP44
 // coins derive by BIP32 (packages/coin-protocols/src/coins/bip44-coin.ts), the Ed25519 coins by
 // SLIP-10 (coins/ed25519-coin.ts); Hedera has keys of both; Cardano derives by BIP32-Ed25519
-// (coin-protocols/src/bip32-ed25519.ts), a payment key and a stake key in its base addresses. Each
+// (coin-protocols/src/bip32-ed25519.ts), a payment key and a stake key in its base addresses; Zcash
+// has BIP44's transparent keys and ZIP-32's Sapling keys (coin-protocols/src/zip32-sapling.ts). Each
 // coin's modules sit at the same places, named by its id, so a build composes any of them from this
 // one table.
 
@@ -52,7 +53,7 @@ export const SINGLE_KEY_COINS = Object.freeze({
   zcash: {
     prefix: "ZCASH",
     derivation: "zcashDerivation",
-    kinds: ["bip44"],
+    kinds: ["bip44", "zip32-sapling"],
     shared: ["utxo-address", "message-signing-compact"],
   },
   xrp: { prefix: "XRP", derivation: "xrpDerivation", kinds: ["bip44"], shared: [] },
@@ -195,6 +196,11 @@ export const CARDANO_PAGE_MODULES = Object.freeze([
   "/key-derivation/src/workers/cardano-key-self-test.ts",
 ]);
 
+/** Zcash's modules beyond its coin modules: the worker's slower Sapling known answers. */
+export const ZCASH_PAGE_MODULES = Object.freeze([
+  "/key-derivation/src/workers/zcash-sapling-key-self-test.ts",
+]);
+
 /** The graph markers of a single-key coin's own modules, which no build without it may hold. */
 export function singleKeyCoinMarkers(coin) {
   return [
@@ -205,10 +211,14 @@ export function singleKeyCoinMarkers(coin) {
     ...(coin === "bitcoin-cash" ? ["/crypto-core/src/cashaddr.ts"] : []),
     ...(coin === "ton" ? TON_PHRASE_MODULES : []),
     ...(coin === "cardano" ? CARDANO_PAGE_MODULES : []),
+    ...(coin === "zcash" ? ZCASH_PAGE_MODULES : []),
   ];
 }
 
-/** Whether any of `coins` (ids) is a single-key coin of `kind`, "bip44", "ed25519" or "bip32-ed25519". */
+/**
+ * Whether any of `coins` (ids) is a single-key coin of `kind`: "bip44", "ed25519", "bip32-ed25519"
+ * or "zip32-sapling".
+ */
 export function hasSingleKeyKind(hasCoin, kind) {
   return SINGLE_KEY_COIN_IDS.some(
     (coin) => hasCoin(coin) && SINGLE_KEY_COINS[coin].kinds.includes(kind),
@@ -288,6 +298,8 @@ export const SINGLE_KEY_SHARED_MARKERS = Object.freeze({
     "/crypto-core/src/cardano-icarus.ts",
     "/crypto-core/src/cardano-root.ts",
   ]),
+  // Zcash's Sapling keys.
+  "zip32-sapling": Object.freeze(["/coin-protocols/src/zip32-sapling.ts"]),
   any: Object.freeze([
     "/coins/coin-variant.ts",
     "/coins/single-key-path-self-test.ts",

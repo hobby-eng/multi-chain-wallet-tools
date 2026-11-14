@@ -18,18 +18,19 @@ const FEATURE = "apps/key-derivation/src/ui/message-signing-feature.ts";
 
 describe("the compact coins' message signing composes with each coin alone", () => {
   it.each([
-    ["litecoin", "LITECOIN", "Litecoin"],
-    ["dogecoin", "DOGECOIN", "Dogecoin"],
-    ["bitcoin-cash", "BITCOIN_CASH", "BitcoinCash"],
-    ["zcash", "ZCASH", "Zcash"],
-  ])("composes only %s's policy, signer and known answers", (coin, prefix, name) => {
+    ["litecoin", "LITECOIN", "Litecoin", ""],
+    ["dogecoin", "DOGECOIN", "Dogecoin", ""],
+    ["bitcoin-cash", "BITCOIN_CASH", "BitcoinCash", ""],
+    // Zcash's own full known answers, of its Sapling keys, come with the coin, not the feature.
+    ["zcash", "ZCASH", "Zcash", ", runZcashSaplingKeyFullSelfTest"],
+  ])("composes only %s's policy, signer and known answers", (coin, prefix, name, coinTests) => {
     const alone = build([coin]);
     const page = selectedMessageSigningInstaller(ROOT, alone);
     expect(page).toContain(`createMessageSigningInstaller(${prefix}_MESSAGE_SIGNING_POLICY)`);
     const worker = selectedWorkerEntry(ROOT, { id: "multi-chain" }, alone);
     expect(worker).toContain(`new MessageSigners([${prefix}_MESSAGE_SIGNING])`);
     expect(worker).toContain(`startupSelfTests: [run${name}MessageSigningSelfTest]`);
-    expect(worker).toContain(`fullSelfTests: [run${name}MessageSigningFullSelfTest]`);
+    expect(worker).toContain(`fullSelfTests: [run${name}MessageSigningFullSelfTest${coinTests}]`);
     for (const source of [page, worker])
       expect(source).not.toMatch(/BITCOIN_MESSAGE|DASH_MESSAGE|bip322|-dash\.ts|-bitcoin\.ts/u);
   });

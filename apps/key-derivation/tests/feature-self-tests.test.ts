@@ -4,6 +4,7 @@ import { runDashBip38FullSelfTest } from "../src/workers/bip38-self-test-dash.js
 import { runDashMasternodeFullSelfTest } from "../src/workers/masternode-self-test-dash.js";
 import { runTonKeyFullSelfTest } from "../src/workers/ton-key-self-test.js";
 import { runCardanoKeyFullSelfTest } from "../src/workers/cardano-key-self-test.js";
+import { runZcashSaplingKeyFullSelfTest } from "../src/workers/zcash-sapling-key-self-test.js";
 import { encryptDerivedP2pkhKey } from "../src/workers/bip38-encrypter.js";
 import { encryptDerivedP2pkhKey as encryptDashP2pkhKey } from "../src/workers/bip38-encrypter-dash.js";
 import { runBip85SelfTest } from "../src/workers/bip85-self-test.js";
@@ -69,6 +70,14 @@ describe("the known answers of the Deriver's optional features", () => {
       "Cardano address encodings · CIP-19",
       "Cardano account and address keys · cardano-addresses",
       "Cardano stake address · CIP-11",
+    ]);
+    expect(runZcashSaplingKeyFullSelfTest().checks).toEqual([
+      "Zcash ZIP-32 Sapling keys of four hardened paths · zcash-test-vectors",
+      "Zcash Sapling key components · zcash-test-vectors",
+      "Zcash unified addresses and viewing keys of Sapling accounts · ZIP-316 vectors",
+      "Zcash F4Jumble · ZIP-316 vectors",
+      "Zcash viewing keys of the Swift SDK and addresses of the Android SDK's phrase",
+      "Zcash Sapling extended spending key text · own value",
     ]);
   }, 60_000);
 

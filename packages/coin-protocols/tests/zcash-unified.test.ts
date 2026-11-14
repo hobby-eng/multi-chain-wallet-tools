@@ -83,7 +83,7 @@ function expectRefusal(run: () => unknown, code: string): void {
 describe("the published vector files", () => {
   it("are kept byte for byte as SHA256SUMS lists them", () => {
     const sums = readFileSync(new URL("SHA256SUMS", FIXTURES), "utf8").trim().split("\n");
-    expect(sums).toHaveLength(5);
+    expect(sums).toHaveLength(8);
     for (const line of sums) {
       const [sum, file] = line.split(/\s+/u);
       expect([file, bytesToHex(sha256(readFileSync(new URL(file ?? "", FIXTURES))))]).toEqual([

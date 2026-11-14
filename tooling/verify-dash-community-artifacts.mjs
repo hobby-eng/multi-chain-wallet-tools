@@ -35,6 +35,9 @@ const DASH_FORBIDDEN_ARTIFACT_PATTERNS = [
     "Cardano",
   ],
   [/\bzcash\b|Zcash transparent|\bTransparent · BIP44\b/u, "Zcash transparent adapter"],
+  // Zcash's Sapling keys, by their ZIP-32 personalization, the tab's name and the prefixes of their
+  // key texts; Dash's Orchard has none of these.
+  [/ZcashIP32Sapling|Shielded Sapling|\bzxviews1|secret-extended-key-main/u, "Zcash Sapling"],
   // The EVM networks of the connected tools, by name ("Base" is too common a word; the endpoint
   // pattern finds it), by endpoint and by their chain-id request.
   ...EVM_NETWORKS.filter(({ label }) => label !== "Base").map(({ label }) => [

@@ -380,7 +380,7 @@ Each of these products, and the MHFE, MnemoCode and SSKR WebAssembly too, also l
 
 ### MIT notices
 
-The following Recovery and QR sources, and the Zcash test vectors that the unit tests read, are distributed or adapted under the MIT License. The common MIT terms below apply to every listed copyright notice:
+The following Recovery and QR sources, and the Zcash test vectors and wallet SDK test values that the unit tests read and the Zcash self-tests embed, are distributed or adapted under the MIT License. The common MIT terms below apply to every listed copyright notice:
 
 ```text
 Copyright 2019 SatoshiLabs
@@ -404,8 +404,19 @@ Copyright (c) 2023 Paul Miller (https://paulmillr.com)
 qr — QR decoder; distributed here under its MIT option
 
 Copyright (c) 2018-2021 The Electric Coin Company
-zcash-test-vectors — ZIP-32 and ZIP-316 test vectors (test/fixtures/zcash-test-vectors, and values
-in the Sapling unit tests); used here under its MIT option
+zcash-test-vectors — ZIP-32 and ZIP-316 test vectors (test/fixtures/zcash-test-vectors, values in
+the Sapling unit tests, and values in the Zcash self-tests of the Key Derivation Tool); used here
+under its MIT option
+
+Copyright (c) 2020 Zcash
+zcash-swift-wallet-sdk — the unified full viewing key and the zxviews key of its test seed
+(commit 01eb750bae6b108f134a4d56d6ccfafd45bad967), in the Sapling unit tests and the Zcash
+Sapling full self-test
+
+Copyright (c) 2017-2024 Electric Coin Company
+zcash-android-wallet-sdk — the unified address of its test phrase (commit
+1aaf2c4cca83a8a64cf3b8ccb714437e0155b4c8), in the Sapling unit tests and the Zcash Sapling full
+self-test
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -450,7 +461,9 @@ The Deriver's NFKD tables (`packages/crypto-core/src/unicode-nfkd-data.ts`), emb
 
 ## Zcash test vectors
 
-The unit tests of Zcash's Sapling keys and unified encodings (`packages/coin-protocols/tests/zip32-sapling.test.ts`, `zcash-unified.test.ts`) use the published vectors of `zcash/zcash-test-vectors` at commit `78321beacb0e0477e33cd002b56585a107c2708c`; five of its files are kept byte for byte in `test/fixtures/zcash-test-vectors/`. They are test data only and are part of no artifact. Copyright (c) 2018-2021 The Electric Coin Company, under the MIT license or the Apache License 2.0; used here under the MIT license (MIT notices above).
+The unit tests of Zcash's Sapling keys, rows and unified encodings (`packages/coin-protocols/tests/zip32-sapling.test.ts`, `zcash-sapling.test.ts`, `zcash-unified.test.ts`) use the published vectors of `zcash/zcash-test-vectors` at commit `78321beacb0e0477e33cd002b56585a107c2708c`; eight of its files are kept byte for byte in `test/fixtures/zcash-test-vectors/`. The Zcash self-tests of the Key Derivation Tool include values copied from those files: the startup self-test of every build with Zcash (`packages/verification/src/derivation-self-test-zcash.ts`) and the full self-test (`apps/key-derivation/src/workers/zcash-sapling-key-self-test.ts`), so these values are part of those artifacts. Copyright (c) 2018-2021 The Electric Coin Company, under the MIT license or the Apache License 2.0; used here under the MIT license (MIT notices above).
+
+The Sapling unit tests and the full self-test also include values that the tests of two Zcash wallet SDKs give: the unified full viewing key and the zxviews key of the test seed of `zcash/zcash-swift-wallet-sdk` (commit `01eb750bae6b108f134a4d56d6ccfafd45bad967`), and the unified address of the test phrase of `zcash/zcash-android-wallet-sdk` (commit `1aaf2c4cca83a8a64cf3b8ccb714437e0155b4c8`). Both are MIT licensed (MIT notices above).
 
 ## MnemoCode
 

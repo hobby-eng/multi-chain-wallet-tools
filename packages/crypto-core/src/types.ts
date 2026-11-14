@@ -27,6 +27,11 @@ export interface DerivedRow {
   index: number;
   path: string;
   title: string;
+  /**
+   * Why the row has no value to show, shown in the place of its values: an index that has no
+   * address (a Zcash Sapling diversifier index). Such a row has no basic fields.
+   */
+  note?: string;
   basic: ResultField[];
   advanced: ResultField[];
   /** Related fields rendered together while the row remains the selection/export unit. */
@@ -94,6 +99,57 @@ export function field(
   return description === undefined
     ? { key, label, value, secret }
     : { key, label, value, secret, description };
+}
+
+/**
+ * The columns of a table of rows whose fields are `lists`: every key once, standing for the first
+ * entry seen with it, in the order that the rows give their fields. A row that lacks some of its
+ * coin's fields, such as a Zcash Sapling index without an address, moves no column, whichever row
+ * comes first; keys that no row orders come in the order they were first seen.
+ */
+export function fieldColumns<Entry>(
+  lists: Iterable<readonly Entry[]>,
+  keyOf: (entry: Entry) => string,
+): Entry[] {
+  const first = new Map<string, Entry>();
+  const successors = new Map<string, Set<string>>();
+  // Rows of one coin repeat a few sequences of keys; each sequence is read once.
+  const sequences = new Set<string>();
+  for (const list of lists) {
+    const keys: string[] = [];
+    for (const entry of list) {
+      const key = keyOf(entry);
+      if (keys.includes(key)) continue;
+      keys.push(key);
+      if (!first.has(key)) first.set(key, entry);
+    }
+    const sequence = keys.join("\n");
+    if (sequences.has(sequence)) continue;
+    sequences.add(sequence);
+    keys.forEach((key, at) => {
+      const next = keys[at + 1];
+      if (next !== undefined) successors.set(key, (successors.get(key) ?? new Set()).add(next));
+    });
+  }
+  return orderedColumns(first, successors);
+}
+
+/** The entries of `first` with each key after every key that a row puts before it. */
+function orderedColumns<Entry>(
+  first: ReadonlyMap<string, Entry>,
+  successors: ReadonlyMap<string, ReadonlySet<string>>,
+): Entry[] {
+  const remaining = [...first];
+  const columns: Entry[] = [];
+  while (remaining.length > 0) {
+    // The first-seen key that no remaining key precedes; rows that disagree on an order leave
+    // none, and then the first-seen remaining key goes next.
+    const free = remaining.findIndex(
+      ([key]) => !remaining.some(([other]) => successors.get(other)?.has(key) === true),
+    );
+    for (const [, entry] of remaining.splice(Math.max(free, 0), 1)) columns.push(entry);
+  }
+  return columns;
 }
 
 /**

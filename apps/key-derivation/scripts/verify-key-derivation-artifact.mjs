@@ -324,6 +324,8 @@ if (profile.id === "multi-chain")
     "DBus3bamQjgJULBJtYXpEzDWQRwF5iwxgC",
     "bitcoincash:qqyx49mu0kkn9ftfj6hje6g2wfer34yfnq5tahq3q6",
     "t1XVXWCvpMgBvUaed4XDqWtgQgJSu1Ghz7F",
+    // Zcash Sapling's: the first address of the phrase (an own value of zcash_sapling_oracle.py).
+    "zs188wzupg00tqs3y5reyjc758c6vhl8qm2kg4k43mcp533ytrdkwpy8xjdk3zqtek0ng0cv7f0nta",
     "rHsMGQEkVNJmpGWs8XUBoTBiAAbwxZN5v3",
     "TUEZSdKsoDHQMeZwihtdoBiN46zxhGWYdH",
     "0xFA22515E43658ce56A7682B801e9B5456f511420",

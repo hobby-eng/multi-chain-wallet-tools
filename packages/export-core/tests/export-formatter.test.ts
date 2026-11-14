@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { mnemonicToSeed } from "@ckd/core/bip39.js";
 import { getCoinAdapter } from "@ckd/coins/registry.js";
+import { zcashDerivation } from "@ckd/coins/zcash/index.js";
 import type { DerivationResult } from "@ckd/core/types.js";
 import { field } from "@ckd/core/types.js";
 import {
@@ -31,10 +33,9 @@ const result: DerivationResult = {
     ],
   })),
 };
+const adapter = getCoinAdapter("bitcoin-taproot");
 
 describe("generic export formatter", () => {
-  const adapter = getCoinAdapter("bitcoin-taproot");
-
   it("limits basic mode to basic fields and reports secret presence", () => {
     const output = formatSelectedRows(
       adapter,
@@ -127,7 +128,9 @@ describe("generic export formatter", () => {
     expect(displayedFields(result.rows[0]!, "basic")).toHaveLength(2);
     expect(displayedFields(result.rows[0]!, "advanced")).toHaveLength(4);
   });
+});
 
+describe("generic export formatter of grouped fields and chunks", () => {
   it("flattens grouped key fields while retaining their group labels in structured exports", () => {
     const grouped: DerivationResult = {
       id: "dash-identity",
@@ -218,5 +221,95 @@ describe("generic export formatter", () => {
       valueCount: 8,
       rowCount: 2,
     });
+  });
+});
+
+describe("the TSV export of Zcash Sapling rows, some without an address", () => {
+  const saplingAdapter = getCoinAdapter("zcash-sapling");
+  // "abandon … about", account 0: index 2 has no Sapling address (zcash-sapling.test.ts).
+  const seed = mnemonicToSeed(
+    "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+    "",
+  );
+  const derive = zcashDerivation("zcash-sapling");
+
+  /** The TSV lines of every row from `start`, in `mode`. */
+  function tsv(start: number, mode: "basic" | "advanced", action: "allDisplayed" | "addresses") {
+    if (derive === undefined) throw new Error("Zcash's Sapling variant is not derived.");
+    const rows = derive({
+      seed: seed.slice(),
+      network: "mainnet",
+      account: 0,
+      branch: 0,
+      start,
+      count: 2,
+    });
+    const all = new Set(rows.rows.map(({ index }) => index));
+    return formatSelectedRows(saplingAdapter, rows, all, mode, action, "tsv").text.split("\n");
+  }
+
+  it.each(["basic", "advanced"] as const)(
+    "has the same header in %s mode when the first row has no address, each column once",
+    (mode) => {
+      const [fromTwo, fromZero] = [
+        tsv(2, mode, "allDisplayed")[0],
+        tsv(0, mode, "allDisplayed")[0],
+      ];
+      expect(fromTwo).toBe(fromZero);
+      const labels = fromTwo?.split("\t") ?? [];
+      expect(new Set(labels).size).toBe(labels.length);
+    },
+  );
+
+  it("writes the address of the row after one without an address under the address columns", () => {
+    const lines = tsv(2, "basic", "allDisplayed");
+    expect(lines[0]).toBe("Index\tPath\tSapling address\tUnified address (Sapling only)");
+    // A row without an address has no value in Basic mode, so it is not exported.
+    expect(lines).toHaveLength(2);
+    expect(lines[1]?.split("\t").slice(0, 3)).toEqual([
+      "3",
+      "m/32'/133'/0' · diversifier index 3",
+      "zs1c2wlrsejawrdxcmz4sn84ms5myyhs59ez9dpjfjh5rf674hkpwfqgj8qy95q6euj6p82w33psvr",
+    ]);
+  });
+
+  it("keeps each Advanced column on its own field, with an empty address cell for an index without one", () => {
+    const [header, none, first] = tsv(2, "advanced", "allDisplayed");
+    expect(header?.split("\t")).toEqual([
+      "Index",
+      "Path",
+      "Sapling address",
+      "Unified address (Sapling only)",
+      "Derivation path",
+      "Unified address (Sapling and transparent)",
+      "Its transparent receiver (t1, m/44'/133'/0'/0/j)",
+      "Diversifier index j",
+      "Diversifier d (hex)",
+    ]);
+    expect(none?.split("\t")).toEqual([
+      "2",
+      "m/32'/133'/0' · diversifier index 2",
+      "",
+      "",
+      "m/32'/133'/0' · diversifier index 2",
+      "",
+      "",
+      "2",
+      "",
+    ]);
+    expect(first?.split("\t")[6]).toBe("t1M4FWL2VYmWy5qEuPUHrhEEcxsdkZ79xYn");
+  });
+
+  it("exports one address kind per column in the addresses TSV", () => {
+    const [header, ...rows] = tsv(2, "advanced", "addresses");
+    expect(header?.split("\t")).toEqual([
+      "Index",
+      "Path",
+      "Sapling address",
+      "Unified address (Sapling only)",
+      "Unified address (Sapling and transparent)",
+      "Its transparent receiver (t1, m/44'/133'/0'/0/j)",
+    ]);
+    expect(rows.map((row) => row.split("\t")[0])).toEqual(["3"]);
   });
 });
