@@ -1777,6 +1777,14 @@ details[open] summary::before {
 .table-empty {
   color: #687483;
 }
+/* A row's note in place of its values (an index without an address), in the table's text size. */
+.row-note {
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+.address-body > .row-note {
+  padding: 12px 0;
+}
 .address-search {
   margin-top: 22px;
   padding-top: 20px;

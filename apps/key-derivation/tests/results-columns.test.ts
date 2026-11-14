@@ -67,6 +67,7 @@ function render(
   result: DerivationResult,
   mode: "basic" | "advanced",
   encryptedBip38: ReadonlyMap<number, string> = new Map(),
+  window = { start: 0, size: 50 },
 ): RecoveryTestElement {
   const page = new PassiveQrPage();
   Object.assign(page, {
@@ -82,8 +83,8 @@ function render(
     mode,
     selected: new Set(),
     secretsRevealed: false,
-    windowStart: 0,
-    windowSize: 50,
+    windowStart: window.start,
+    windowSize: window.size,
     canSignMessage: () => false,
     encryptedBip38,
     onSignMessage() {},
@@ -193,6 +194,24 @@ describe("the Basic results table", () => {
     expect(cells(fromTwo)[1]?.[0]?.text).toBe(
       "zs1c2wlrsejawrdxcmz4sn84ms5myyhs59ez9dpjfjh5rf674hkpwfqgj8qy95q6euj6p82w33psvr",
     );
+  });
+});
+
+describe("the Basic results table's pages", () => {
+  const rows = [addressRow(0), addressRow(1), noteRow(2), noteRow(3)];
+
+  it("keep every page's columns when a page holds only rows without an address", () => {
+    const first = render(synthetic(rows), "basic", new Map(), { start: 0, size: 2 });
+    const second = render(synthetic(rows), "basic", new Map(), { start: 2, size: 2 });
+    expect(headers(second)).toEqual(headers(first));
+    expect(headers(second)).toEqual(["Use", "Path", "Address", "Other form"]);
+    expect(cells(second)).toEqual([[{ text: NOTE, span: 2 }], [{ text: NOTE, span: 2 }]]);
+  });
+
+  it("head the notes when no row has a value to show", () => {
+    const list = render(synthetic([noteRow(2), noteRow(3)]), "basic");
+    expect(headers(list)).toEqual(["Use", "Path", "Note"]);
+    expect(cells(list)).toEqual([[{ text: NOTE, span: 1 }], [{ text: NOTE, span: 1 }]]);
   });
 });
 

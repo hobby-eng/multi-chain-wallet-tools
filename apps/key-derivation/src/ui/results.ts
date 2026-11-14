@@ -10,6 +10,9 @@ import { createPaymentQrAction, paymentQrPayload } from "@ckd/ui/payment-qr.js";
 import { ResultWindow } from "@ckd/ui/result-window.js";
 import { RenderedSecrets } from "./secrets.js";
 
+/** The heading of the Basic table's one column when every row shows a note instead of values. */
+const NOTE_HEADING = "Note";
+
 /** Display facts and owner-bound callbacks borrowed for one rendered result. */
 export interface ResultsRenderOptions {
   mode: DisplayMode;
@@ -558,6 +561,10 @@ export class ResultRendering {
           );
         }
       }
+      // Rows that all show a note in place of their values, such as Sapling indexes without an
+      // address, still get a heading over the notes.
+      if (columns.length === 0 && renderedRows.some(({ note }) => note !== undefined))
+        headerRow.append(ResultRendering.#element("th", undefined, NOTE_HEADING));
       head.append(headerRow);
       const body = ResultRendering.#element("tbody");
       const fieldKeys = columns.map(({ key }) => key);

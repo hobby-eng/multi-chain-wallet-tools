@@ -16,6 +16,7 @@ import { CopyFeedbackCase } from "./browser-cases/copy-feedback.mjs";
 import { Bip85ManualStartCase } from "./browser-cases/bip85-manual-start.mjs";
 import { SingleKeyCoinsCase } from "./browser-cases/single-key-coins.mjs";
 import { CardanoCase } from "./browser-cases/cardano.mjs";
+import { ZcashSaplingCase } from "./browser-cases/zcash-sapling.mjs";
 import { WalletMatcherCase } from "./browser-cases/wallet-matcher.mjs";
 import { MessageSigningCoinsCase } from "./browser-cases/message-signing-coins.mjs";
 import { EvmNetworkCandidatesCase } from "./browser-cases/evm-network-candidates.mjs";
@@ -179,6 +180,18 @@ for (const browserName of (process.env.BROWSER_ENGINES ?? "chromium,firefox").sp
           const page = await open(context, profile, "key-derivation", run);
           run.checks.push(
             await (profile.id === "multi-chain" ? CardanoCase.run(page) : CardanoCase.absent(page)),
+          );
+        },
+      });
+      // Zcash's Sapling tab in the Multi-Chain Edition; Dash Community has none of it.
+      cases.push({
+        name: "zcash-sapling",
+        execute: async (context, run) => {
+          const page = await open(context, profile, "key-derivation", run);
+          run.checks.push(
+            await (profile.id === "multi-chain"
+              ? ZcashSaplingCase.run(page)
+              : ZcashSaplingCase.absent(page)),
           );
         },
       });

@@ -118,7 +118,7 @@ const DERIVATION_TYPE_COPY = {
   },
   zcash: {
     name: "Zcash",
-    text: "Transparent BIP44 gives the public t1… addresses; shielded addresses are not derived here.",
+    text: "Transparent BIP44 gives the public t1… addresses; Shielded Sapling ZIP-32 gives a row for each diversifier index j of the account m/32'/133'/a': its zs1… address where j has one, also as a unified address (u1…) of that receiver alone. Orchard is not derived.",
   },
   xrp: {
     name: "XRP",

@@ -47,12 +47,16 @@ const NO_ADDRESS_NOTE =
 const EXTERNAL_BRANCH = 0;
 
 const NOTICES = Object.freeze([
-  "Zashi, Zingo, YWallet and zcashd add an Orchard receiver to their unified addresses, which is not derived here, so their unified address texts differ from these. The Sapling receiver inside them is a row's zs1 address, which pays the same keys.",
-  "About half of the diversifier indexes have no Sapling address. Wallets skip them; here their rows say so, so that a row's number is always its index j.",
-  "The unified address with a transparent receiver (Advanced mode) holds the transparent address of the same index j, m/44'/133'/account'/0/j. Where index 0 has no Sapling address, that receiver is not the Transparent tab's address #0.",
+  "zcashd and YWallet add an Orchard receiver to their unified addresses, so their texts differ from these. Where a wallet's unified address holds a Sapling receiver, it is the row's zs1 address at the same index. A unified address with only an Orchard receiver, as Zingo shows by default, has no counterpart here.",
+  "About half of the diversifier indexes have no Sapling address. Wallets skip them; here each has a row that says so, so that a row's number is always its index j. Every export leaves such a row out, except that in Advanced mode Copy selected, Copy all displayed fields and Save selected give its path and index.",
+  "The unified address with a transparent receiver (Advanced mode) holds the Transparent tab's address #j, m/44'/133'/account'/0/j. Sapling addresses sign no messages: ZIP 304, Zcash's Sapling address signatures, is a Draft that this page does not offer.",
   "ZIP-32 asks for a seed of at least 256 bits of entropy, as a 24-word phrase has; a phrase of fewer words derives these keys too, below that strength.",
-  "The viewing keys show every incoming (UIVK) or every incoming and outgoing (UFVK, zxviews) payment of the account's shielded addresses, so they are hidden like the spending key. Neither the Sapling addresses nor their keys sign messages: Zcash's message signing has no shielded standard.",
 ]);
+
+/** Why a viewing key is hidden like the spending key: the payments it shows. */
+function viewingKeyDescription(payments: "incoming" | "incoming and outgoing"): string {
+  return `It shows every ${payments} payment of the account's shielded addresses, so it is hidden like the spending key.`;
+}
 
 /** The Bech32 text of `bytes` under `hrp`, without BIP-173's 90-character limit (ZIP-173). */
 function bech32Text(hrp: string, bytes: Uint8Array): string {
@@ -181,6 +185,7 @@ function summaryOf(
         "Unified full viewing key (Sapling and transparent)",
         fullViewingKey,
         true,
+        viewingKeyDescription("incoming and outgoing"),
       ),
     ],
     summary: [
@@ -189,8 +194,15 @@ function summaryOf(
         "Sapling extended full viewing key (zxviews)",
         written(key.extendedFullViewingKey(), (bytes) => bech32Text(HRP.fullViewingKey, bytes)),
         true,
+        viewingKeyDescription("incoming and outgoing"),
       ),
-      field("unifiedIncomingViewingKey", "Unified incoming viewing key", incomingViewingKey, true),
+      field(
+        "unifiedIncomingViewingKey",
+        "Unified incoming viewing key",
+        incomingViewingKey,
+        true,
+        viewingKeyDescription("incoming"),
+      ),
       field(
         "saplingSpendingKey",
         "Sapling extended spending key (secret-extended-key-main)",

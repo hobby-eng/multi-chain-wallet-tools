@@ -29,6 +29,13 @@ describe("Dash Community artifact exclusion rules", () => {
     expect(findDashArtifactViolations("ZcashIP32Sapling · Shielded Sapling · zxviews1q")).toEqual(
       expect.arrayContaining(["Zcash Sapling"]),
     );
+    // The tab's texts and its addresses, each on its own.
+    for (const text of [
+      "No Sapling address at this index",
+      "zs188wzupg00tqs3y5reyjc758c6vhl8qm2kg4k43mcp533ytrdkwpy8xjdk3zqtek0ng0cv7f0nta",
+      "secret-extended-key-main1q",
+    ])
+      expect([text, findDashArtifactViolations(text)]).toEqual([text, ["Zcash Sapling"]]);
     // Dash's Orchard notes name Zcash's protocol, which is not the transparent adapter.
     expect(findDashArtifactViolations("Orchard, the shielded pool Zcash designed")).toEqual([]);
   });
