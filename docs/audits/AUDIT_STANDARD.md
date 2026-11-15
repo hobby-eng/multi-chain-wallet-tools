@@ -12,6 +12,18 @@ The report identifier is `AUD-018` for audit 18. Use at least three digits in re
 
 A fresh review of a different snapshot receives a new audit number. Updating remediation evidence in an existing report does not change its number, original review date, or reviewed snapshot; record the update date and verification commit separately.
 
+## Audit index template
+
+Keep one chronological table in `docs/audits/README.md`. Add a row when a report is filed, including a follow-up on an older finding. Use the report number to order reviews completed on the same date. Each row links to the Markdown and JSON pair and names the reviewed source. Give one or two concrete results: what could go wrong, what was fixed, or what a check actually demonstrated. If every report has the same UTC date, put it above the table; otherwise include a Date (UTC) column.
+
+| Report | Source reviewed | What the review found or verified |
+| --- | --- | --- |
+| AUD-NNN · JSON | Reviewed commit, or base and working-tree state | Affected operation and consequence, or the specific fix and how it was verified. |
+
+Keep individual finding IDs, fix commits and verification evidence in the [remediation table](#remediation-status). Place it below the catalogue when short or link to a separate register when long. The report and its JSON keep their original verdicts. When later evidence changes a finding's disposition, update the register and link the subsequent report, test or native CI job. Use `✅ verified` only with evidence for the recorded revision and scope. Keep `fixed` for an implemented change awaiting verification. For an accepted limitation, link the decision and state what remains possible. If a revision was never recorded, say so. A general passing CI run does not establish a specific regression.
+
+Before handing off an index, compare its rows with the report pairs on disk, resolve their links, and trace changed dispositions to the cited evidence. When several reports describe the same defect, retain each report in the catalogue and cross-reference the finding IDs in the register.
+
 ## Finding identifiers
 
 Every finding uses an immutable identifier with a category, such as `AUD-018-DOC001`, `AUD-018-SEC001`, or `AUD-018-API001`. Number findings independently within each category in their initial presentation order, using at least three digits. Do not encode severity, tool, remediation status, or priority in the ID. Do not reuse deleted or withdrawn IDs or renumber findings after publication. Use the same full ID in headings, summaries, JSON, fix tables, tests, and follow-up references.
