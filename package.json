@@ -95,7 +95,7 @@
     "dashkeys": "1.1.5",
     "esbuild": "0.28.2",
     "ethers": "6.17.0",
-    "oxlint": "1.92.0",
+    "oxlint": "1.93.0",
     "oxlint-tsgolint": "7.0.2006",
     "pdf-lib": "1.17.1",
     "playwright": "1.65.0",
