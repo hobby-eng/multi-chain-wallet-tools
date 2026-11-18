@@ -99,7 +99,7 @@
     "oxlint-tsgolint": "7.0.2006",
     "pdf-lib": "1.17.1",
     "playwright": "1.65.0",
-    "prettier": "3.9.10",
+    "prettier": "3.10.1",
     "typescript": "7.0.2",
     "vitest": "5.1.0"
   }
