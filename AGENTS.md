@@ -12,4 +12,8 @@ This repository is part of the `bip_tools` workspace. If a workspace `AGENTS.md`
 
 ## Documents
 
-`README.md`, `RELEASING.md`, `SECURITY_AUDIT.md`, `docs/VERIFICATION.md`, `docs/BROWSER_ACCEPTANCE.md`, `docs/ARCHITECTURE.md`, `docs/BUILD_MODULES.md`, `docs/FULL_AUDIT_GUIDE.md`, `docs/audits/`. Coin and feature vocabulary: `tooling/tool-manifests.mjs`.
+`README.md`, `RELEASING.md`, `SECURITY_AUDIT.md`, `docs/VERIFICATION.md`, `docs/BROWSER_ACCEPTANCE.md`, `docs/ARCHITECTURE.md`, `docs/BUILD_MODULES.md`, `docs/audits/`. Coin and feature vocabulary: `tooling/tool-manifests.mjs`.
+
+## Audits
+
+An audit, a review of findings or a remediation follow-up of this repository follows the workspace's audit procedure in `../.github/audits/`: `FULL_AUDIT_GUIDE_V2.md` (the checks and their order; section 17 for Rust crates, here the launcher and the WASM crates, and every target they are built for), `AUDIT_STANDARD.md`, `AUDIT_TEMPLATE.md` and `audit-report.schema.json`. Section 17 asks for `docs/audits/TARGETS.md` with the targets, their runners and the fuzzing budgets; until this repository has one, the audit derives the targets as section 17.3 says and records the missing file. This repository's `docs/FULL_AUDIT_GUIDE.md`, and the standard, template and schema in `docs/`, are version 1, kept for the reports that recorded their hashes. Reports, their JSON twins and their harnesses stay in this repository's `docs/audits/`.
