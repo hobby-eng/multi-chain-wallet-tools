@@ -82,7 +82,7 @@
     "@scure/bip32": "2.4.0",
     "@scure/bip39": "2.4.0",
     "@scure/btc-signer": "2.4.1",
-    "btcutil-js": "0.4.2",
+    "btcutil-js": "0.5.0",
     "fflate": "0.8.3",
     "qr": "0.7.2",
     "uqr": "0.1.3",
